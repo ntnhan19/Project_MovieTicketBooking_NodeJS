@@ -1,6 +1,7 @@
 import React from "react";
 import { Menu, Button, Dropdown } from "antd";
 import { Link } from "react-router-dom";
+import { UserOutlined } from "@ant-design/icons";
 
 const movieMenu = (
   <Menu>
@@ -9,6 +10,17 @@ const movieMenu = (
     </Menu.Item>
     <Menu.Item key="coming-soon">
       <Link to="/movies/coming-soon">Phim Sắp Chiếu</Link>
+    </Menu.Item>
+  </Menu>
+);
+
+const profileMenu = (
+  <Menu>
+    <Menu.Item key="profile">
+      <Link to="/profile">Tài Khoản</Link>
+    </Menu.Item>
+    <Menu.Item key="logout">
+      <Link to="/logout">Đăng Xuất</Link>
     </Menu.Item>
   </Menu>
 );
@@ -24,28 +36,40 @@ const Header = () => {
         alignItems: "center",
       }}
     >
+      {/* Logo */}
       <Link
         to="/"
-        style={{ color: "white", fontSize: "20px", fontWeight: "bold" }}
+        style={{
+          color: "white",
+          fontSize: "22px",
+          fontWeight: "bold",
+          fontFamily: "Pacifico",
+        }}
       >
         DHL CINEMA
       </Link>
 
+      {/* Menu chính */}
       <Menu
         mode="horizontal"
         theme="dark"
-        style={{ flex: 1, justifyContent: "center" }}
+        style={{
+          flex: 1,
+          display: "flex",
+          justifyContent: "center",
+          gap: "50px",
+          background: "transparent",
+          borderBottom: "none",
+        }}
       >
         <Menu.Item key="home">
           <Link to="/">Trang Chủ</Link>
         </Menu.Item>
-
         <Menu.Item key="movies">
           <Dropdown overlay={movieMenu}>
             <Link to="/movies">Phim</Link>
           </Dropdown>
         </Menu.Item>
-
         <Menu.Item key="bookings">
           <Link to="/bookings">Đặt Vé</Link>
         </Menu.Item>
@@ -54,16 +78,12 @@ const Header = () => {
         </Menu.Item>
       </Menu>
 
-      <div>
-        <Link to="/login">
-          <Button type="primary" style={{ marginRight: "10px" }}>
-            Đăng Nhập
-          </Button>
-        </Link>
-        <Link to="/register">
-          <Button>Đăng Ký</Button>
-        </Link>
-      </div>
+      {/* Nút Hồ Sơ */}
+      <Dropdown overlay={profileMenu}>
+        <Button icon={<UserOutlined />} type="primary">
+          Hồ Sơ
+        </Button>
+      </Dropdown>
     </div>
   );
 };
