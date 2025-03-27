@@ -36,7 +36,6 @@ const Header = () => {
         alignItems: "center",
       }}
     >
-      {/* Logo */}
       <Link
         to="/"
         style={{
@@ -49,7 +48,6 @@ const Header = () => {
         DHL CINEMA
       </Link>
 
-      {/* Menu chính */}
       <Menu
         mode="horizontal"
         theme="dark"
@@ -78,11 +76,8 @@ const Header = () => {
         </Menu.Item>
       </Menu>
 
-      {/* Nút Hồ Sơ */}
       <Dropdown overlay={profileMenu}>
-        <Button icon={<UserOutlined />} type="primary">
-          Hồ Sơ
-        </Button>
+        <Button icon={<UserOutlined />} type="primary"></Button>
       </Dropdown>
     </div>
   );

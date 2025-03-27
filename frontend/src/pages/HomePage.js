@@ -4,6 +4,7 @@ import Banner from "../components/Banner";
 import BookingOptions from "../components/BookingOptions";
 import MovieList from "../components/MovieList"; // IMPORT COMPONENT
 import AppFooter from "../components/AppFooter";
+
 const { TabPane } = Tabs;
 
 const HomePage = () => {
@@ -22,6 +23,7 @@ const HomePage = () => {
           <MovieList category="comingSoon" />
         </TabPane>
       </Tabs>
+
       <Divider style={{ backgroundColor: "#ccc", height: "2px" }} />
       <AppFooter />
     </div>

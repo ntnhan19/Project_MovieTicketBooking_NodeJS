@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Card, Row, Col, Modal, Tag } from "antd";
 import { PlayCircleOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { Link } from "react-router-dom";
 
 const movies = [
   {
@@ -40,7 +41,7 @@ const movies = [
     genre: "Cartoon - 2D",
     rating: "P",
     description:
-      "Trước bối cảnh hậu tận thế, chú mèo xám nhút nhát, vốn luôn sợ nước phải rời bỏ vùng an toàn khi căn nhà thân yêu bị cuốn trôi bởi cơn lũ dữ. Trên hành trình vượt đại dương mênh mông, chú mèo cùng những người bạn đồng hành (Capybara, chó Labrador Retriever, Vượn Cáo, chim Thư ký) phải học cách vượt qua nỗi sợ và chấp nhận những điểm khác biệt để cùng nhau tồn tại.",
+      "Trước bối cảnh hậu tận thế, chú mèo xám nhút nhát, vốn luôn sợ nước phải rời bỏ vùng an toàn khi căn nhà thân yêu bị cuốn trôi bởi cơn lũ dữ...",
   },
   {
     id: 4,
@@ -49,11 +50,11 @@ const movies = [
     releaseDate: "14/03/2025",
     runtime: " 1 giờ 47 phút",
     director: "Choi Won-sub",
-    cast: "Rachel Zegler, Gal GadotKwon Sang-woo, Jung Joon-ho, Lee Yi-kyung, Hwang Woo-seul-hye, Kim Sung-oh, Lee Ji-won",
+    cast: "Rachel Zegler, Gal Gadot, Kwon Sang-woo...",
     genre: "Comedy, Action - 2D Dub",
     rating: "T16",
     description:
-      "Câu chuyện tiếp nối về cuộc đời làm hoạ sĩ webtoon Jun, người nổi tiếng trong thời gian ngắn với tư cách là tác giả của webtoon Đặc vụ ám sát Jun, nhanh chóng mang danh là nhà văn thiếu não, sau khi Phần 2 bị chỉ trích thảm hại, nhưng mọi thứ thay đổi khi một cuộc tấn công khủng bố ngoài đời thực giống hệt với phần 2 anh vừa xuất bản, khiến Jun bị NIS buộc tội sai là kẻ chủ mưu đằng sau tội ác.",
+      "Câu chuyện tiếp nối về cuộc đời làm hoạ sĩ webtoon Jun, người nổi tiếng trong thời gian ngắn với tư cách là tác giả của webtoon Đặc vụ ám sát Jun...",
   },
 ];
 
@@ -75,30 +76,38 @@ const MovieList = () => {
       <Row gutter={[16, 16]} justify="center">
         {movies.map((movie) => (
           <Col key={movie.id} xs={24} sm={12} md={8} lg={6}>
-            <Card
-              hoverable
-              cover={
-                <img
-                  alt={movie.title}
-                  src={movie.image}
-                  style={{ height: "500px", objectFit: "cover" }}
-                />
-              }
-              actions={[
-                <PlayCircleOutlined
-                  key="play"
-                  onClick={() => showModal(movie)}
-                  style={{ fontSize: "24px" }}
-                />,
-                <InfoCircleOutlined
-                  key="info"
-                  onClick={() => showModal(movie)}
-                  style={{ fontSize: "24px" }}
-                />,
-              ]}
-            >
-              <Card.Meta title={movie.title} />
-            </Card>
+            <Link to={`/movies/${movie.id}`} style={{ textDecoration: "none" }}>
+              <Card
+                hoverable
+                cover={
+                  <img
+                    alt={movie.title}
+                    src={movie.image}
+                    style={{ height: "500px", objectFit: "cover" }}
+                  />
+                }
+                actions={[
+                  <PlayCircleOutlined
+                    key="play"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      showModal(movie);
+                    }}
+                    style={{ fontSize: "24px" }}
+                  />,
+                  <InfoCircleOutlined
+                    key="info"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      showModal(movie);
+                    }}
+                    style={{ fontSize: "24px" }}
+                  />,
+                ]}
+              >
+                <Card.Meta title={movie.title} />
+              </Card>
+            </Link>
           </Col>
         ))}
       </Row>
