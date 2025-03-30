@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Menu, Button, Dropdown } from "antd";
 import { Link } from "react-router-dom";
 import { UserOutlined } from "@ant-design/icons";
@@ -26,60 +26,96 @@ const profileMenu = (
 );
 
 const Header = () => {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <div
-      style={{
-        background: "#001529",
-        padding: "10px 50px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}
-    >
-      <Link
-        to="/"
+    <>
+      {/* Header cố định trên cùng */}
+      <div
         style={{
-          color: "white",
-          fontSize: "22px",
-          fontWeight: "bold",
-          fontFamily: "Pacifico",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+          background: isScrolled ? "rgba(0, 21, 41, 0.9)" : "#001529",
+          boxShadow: isScrolled ? "0px 4px 10px rgba(0, 0, 0, 0.3)" : "none",
+          transition: "all 0.3s ease-in-out",
+          backdropFilter: isScrolled ? "blur(10px)" : "none",
         }}
       >
-        DHL CINEMA
-      </Link>
+        {/* Container với max-width 960px */}
+        <div
+          style={{
+            maxWidth: "960px", // Giới hạn chiều rộng
+            margin: "0 auto", // Căn giữa
+            padding: isScrolled ? "5px 20px" : "15px 20px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          {/* Logo */}
+          <Link
+            to="/"
+            style={{
+              color: "white",
+              fontSize: isScrolled ? "20px" : "22px",
+              fontWeight: "bold",
+              fontFamily: "Pacifico",
+              transition: "font-size 0.3s ease-in-out",
+            }}
+          >
+            DHL CINEMA
+          </Link>
 
-      <Menu
-        mode="horizontal"
-        theme="dark"
-        style={{
-          flex: 1,
-          display: "flex",
-          justifyContent: "center",
-          gap: "50px",
-          background: "transparent",
-          borderBottom: "none",
-        }}
-      >
-        <Menu.Item key="home">
-          <Link to="/">Trang Chủ</Link>
-        </Menu.Item>
-        <Menu.Item key="movies">
-          <Dropdown overlay={movieMenu}>
-            <Link to="/movies">Phim</Link>
+          {/* Menu chính */}
+          <Menu
+            mode="horizontal"
+            theme="dark"
+            style={{
+              flex: 1,
+              display: "flex",
+              justifyContent: "center",
+              background: "transparent",
+              borderBottom: "none",
+            }}
+          >
+            <Menu.Item key="home">
+              <Link to="/">Trang Chủ</Link>
+            </Menu.Item>
+            <Menu.Item key="movies">
+              <Dropdown overlay={movieMenu}>
+                <Link to="/movies">Phim</Link>
+              </Dropdown>
+            </Menu.Item>
+            <Menu.Item key="bookings">
+              <Link to="/bookings">Đặt Vé</Link>
+            </Menu.Item>
+            <Menu.Item key="profile">
+              <Link to="/profile">Tài Khoản</Link>
+            </Menu.Item>
+          </Menu>
+
+          {/* Nút tài khoản */}
+          <Dropdown overlay={profileMenu}>
+            <Button icon={<UserOutlined />} type="primary" />
           </Dropdown>
-        </Menu.Item>
-        <Menu.Item key="bookings">
-          <Link to="/bookings">Đặt Vé</Link>
-        </Menu.Item>
-        <Menu.Item key="profile">
-          <Link to="/profile">Tài Khoản</Link>
-        </Menu.Item>
-      </Menu>
+        </div>
+      </div>
 
-      <Dropdown overlay={profileMenu}>
-        <Button icon={<UserOutlined />} type="primary"></Button>
-      </Dropdown>
-    </div>
+      {/* Đệm khoảng trống tránh che mất nội dung */}
+      <div style={{ height: "70px" }}></div>
+    </>
   );
 };
 

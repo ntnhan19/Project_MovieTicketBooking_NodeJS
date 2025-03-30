@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { Card, Row, Col, Modal, Tag } from "antd";
-import { PlayCircleOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { Row, Col } from "antd";
 import { Link } from "react-router-dom";
+import MovieCard from "./MovieCard";
+import MovieModal from "./MovieModal";
+import "../index.css";
 
 const movies = [
   {
@@ -28,7 +30,7 @@ const movies = [
     genre: "Horror - 2D",
     rating: "T18",
     description:
-      "Lấy cảm hứng từ truyền thuyết kinh dị nhất về “người chết sống dậy”, Quỷ Nhập Tràng là câu chuyện được lấy bối cảnh tại một ngôi làng chuyên nghề mai táng, gắn liền với những hoạt động đào mộ, tẩm liệm và chôn cất người chết.",
+      "Lấy cảm hứng từ truyền thuyết kinh dị nhất về “người chết sống dậy”...",
   },
   {
     id: 3,
@@ -72,116 +74,22 @@ const MovieList = () => {
   };
 
   return (
-    <div className="p-10">
+    <div className="movie-list-container">
       <Row gutter={[16, 16]} justify="center">
         {movies.map((movie) => (
-          <Col key={movie.id} xs={24} sm={12} md={8} lg={6}>
+          <Col key={movie.id} xs={12} sm={8} md={6} lg={6}>
             <Link to={`/movies/${movie.id}`} style={{ textDecoration: "none" }}>
-              <Card
-                hoverable
-                cover={
-                  <img
-                    alt={movie.title}
-                    src={movie.image}
-                    style={{ height: "500px", objectFit: "cover" }}
-                  />
-                }
-                actions={[
-                  <PlayCircleOutlined
-                    key="play"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      showModal(movie);
-                    }}
-                    style={{ fontSize: "24px" }}
-                  />,
-                  <InfoCircleOutlined
-                    key="info"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      showModal(movie);
-                    }}
-                    style={{ fontSize: "24px" }}
-                  />,
-                ]}
-              >
-                <Card.Meta title={movie.title} />
-              </Card>
+              <MovieCard movie={movie} showModal={showModal} />
             </Link>
           </Col>
         ))}
       </Row>
 
-      <Modal
-        open={isModalVisible}
-        onCancel={handleCancel}
-        footer={null}
-        width={850}
-        centered
-      >
-        {selectedMovie && (
-          <div style={{ display: "flex", gap: "20px", textAlign: "left" }}>
-            {/* Poster bên trái */}
-            <img
-              src={selectedMovie.image}
-              alt={selectedMovie.title}
-              style={{
-                width: "250px",
-                height: "350px",
-                objectFit: "cover",
-                borderRadius: "10px",
-              }}
-            />
-            {/* Thông tin phim bên phải */}
-            <div style={{ flex: 1 }}>
-              {/* Tiêu đề + tag độ tuổi */}
-              <h2
-                style={{
-                  fontSize: "28px",
-                  fontWeight: "bold",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                }}
-              >
-                {selectedMovie.title}
-                <Tag
-                  color="yellow"
-                  style={{ fontSize: "16px", fontWeight: "bold" }}
-                >
-                  {selectedMovie.rating}
-                </Tag>
-              </h2>
-              {/* Thể loại */}
-              <p
-                style={{
-                  fontSize: "16px",
-                  color: "gray",
-                  marginBottom: "10px",
-                }}
-              >
-                {selectedMovie.genre}
-              </p>
-              {/* Thông tin phim */}
-              <p>
-                <b>Khởi Chiếu:</b> {selectedMovie.releaseDate}
-              </p>
-              <p>
-                <b>Thời Lượng:</b> {selectedMovie.runtime}
-              </p>
-              <p>
-                <b>Đạo Diễn:</b> {selectedMovie.director}
-              </p>
-              <p>
-                <b>Diễn Viên:</b> {selectedMovie.cast}
-              </p>
-              <p style={{ textAlign: "justify", lineHeight: "1.6" }}>
-                {selectedMovie.description}
-              </p>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <MovieModal
+        movie={selectedMovie}
+        isVisible={isModalVisible}
+        onClose={handleCancel}
+      />
     </div>
   );
 };

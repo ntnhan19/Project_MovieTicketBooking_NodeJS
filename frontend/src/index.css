@@ -1,15 +1,148 @@
-@import url("https://fonts.googleapis.com/css2?family=Rye&display=swap");
-
-body {
+body,
+html {
+  background: #012444; /* Màu nền giống header */
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  padding: 0;
+  width: 100%;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
-    monospace;
+.main-container {
+  width: 90%; /* Đặt độ rộng cố định */
+  margin: 0 auto; /* Căn giữa */
+  background: #012444; /* Đảm bảo nền trùng màu */
+  padding: 20px;
+  min-height: 100vh;
+}
+/* index.css */
+
+.booking-container {
+  background: #e8ecf3;
+  padding: 15px 20px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 97%;
+}
+
+.booking-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #015c92;
+  margin-right: 15px;
+}
+
+.booking-dropdown-button {
+  font-size: 16px;
+  font-weight: bold;
+  color: #015c92;
+  border: 2px solid #015c92;
+  border-radius: 6px;
+  padding: 8px 20px;
+  background-color: white;
+}
+
+.booking-now-button {
+  font-size: 16px;
+  font-weight: bold;
+  color: white;
+  background-color: #015c92;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 20px;
+}
+/* Movie List */
+.movie-list-container {
+  padding: 20px;
+}
+
+/* Movie Card */
+.movie-card {
+  min-height: 200px;
+}
+
+.movie-image {
+  width: 267px;
+  height: 400px;
+  object-fit: cover;
+}
+
+.icon-action {
+  font-size: 24px;
+  transition: transform 0.3s ease-in-out;
+}
+
+.icon-action:hover {
+  transform: scale(1.1);
+}
+
+/* Movie Modal */
+.modal-content {
+  display: flex;
+  gap: 20px;
+  text-align: left;
+}
+
+.modal-image {
+  width: 250px;
+  height: 350px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.modal-info {
+  flex: 1;
+}
+
+.modal-title {
+  font-size: 28px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rating-tag {
+  font-size: 16px;
+  font-weight: bold;
+  background-color: yellow;
+  color: black;
+}
+
+.modal-genre {
+  font-size: 16px;
+  color: gray;
+  margin-bottom: 10px;
+}
+
+.modal-description {
+  text-align: justify;
+  line-height: 1.6;
+}
+/* Tăng kích thước & làm đậm tab */
+.ant-tabs-tab {
+  font-size: 18px !important;
+  font-weight: bold !important;
+  color: #ffffff !important;
+  transition: all 0.3s ease-in-out;
+}
+
+/* Màu nền & hiệu ứng viền cho tab được chọn */
+.ant-tabs-tab-active {
+  color: #ffffff !important;
+  border-bottom: 3px solid #ffffff !important;
+}
+
+/* Hiệu ứng hover: sáng màu chữ */
+.ant-tabs-tab:hover {
+  color: #ffffff !important;
+  transform: scale(1.05);
+}
+
+/* Animation khi chuyển tab */
+.ant-tabs-ink-bar {
+  background-color: #ffffff !important;
+  transition: all 0.3s ease-in-out;
 }

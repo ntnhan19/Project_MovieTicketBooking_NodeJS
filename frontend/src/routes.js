@@ -11,7 +11,6 @@ const AppRoutes = () => {
       <Route path="/" element={<HomePage />} />
       <Route path="/movies/:id" element={<MovieDetailPage />} />
       <Route path="/booking/:id" element={<BookingPage />} />
-
       <Route path="/profile" element={<UserProfilePage />} />
     </Routes>
   );
