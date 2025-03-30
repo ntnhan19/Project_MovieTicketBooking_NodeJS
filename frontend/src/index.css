@@ -146,3 +146,167 @@ html {
   background-color: #ffffff !important;
   transition: all 0.3s ease-in-out;
 }
+.date-picker-container {
+  background: #e8ecf3;
+  padding: 15px 20px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 97%;
+}
+.date-picker {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  padding: 15px;
+}
+
+.date-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 2px solid #015c92;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.date-box .day-name {
+  font-weight: bold;
+  color: #015c92;
+}
+
+.date-box .day-date {
+  font-size: 14px;
+  color: #333;
+}
+
+.date-box.selected {
+  background-color: #015c92;
+  color: white;
+}
+
+.date-box.selected .day-name,
+.date-box.selected .day-date {
+  color: white;
+}
+
+.showtime-filter {
+  display: none;
+}
+
+.filter-box {
+  display: none;
+}
+
+.filter-box select {
+  background: white;
+  border: none;
+  padding: 10px;
+  border-radius: 5px;
+  margin-top: 5px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.showtime-container {
+  text-align: center;
+  padding: 20px;
+}
+
+.showtime-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+}
+
+.showtime-button {
+  margin: 5px;
+  padding: 10px;
+  background-color: #015c92;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.movie-details-container {
+  display: flex;
+  align-items: flex-start; /* Căn theo chiều dọc */
+  gap: 20px; /* Khoảng cách giữa ảnh và thông tin */
+  padding: 20px;
+}
+
+.movie-poster {
+  width: 300px; /* Đặt kích thước ảnh */
+  height: auto;
+  border-radius: 10px;
+}
+
+.movie-info {
+  flex: 1; /* Để thông tin chiếm hết phần còn lại */
+  text-align: left;
+  color: white; /* Màu chữ */
+}
+.movie-age-rating {
+  font-size: 16px;
+  font-weight: bold;
+  color: rgb(0, 0, 0); /* Màu chữ */
+  margin-bottom: 10px;
+}
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #001529;
+  transition: all 0.3s ease-in-out;
+}
+
+.header.scrolled {
+  background: rgba(0, 21, 41, 0.9);
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.header-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-container.scrolled {
+  padding: 5px 20px;
+}
+
+.logo {
+  color: white;
+  font-size: 22px;
+  font-weight: bold;
+  font-family: "Pacifico";
+  transition: font-size 0.3s ease-in-out;
+}
+
+.logo.scrolled {
+  font-size: 20px;
+}
+
+.menu {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  background: transparent;
+  border-bottom: none;
+}
+
+.spacer {
+  height: 70px;
+}
