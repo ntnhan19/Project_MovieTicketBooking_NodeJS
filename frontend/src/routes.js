@@ -5,6 +5,7 @@ import MovieDetailPage from "./pages/MovieDetailPage";
 import BookingPage from "./pages/BookingPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import ShowtimePage from "./pages/ShowtimePage";
+import UserAccount from "./pages/UserAccount";
 const AppRoutes = () => {
   return (
     <Routes>
@@ -13,6 +14,7 @@ const AppRoutes = () => {
       <Route path="/booking/:id" element={<BookingPage />} />
       <Route path="/profile" element={<UserProfilePage />} />
       <Route path="/showtimes" element={<ShowtimePage />} />
+      <Route path="/login-register" element={<UserAccount />} />
     </Routes>
   );
 };

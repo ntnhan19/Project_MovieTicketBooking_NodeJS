@@ -1,114 +1,123 @@
-import React, { useState } from "react";
-import { Form, Input, Button, Checkbox, Tabs } from "antd";
-import { UserOutlined, LockOutlined } from "@ant-design/icons";
-import "../index.css";
+import React, { useState, useEffect } from "react";
+import { Form, Input, Button, Tabs, Table, DatePicker } from "antd";
+import { LockOutlined } from "@ant-design/icons";
+import Header from "../components/Header";
 
 const { TabPane } = Tabs;
 
-const UserProfilePage = () => {
-  const [activeTab, setActiveTab] = useState("login");
+const UserProfile = ({ user }) => {
+  return (
+    <Form layout="vertical">
+      <Form.Item label="Họ và tên">
+        <Input value={user?.fullName || ""} disabled />
+      </Form.Item>
+      <Form.Item label="Email">
+        <Input value={user?.email || ""} disabled />
+      </Form.Item>
+      <Form.Item label="Số điện thoại">
+        <Input value={user?.phone || ""} disabled />
+      </Form.Item>
+      <Form.Item label="Ngày sinh">
+        <DatePicker
+          value={user?.dob || null}
+          disabled
+          style={{ width: "100%" }}
+        />
+      </Form.Item>
+    </Form>
+  );
+};
 
-  const handleTabChange = (key) => {
-    setActiveTab(key);
-  };
+const TicketHistory = ({ tickets }) => {
+  const columns = [
+    { title: "Mã vé", dataIndex: "ticketId", key: "ticketId" },
+    { title: "Phim", dataIndex: "movie", key: "movie" },
+    { title: "Ngày xem", dataIndex: "date", key: "date" },
+    { title: "Rạp", dataIndex: "cinema", key: "cinema" },
+    { title: "Ghế", dataIndex: "seat", key: "seat" },
+  ];
 
   return (
-    <div className="container">
-      <div className="auth-container">
-        <Tabs activeKey={activeTab} onChange={handleTabChange} centered>
-          <TabPane
-            tab={
-              <span className={activeTab === "login" ? "active-tab" : ""}>
-                ĐĂNG NHẬP
-              </span>
-            }
-            key="login"
-          >
-            <Form className="auth-form">
-              <Form.Item
-                name="username"
-                rules={[
-                  { required: true, message: "Vui lòng nhập tài khoản!" },
-                ]}
-              >
-                <Input
-                  prefix={<UserOutlined />}
-                  placeholder="Tài khoản, Email hoặc số điện thoại"
-                />
-              </Form.Item>
-              <Form.Item
-                name="password"
-                rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder="Mật khẩu"
-                />
-              </Form.Item>
-              <Form.Item>
-                <Checkbox>Lưu mật khẩu đăng nhập</Checkbox>
-              </Form.Item>
-              <Form.Item>
-                <a href="/forgot-password" className="forgot-password">
-                  Quên mật khẩu?
-                </a>
-              </Form.Item>
-              <Form.Item>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  className="auth-button"
-                >
-                  ĐĂNG NHẬP
-                </Button>
-              </Form.Item>
-            </Form>
+    <Table
+      dataSource={tickets}
+      columns={columns}
+      pagination={{ pageSize: 5 }}
+    />
+  );
+};
+
+const ChangePassword = () => {
+  return (
+    <Form layout="vertical">
+      <Form.Item label="Mật khẩu hiện tại">
+        <Input.Password
+          prefix={<LockOutlined />}
+          placeholder="Nhập mật khẩu hiện tại"
+        />
+      </Form.Item>
+      <Form.Item label="Mật khẩu mới">
+        <Input.Password
+          prefix={<LockOutlined />}
+          placeholder="Nhập mật khẩu mới"
+        />
+      </Form.Item>
+      <Form.Item label="Xác nhận mật khẩu mới">
+        <Input.Password
+          prefix={<LockOutlined />}
+          placeholder="Xác nhận mật khẩu mới"
+        />
+      </Form.Item>
+      <Form.Item>
+        <Button type="primary">Đổi mật khẩu</Button>
+      </Form.Item>
+    </Form>
+  );
+};
+
+const UserProfilePage = () => {
+  const [user, setUser] = useState(() => {
+    return JSON.parse(localStorage.getItem("user")) || null;
+  });
+  const [tickets, setTickets] = useState([]);
+
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+    if (storedUser) {
+      setUser(storedUser);
+    }
+    setTickets([
+      {
+        ticketId: "123456",
+        movie: "Godzilla x Kong",
+        date: "01/04/2025",
+        cinema: "Cinestar Quốc Thanh",
+        seat: "D5",
+      },
+      {
+        ticketId: "789012",
+        movie: "Dune: Part Two",
+        date: "28/03/2025",
+        cinema: "Cinestar Huế",
+        seat: "A7",
+      },
+    ]);
+  }, []);
+
+  return (
+    <div>
+      {typeof setUser === "function" && (
+        <Header user={user} setUser={setUser} />
+      )}
+      <div className="profile-container">
+        <Tabs defaultActiveKey="1" centered>
+          <TabPane tab="Thông tin cá nhân" key="1">
+            {user && <UserProfile user={user} />}
           </TabPane>
-          <TabPane
-            tab={
-              <span className={activeTab === "register" ? "active-tab" : ""}>
-                ĐĂNG KÝ
-              </span>
-            }
-            key="register"
-          >
-            <Form className="auth-form">
-              <Form.Item
-                name="email"
-                rules={[{ required: true, message: "Vui lòng nhập Email!" }]}
-              >
-                <Input prefix={<UserOutlined />} placeholder="Email" />
-              </Form.Item>
-              <Form.Item
-                name="password"
-                rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder="Mật khẩu"
-                />
-              </Form.Item>
-              <Form.Item
-                name="confirmPassword"
-                rules={[
-                  { required: true, message: "Vui lòng xác nhận mật khẩu!" },
-                ]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder="Xác nhận mật khẩu"
-                />
-              </Form.Item>
-              <Form.Item>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  className="auth-button"
-                >
-                  ĐĂNG KÝ
-                </Button>
-              </Form.Item>
-            </Form>
+          <TabPane tab="Lịch sử đặt vé" key="2">
+            <TicketHistory tickets={tickets} />
+          </TabPane>
+          <TabPane tab="Đổi mật khẩu" key="3">
+            <ChangePassword />
           </TabPane>
         </Tabs>
       </div>

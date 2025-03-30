@@ -1,22 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Menu, Button, Dropdown } from "antd";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { UserOutlined } from "@ant-design/icons";
 import "../index.css";
 
-const profileMenu = (
-  <Menu>
-    <Menu.Item key="profile">
-      <Link to="/profile">Tài Khoản</Link>
-    </Menu.Item>
-    <Menu.Item key="logout">
-      <Link to="/logout">Đăng Xuất</Link>
-    </Menu.Item>
-  </Menu>
-);
-
-const Header = () => {
+const Header = ({ user, setUser }) => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -26,6 +16,23 @@ const Header = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    setUser(null);
+    navigate("/profile");
+  };
+
+  const userMenu = (
+    <Menu>
+      <Menu.Item key="profile" onClick={() => navigate("/profile")}>
+        Thông tin tài khoản
+      </Menu.Item>
+      <Menu.Item key="logout" onClick={handleLogout}>
+        Đăng xuất
+      </Menu.Item>
+    </Menu>
+  );
 
   return (
     <>
@@ -50,17 +57,23 @@ const Header = () => {
             <Menu.Item key="bookings">
               <Link to="/bookings">Đặt Vé</Link>
             </Menu.Item>
-            <Menu.Item key="profile">
-              <Link to="/profile">Tài Khoản</Link>
-            </Menu.Item>
           </Menu>
 
-          <Dropdown overlay={profileMenu}>
-            <Button icon={<UserOutlined />} type="primary" />
-          </Dropdown>
+          {user ? (
+            <Dropdown overlay={userMenu} trigger={["click"]}>
+              <Button icon={<UserOutlined />}>{user}</Button>
+            </Dropdown>
+          ) : (
+            <Button
+              icon={<UserOutlined />}
+              type="primary"
+              onClick={() => navigate("/login-register")}
+            >
+              Đăng nhập
+            </Button>
+          )}
         </div>
       </div>
-
       <div className="spacer"></div>
     </>
   );

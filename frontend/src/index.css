@@ -310,3 +310,78 @@ html {
 .spacer {
   height: 70px;
 }
+.auth-page-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #012444;
+}
+
+.auth-container {
+  background: white;
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  width: 400px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-button {
+  width: 100%;
+  background-color: #015c92;
+  border: none;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.auth-button:hover {
+  background-color: #013f6b;
+}
+
+.forgot-password {
+  display: block;
+  text-align: right;
+  color: #015c92;
+  text-decoration: none;
+  margin-bottom: 15px;
+}
+
+.forgot-password:hover {
+  text-decoration: underline;
+}
+
+.ant-tabs-tab {
+  font-size: 18px !important;
+  font-weight: bold !important;
+  color: #015c92 !important;
+  transition: all 0.3s ease-in-out;
+}
+
+.ant-tabs-tab-active {
+  color: #012444 !important;
+  border-bottom: 3px solid #012444 !important;
+}
+
+.ant-tabs-tab:hover {
+  color: #013f6b !important;
+  transform: scale(1.05);
+}
+
+.ant-tabs-ink-bar {
+  background-color: #015c92 !important;
+  transition: all 0.3s ease-in-out;
+}
