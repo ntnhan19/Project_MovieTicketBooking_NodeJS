@@ -1,17 +1,20 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
-import MovieDetailPage from "./pages/MovieDetailPage";
+import MoviePage from "./pages/MoviePage";
 import BookingPage from "./pages/BookingPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import ShowtimePage from "./pages/ShowtimePage";
-import UserAccount from "./pages/UserAccount";
+import UserAccount from "./pages/UserAccountPage";
+import MovieDetails from "./components/MovieDetails";
 const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
-      <Route path="/movies/:id" element={<MovieDetailPage />} />
-      <Route path="/booking/:id" element={<BookingPage />} />
+      <Route path="/movies" element={<MoviePage />} />
+      <Route path="/movies" element={<BookingPage />} />
+      <Route path="/movies/:id/booking" element={<BookingPage />} />
+      <Route path="/movies/:id" element={<MovieDetails />} />
       <Route path="/profile" element={<UserProfilePage />} />
       <Route path="/showtimes" element={<ShowtimePage />} />
       <Route path="/login-register" element={<UserAccount />} />

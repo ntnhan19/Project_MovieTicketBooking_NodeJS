@@ -1,8 +1,7 @@
 import React from "react";
-import { Card } from "antd";
-import { PlayCircleOutlined, InfoCircleOutlined } from "@ant-design/icons";
-
-import "../index.css";
+import { Card, Button } from "antd";
+import { PlayCircleOutlined } from "@ant-design/icons";
+import { Link } from "react-router-dom";
 
 const MovieCard = ({ movie, showModal }) => {
   return (
@@ -21,14 +20,11 @@ const MovieCard = ({ movie, showModal }) => {
           }}
           className="icon-action"
         />,
-        <InfoCircleOutlined
-          key="info"
-          onClick={(e) => {
-            e.preventDefault();
-            showModal(movie);
-          }}
-          className="icon-action"
-        />,
+        <Link to={`/booking/${movie.id}`} key="book">
+          <Button type="primary" className="booking-button">
+            ĐẶT VÉ
+          </Button>
+        </Link>,
       ]}
     >
       <Card.Meta title={movie.title} />

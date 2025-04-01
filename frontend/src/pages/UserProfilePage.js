@@ -2,12 +2,13 @@ import React, { useState, useEffect } from "react";
 import { Form, Input, Button, Tabs, Table, DatePicker } from "antd";
 import { LockOutlined } from "@ant-design/icons";
 import Header from "../components/Header";
+import "../index.css";
 
 const { TabPane } = Tabs;
 
 const UserProfile = ({ user }) => {
   return (
-    <Form layout="vertical">
+    <Form layout="vertical" className="profile-form">
       <Form.Item label="Họ và tên">
         <Input value={user?.fullName || ""} disabled />
       </Form.Item>
@@ -42,13 +43,14 @@ const TicketHistory = ({ tickets }) => {
       dataSource={tickets}
       columns={columns}
       pagination={{ pageSize: 5 }}
+      className="ticket-table"
     />
   );
 };
 
 const ChangePassword = () => {
   return (
-    <Form layout="vertical">
+    <Form layout="vertical" className="change-password-form">
       <Form.Item label="Mật khẩu hiện tại">
         <Input.Password
           prefix={<LockOutlined />}
@@ -68,7 +70,9 @@ const ChangePassword = () => {
         />
       </Form.Item>
       <Form.Item>
-        <Button type="primary">Đổi mật khẩu</Button>
+        <Button type="primary" className="change-password-button">
+          Đổi mật khẩu
+        </Button>
       </Form.Item>
     </Form>
   );

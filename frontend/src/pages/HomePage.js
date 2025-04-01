@@ -1,10 +1,9 @@
 import React from "react";
 import { Tabs, Divider } from "antd";
 import Banner from "../components/Banner";
-import BookingOptions from "../components/BookingOptions";
-import MovieList from "../components/MovieList";
+import MoviePage from "./MoviePage";
 import AppFooter from "../components/AppFooter";
-import "../index.css"; // Import CSS
+import "../index.css";
 
 const { TabPane } = Tabs;
 
@@ -12,7 +11,7 @@ const HomePage = () => {
   return (
     <div className="main-container">
       <Banner />
-      <BookingOptions />
+
       <Divider style={{ backgroundColor: "#ccc", height: "2px" }} />
       {/* Tabs */}
       <div style={{ flex: 1, padding: "0 40px", width: "90%" }}>
@@ -26,10 +25,10 @@ const HomePage = () => {
           }}
         >
           <TabPane tab="Phim Đang Chiếu" key="1">
-            <MovieList category="nowShowing" />
+            <MoviePage category="nowShowing" />
           </TabPane>
           <TabPane tab="Phim Sắp Chiếu" key="2">
-            <MovieList category="comingSoon" />
+            <MoviePage category="comingSoon" />
           </TabPane>
         </Tabs>
       </div>

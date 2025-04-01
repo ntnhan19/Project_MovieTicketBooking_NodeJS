@@ -16,6 +16,7 @@ const movies = [
     genre: "Supernatural, Family, Comedy - 2D",
     rating: "T18",
     description: "Một câu chuyện đa góc nhìn về các thế hệ...",
+    trailer: "https://www.youtube.com/watch?v=hXGozmNBwt4",
   },
   {
     id: 2,
@@ -27,6 +28,7 @@ const movies = [
     genre: "Horror - 2D",
     rating: "T18",
     description: "Lấy cảm hứng từ truyền thuyết kinh dị...",
+    trailer: "https://www.youtube.com/watch?v=fQKxDM-hxoU",
   },
   {
     id: 3,
@@ -38,6 +40,7 @@ const movies = [
     genre: "Cartoon - 2D",
     rating: "P",
     description: "Một chú mèo nhút nhát phải rời bỏ vùng an toàn...",
+    trailer: "https://www.youtube.com/watch?v=B3V-9tiuQTo",
   },
   {
     id: 4,
@@ -49,6 +52,7 @@ const movies = [
     genre: "Comedy, Action - 2D Dub",
     rating: "T16",
     description: "Câu chuyện về một họa sĩ webtoon...",
+    trailer: "https://www.youtube.com/watch?v=0g1v2x4X8aE",
   },
 ];
 
@@ -65,16 +69,13 @@ const MovieList = ({ category }) => {
     setIsModalVisible(false);
   };
 
-  // Lấy ngày hiện tại
-  const today = new Date("2025-03-30");
+  const today = new Date(2025, 2, 20); // Set a fixed date for testing
 
-  // Chuyển đổi ngày phát hành sang dạng Date để so sánh
   const parseDate = (dateString) => {
     const [day, month, year] = dateString.split("/").map(Number);
     return new Date(year, month - 1, day);
   };
 
-  // Phân loại phim
   const nowShowing = movies.filter(
     (movie) => parseDate(movie.releaseDate) <= today
   );
@@ -82,7 +83,6 @@ const MovieList = ({ category }) => {
     (movie) => parseDate(movie.releaseDate) > today
   );
 
-  // Chọn danh sách phim dựa trên category
   const filteredMovies = category === "nowShowing" ? nowShowing : comingSoon;
 
   return (
@@ -90,9 +90,14 @@ const MovieList = ({ category }) => {
       <Row gutter={[16, 16]} justify="center">
         {filteredMovies.map((movie) => (
           <Col key={movie.id} xs={12} sm={8} md={6} lg={6}>
-            <Link to={`/movies/${movie.id}`} style={{ textDecoration: "none" }}>
-              <MovieCard movie={movie} showModal={showModal} />
-            </Link>
+            <div className="movie-card-container">
+              <Link
+                to={`/movies/${movie.id}`}
+                style={{ textDecoration: "none" }}
+              >
+                <MovieCard movie={movie} showModal={showModal} />
+              </Link>
+            </div>
           </Col>
         ))}
       </Row>

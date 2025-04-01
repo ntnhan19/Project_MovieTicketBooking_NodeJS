@@ -1,58 +1,134 @@
 import React, { useState } from "react";
-import { useParams } from "react-router-dom";
-import { Button, message } from "antd";
-
-const seats = Array.from({ length: 40 }, (_, i) => ({
-  id: i + 1,
-  booked: Math.random() > 0.8, // Giả lập ghế đã đặt (20% ghế bị khóa)
-}));
-
+import { useParams, Link } from "react-router-dom";
+import { Card, Button, Tag, Select, Row, Col } from "antd";
+import MovieCard from "../components/MovieCard";
+import MovieModal from "../components/MovieModal";
+import movies from "../components/MoviesData";
+import BookingOptions from "../components/BookingOptions";
 const BookingPage = () => {
-  const { id } = useParams(); // Lấy ID phim từ URL
-  const [selectedSeats, setSelectedSeats] = useState([]);
+  const { id } = useParams();
+  const [selectedCinema, setSelectedCinema] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedTime, setSelectedTime] = useState(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedMovie, setSelectedMovie] = useState(null);
 
-  const toggleSeat = (seatId) => {
-    if (seats.find((s) => s.id === seatId).booked) return; // Không thể chọn ghế đã đặt
+  const showModal = (movie) => {
+    setSelectedMovie(movie);
+    setIsModalVisible(true);
+  };
 
-    setSelectedSeats((prev) =>
-      prev.includes(seatId)
-        ? prev.filter((s) => s !== seatId)
-        : [...prev, seatId]
+  const handleCancel = () => {
+    setIsModalVisible(false);
+  };
+
+  if (!id) {
+    // ✅ Nếu không có ID, hiển thị danh sách phim
+    return (
+      <div className="bookingpage-container">
+        <div style={{ marginBottom: "30px" }}>
+          <BookingOptions /> {/* Thanh chọn phim */}
+        </div>
+
+        <Row gutter={[16, 16]} justify="center" style={{ width: "100%" }}>
+          {movies.map((movie) => (
+            <Col key={movie.id} xs={12} sm={8} md={6} lg={6}>
+              <Link
+                to={`/booking/${movie.id}`}
+                style={{ textDecoration: "none" }}
+              >
+                <MovieCard movie={movie} showModal={showModal} />
+              </Link>
+            </Col>
+          ))}
+        </Row>
+
+        {/* Modal xem trailer */}
+        <MovieModal
+          movie={selectedMovie}
+          isVisible={isModalVisible}
+          onClose={handleCancel}
+        />
+      </div>
     );
-  };
+  }
 
-  const confirmBooking = () => {
-    if (selectedSeats.length === 0) {
-      message.warning("Vui lòng chọn ít nhất một ghế!");
-      return;
-    }
-    message.success(`Bạn đã đặt ${selectedSeats.length} ghế thành công!`);
-  };
+  // ✅ Nếu có ID, hiển thị trang đặt vé
+  const movie = movies.find((m) => m.id === Number(id));
+  if (!movie) {
+    return <h2 style={{ textAlign: "center" }}>Phim không tồn tại!</h2>;
+  }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Chọn ghế cho phim ID: {id}</h1>
-      <div className="grid grid-cols-8 gap-2 mb-4">
-        {seats.map((seat) => (
-          <button
-            key={seat.id}
-            className={`w-10 h-10 rounded ${
-              seat.booked
-                ? "bg-gray-400 cursor-not-allowed"
-                : selectedSeats.includes(seat.id)
-                ? "bg-green-500"
-                : "bg-blue-500"
-            }`}
-            disabled={seat.booked}
-            onClick={() => toggleSeat(seat.id)}
-          >
-            {seat.id}
-          </button>
-        ))}
+    <div className="booking-container">
+      <Card className="movie-detail">
+        <img src={movie.image} alt={movie.title} className="movie-image" />
+        <div className="movie-info">
+          <h1>{movie.title}</h1>
+          <Tag color="red">{movie.rating}</Tag>
+          <p>
+            <b>Thể loại:</b> {movie.genre}
+          </p>
+          <p>
+            <b>Thời lượng:</b> {movie.runtime}
+          </p>
+        </div>
+      </Card>
+
+      <div className="booking-options">
+        <h3>Chọn rạp chiếu</h3>
+        <Select
+          placeholder="Chọn rạp"
+          style={{ width: 200 }}
+          onChange={setSelectedCinema}
+        >
+          {Object.keys(movie.showtimes).map((cinema) => (
+            <Select.Option key={cinema} value={cinema}>
+              {cinema}
+            </Select.Option>
+          ))}
+        </Select>
+
+        {selectedCinema && (
+          <>
+            <h3>Chọn ngày</h3>
+            <Select
+              placeholder="Chọn ngày"
+              style={{ width: 200 }}
+              onChange={setSelectedDate}
+            >
+              {Object.keys(movie.showtimes[selectedCinema]).map((date) => (
+                <Select.Option key={date} value={date}>
+                  {date}
+                </Select.Option>
+              ))}
+            </Select>
+          </>
+        )}
+
+        {selectedDate && (
+          <>
+            <h3>Chọn suất chiếu</h3>
+            <Select
+              placeholder="Chọn suất"
+              style={{ width: 200 }}
+              onChange={setSelectedTime}
+            >
+              {movie.showtimes[selectedCinema][selectedDate].map((time) => (
+                <Select.Option key={time} value={time}>
+                  {time}
+                </Select.Option>
+              ))}
+            </Select>
+          </>
+        )}
+
+        {selectedTime && (
+          <Button type="primary" style={{ marginTop: "20px" }}>
+            Tiếp tục đặt vé
+          </Button>
+        )}
       </div>
-      <Button type="primary" onClick={confirmBooking}>
-        Xác nhận đặt vé
-      </Button>
     </div>
   );
 };

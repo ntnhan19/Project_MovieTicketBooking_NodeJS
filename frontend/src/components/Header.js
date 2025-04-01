@@ -54,8 +54,8 @@ const Header = ({ user, setUser }) => {
             <Menu.Item key="showtimes">
               <Link to="/showtimes">Lịch Chiếu</Link>
             </Menu.Item>
-            <Menu.Item key="bookings">
-              <Link to="/bookings">Đặt Vé</Link>
+            <Menu.Item key="movies">
+              <Link to="/movies">Đặt Vé</Link>
             </Menu.Item>
           </Menu>
 

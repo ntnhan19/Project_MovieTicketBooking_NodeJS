@@ -1,9 +1,13 @@
 import React from "react";
-import { Modal, Tag } from "antd";
-import "../index.css";
+import { Modal } from "antd";
 
 const MovieModal = ({ movie, isVisible, onClose }) => {
   if (!movie) return null;
+
+  // Chuyển URL YouTube thành dạng embed
+  const embedUrl = movie.trailer
+    .replace("watch?v=", "embed/")
+    .replace("youtu.be/", "www.youtube.com/embed/");
 
   return (
     <Modal
@@ -14,30 +18,15 @@ const MovieModal = ({ movie, isVisible, onClose }) => {
       centered
     >
       <div className="modal-content">
-        {/* Ảnh poster */}
-        <img src={movie.image} alt={movie.title} className="modal-image" />
-
-        {/* Thông tin phim */}
-        <div className="modal-info">
-          <h2 className="modal-title">
-            {movie.title}
-            <Tag className="rating-tag">{movie.rating}</Tag>
-          </h2>
-          <p className="modal-genre">{movie.genre}</p>
-          <p>
-            <b>Khởi Chiếu:</b> {movie.releaseDate}
-          </p>
-          <p>
-            <b>Thời Lượng:</b> {movie.runtime}
-          </p>
-          <p>
-            <b>Đạo Diễn:</b> {movie.director}
-          </p>
-          <p>
-            <b>Diễn Viên:</b> {movie.cast}
-          </p>
-          <p className="modal-description">{movie.description}</p>
-        </div>
+        <iframe
+          width="100%"
+          height="480"
+          src={embedUrl}
+          title={movie.title}
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        ></iframe>
       </div>
     </Modal>
   );

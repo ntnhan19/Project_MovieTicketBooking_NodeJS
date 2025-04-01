@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Form, Input, Button, Tabs, DatePicker, Checkbox } from "antd";
 import {
   UserOutlined,
@@ -9,11 +9,10 @@ import {
   LockFilled,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import Header from "../components/Header";
 
 const { TabPane } = Tabs;
 
-const UserProfilePage = ({ setUser }) => {
+const UserAccountPage = () => {
   const [activeTab, setActiveTab] = useState("login");
   const navigate = useNavigate();
 
@@ -22,23 +21,13 @@ const UserProfilePage = ({ setUser }) => {
   };
 
   const handleLogin = (values) => {
-    localStorage.setItem("user", JSON.stringify(values.username));
-    if (typeof setUser === "function") {
-      setUser(values.username);
-      navigate("/showtimes");
-    } else {
-      console.error("setUser is not a function");
-    }
+    console.log("Login values:", values);
+    navigate("/showtimes");
   };
 
   const handleRegister = (values) => {
-    localStorage.setItem("user", JSON.stringify(values.username));
-    if (typeof setUser === "function") {
-      setUser(values.username);
-      navigate("/showtimes");
-    } else {
-      console.error("setUser is not a function");
-    }
+    console.log("Register values:", values);
+    navigate("/showtimes");
   };
 
   return (
@@ -141,8 +130,7 @@ const UserProfilePage = ({ setUser }) => {
               ]}
             >
               <Checkbox>
-                Khách hàng đã đồng ý các điều khoản, điều kiện của thành viên
-                Cinestar
+                Khách hàng đã đồng ý các điều khoản, điều kiện của DHL CINEMA
               </Checkbox>
             </Form.Item>
             <Form.Item>
@@ -157,30 +145,4 @@ const UserProfilePage = ({ setUser }) => {
   );
 };
 
-const UserAccount = () => {
-  const [user, setUser] = useState(() => {
-    return JSON.parse(localStorage.getItem("user")) || null;
-  });
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem("user", JSON.stringify(user));
-    }
-  }, [user]);
-
-  return (
-    <div>
-      <Header user={user} setUser={setUser} />
-      <UserProfilePage setUser={setUser} />
-    </div>
-  );
-};
-
-export default UserAccount;
+export default UserAccountPage;
