@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Steps, Button, Spin } from "antd";
-import movies from "../data/movies";
+import movies from "../components/movies";
 import Step1SelectShowtime from "../components/Booking/Step1SelectShowtime";
 import Step2SelectSeats from "../components/Booking/Step2SelectSeats";
 import Step3SelectSnacks from "../components/Booking/Step3SelectSnacks";

@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import MovieCard from "./MovieCard";
 import MovieModal from "./TrailerModal";
 import "../index.css";
-import movies from "../data/movies.js";
+import movies from "./movies.js";
 
 const MovieList = ({ category }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
