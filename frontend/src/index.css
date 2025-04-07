@@ -146,94 +146,56 @@ html {
   background-color: #ffffff !important;
   transition: all 0.3s ease-in-out;
 }
-.date-picker-container {
-  background: #e8ecf3;
-  padding: 15px 20px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  width: 97%;
-}
-.date-picker {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  padding: 15px;
+.showtime-page {
+  background-color: #f5f7fa;
+  padding: 24px;
+  min-height: 100vh;
 }
 
-.date-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 10px 15px;
-  border-radius: 8px;
-  border: 2px solid #015c92;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-.date-box .day-name {
-  font-weight: bold;
-  color: #015c92;
-}
-
-.date-box .day-date {
-  font-size: 14px;
-  color: #333;
-}
-
-.date-box.selected {
-  background-color: #015c92;
-  color: white;
-}
-
-.date-box.selected .day-name,
-.date-box.selected .day-date {
-  color: white;
-}
-
-.showtime-filter {
-  display: none;
-}
-
-.filter-box {
-  display: none;
-}
-
-.filter-box select {
-  background: white;
-  border: none;
-  padding: 10px;
-  border-radius: 5px;
-  margin-top: 5px;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.showtime-container {
-  text-align: center;
+.movie-showtime-box {
+  background-color: #fff;
   padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease;
 }
 
-.showtime-list {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 20px;
+.movie-showtime-box:hover {
+  transform: translateY(-2px);
 }
 
-.showtime-button {
-  margin: 5px;
-  padding: 10px;
-  background-color: #015c92;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
+.movie-showtime-box img {
+  object-fit: cover;
+  border-radius: 12px;
 }
+
+.movie-showtime-box .ant-typography {
+  margin-bottom: 4px;
+}
+
+.movie-showtime-box .ant-tag {
+  font-size: 11px; /* Giảm cỡ chữ hơn nữa nếu cần */
+  padding: 0 6px; /* Cân chỉnh padding ngang */
+  height: 20px; /* Set chiều cao cụ thể */
+  line-height: 18px; /* Cho text nằm giữa */
+  border-radius: 4px;
+}
+
+.movie-showtime-box .ant-btn {
+  border-color: #1890ff;
+  color: #1890ff;
+  background: #fff;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.2s ease-in-out;
+}
+
+.movie-showtime-box .ant-btn:hover {
+  background-color: #e6f4ff;
+  color: #096dd9;
+  border-color: #40a9ff;
+}
+
 .movie-details-container {
   display: flex;
   align-items: flex-start; /* Căn theo chiều dọc */
@@ -423,4 +385,22 @@ html {
 
 .bookingpage-options {
   text-align: center;
+}
+.banner-wrapper {
+  width: 100vw; /* Chiếm toàn bộ chiều ngang trình duyệt */
+  margin-left: calc(-50vw + 50%); /* Offset để phá vỡ .main-container */
+  overflow: hidden;
+  max-height: 639px;
+}
+
+.banner-slide {
+  width: 100%;
+  height: auto;
+}
+
+.banner-image {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  max-height: 639px;
 }

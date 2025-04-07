@@ -11,7 +11,6 @@ const movies = [
     description: "Một câu chuyện đa góc nhìn về các thế hệ...",
     trailer: "https://www.youtube.com/watch?v=hXGozmNBwt4",
   },
-
   {
     id: 2,
     title: "Quỷ Nhập Tràng",
@@ -48,18 +47,5 @@ const movies = [
     description: "Câu chuyện về một họa sĩ webtoon...",
     trailer: "https://www.youtube.com/watch?v=0g1v2x4X8aE",
   },
-  {
-    id: 5,
-    title: "ÂM DƯƠNG LỘ",
-    image: "/images/img7.jpg",
-    releaseDate: "14/04/2025",
-    runtime: "1 giờ 47 phút",
-    director: "Choi Won-sub",
-    genre: "Comedy, Action - 2D Dub",
-    rating: "T16",
-    description: "Câu chuyện về một họa sĩ webtoon...",
-    trailer: "https://www.youtube.com/watch?v=0g1v2x4X8aE",
-  },
 ];
-
 export default movies;

@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Form, Input, Button, Tabs, DatePicker, Checkbox } from "antd";
+import React, { useState, useEffect } from "react";
+import { Form, Input, Button, Tabs, DatePicker, Checkbox, message } from "antd";
 import {
   UserOutlined,
   LockOutlined,
@@ -16,17 +16,86 @@ const UserAccountPage = () => {
   const [activeTab, setActiveTab] = useState("login");
   const navigate = useNavigate();
 
+  // Thêm user mẫu khi load lần đầu
+  useEffect(() => {
+    const existingUsers =
+      JSON.parse(localStorage.getItem("registeredUsers")) || [];
+
+    if (existingUsers.length === 0) {
+      const sampleUsers = [
+        {
+          username: "admin",
+          password: "123456",
+          fullName: "Quản trị viên",
+          email: "admin@example.com",
+        },
+        {
+          username: "user1",
+          password: "111111",
+          fullName: "Người dùng 1",
+          email: "user1@example.com",
+        },
+      ];
+      localStorage.setItem("registeredUsers", JSON.stringify(sampleUsers));
+    }
+  }, []);
+
   const handleTabChange = (key) => {
     setActiveTab(key);
   };
 
   const handleLogin = (values) => {
-    console.log("Login values:", values);
-    navigate("/showtimes");
+    const userList = JSON.parse(localStorage.getItem("registeredUsers")) || [];
+
+    const foundUser = userList.find(
+      (u) => u.username === values.username && u.password === values.password
+    );
+
+    if (foundUser) {
+      const loggedInUser = {
+        username: foundUser.username,
+        fullName: foundUser.fullName,
+        token: "fake-jwt-token",
+      };
+      localStorage.setItem("user", JSON.stringify(loggedInUser)); // Lưu thông tin người dùng vào localStorage
+      message.success("Đăng nhập thành công!");
+      navigate("/showtimes");
+    } else {
+      message.error("Thông tin đăng nhập không đúng!");
+    }
   };
 
   const handleRegister = (values) => {
-    console.log("Register values:", values);
+    const newUser = {
+      username: values.username,
+      fullName: values.fullName,
+      dob: values.dob?.format("DD/MM/YYYY"),
+      email: values.email,
+      phone: values.phone,
+      idCard: values.idCard,
+      password: values.password,
+    };
+
+    const users = JSON.parse(localStorage.getItem("registeredUsers")) || [];
+
+    // Kiểm tra tài khoản đã tồn tại
+    const exists = users.some((u) => u.username === newUser.username);
+    if (exists) {
+      message.error("Tên đăng nhập đã tồn tại!");
+      return;
+    }
+
+    users.push(newUser);
+    localStorage.setItem("registeredUsers", JSON.stringify(users));
+    localStorage.setItem(
+      "user",
+      JSON.stringify({
+        username: newUser.username,
+        fullName: newUser.fullName,
+        token: "fake-jwt-token",
+      })
+    );
+    message.success("Đăng ký thành công!");
     navigate("/showtimes");
   };
 
@@ -35,13 +104,19 @@ const UserAccountPage = () => {
       <Tabs activeKey={activeTab} onChange={handleTabChange} centered>
         <TabPane tab="ĐĂNG NHẬP" key="login">
           <Form className="auth-form" onFinish={handleLogin}>
-            <Form.Item name="username">
+            <Form.Item
+              name="username"
+              rules={[{ required: true, message: "Vui lòng nhập tài khoản!" }]}
+            >
               <Input
                 prefix={<UserOutlined />}
                 placeholder="Tài khoản, Email hoặc số điện thoại"
               />
             </Form.Item>
-            <Form.Item name="password">
+            <Form.Item
+              name="password"
+              rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
+            >
               <Input.Password
                 prefix={<LockOutlined />}
                 placeholder="Mật khẩu"
@@ -113,8 +188,22 @@ const UserAccountPage = () => {
             </Form.Item>
             <Form.Item
               name="confirmPassword"
+              dependencies={["password"]}
               rules={[
-                { required: true, message: "Vui lòng xác nhận mật khẩu!" },
+                {
+                  required: true,
+                  message: "Vui lòng xác nhận mật khẩu!",
+                },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue("password") === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(
+                      new Error("Mật khẩu xác nhận không khớp!")
+                    );
+                  },
+                }),
               ]}
             >
               <Input.Password
@@ -126,7 +215,14 @@ const UserAccountPage = () => {
               name="terms"
               valuePropName="checked"
               rules={[
-                { required: true, message: "Bạn phải đồng ý với điều khoản!" },
+                {
+                  validator: (_, value) =>
+                    value
+                      ? Promise.resolve()
+                      : Promise.reject(
+                          new Error("Bạn phải đồng ý với điều khoản!")
+                        ),
+                },
               ]}
             >
               <Checkbox>

@@ -1,3 +1,4 @@
+// MovieCard.jsx
 import React from "react";
 import { Card, Button } from "antd";
 import { PlayCircleOutlined } from "@ant-design/icons";
@@ -20,7 +21,7 @@ const MovieCard = ({ movie, showModal }) => {
           }}
           className="icon-action"
         />,
-        <Link to={`/booking/${movie.id}`} key="book">
+        <Link to={`/movies/${movie.id}/booking`} key="book">
           <Button type="primary" className="booking-button">
             ĐẶT VÉ
           </Button>

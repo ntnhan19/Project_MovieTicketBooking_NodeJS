@@ -1,7 +1,8 @@
+//BookingOptions.jsx
 import React from "react";
 import { Menu, Dropdown, Button, Row, Col } from "antd";
 import { DownOutlined } from "@ant-design/icons";
-import "../index.css"; // Import file CSS
+import "../index.css";
 
 const dropdownMenu = (items) => (
   <Menu>
@@ -62,5 +63,4 @@ const BookingOptions = () => {
     </div>
   );
 };
-
 export default BookingOptions;

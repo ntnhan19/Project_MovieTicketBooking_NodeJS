@@ -1,10 +1,9 @@
 import React from "react";
 import { Modal } from "antd";
 
-const MovieModal = ({ movie, isVisible, onClose }) => {
+const TrailerModal = ({ movie, isVisible, onClose }) => {
   if (!movie) return null;
 
-  // Chuyển URL YouTube thành dạng embed
   const embedUrl = movie.trailer
     .replace("watch?v=", "embed/")
     .replace("youtu.be/", "www.youtube.com/embed/");
@@ -32,4 +31,4 @@ const MovieModal = ({ movie, isVisible, onClose }) => {
   );
 };
 
-export default MovieModal;
+export default TrailerModal;
