@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Button, Tag } from "antd";
+import "./Step2SelectSeats.css"; // Create and link the CSS file for styling
 
 const rows = 6;
 const cols = 10;
@@ -50,7 +51,7 @@ const Step2SelectSeats = ({ onSeatSelect }) => {
   };
 
   return (
-    <div>
+    <div className="seat-selection-container">
       <div className="screen">MÀN HÌNH</div>
       <div className="seats-grid">
         {seats.map((seat) => (
@@ -66,19 +67,20 @@ const Step2SelectSeats = ({ onSeatSelect }) => {
         ))}
       </div>
 
-      <div style={{ marginTop: 20 }}>
-        <p>Ghế đã chọn: {selected.join(", ")}</p>
-        <p>Tổng tiền: {total.toLocaleString()} đ</p>
+      <div className="seat-info">
+        <p className="selected-seats">Ghế đã chọn: {selected.join(", ")}</p>
+        <p className="total-price">Tổng tiền: {total.toLocaleString()} đ</p>
         <Button
           type="primary"
           disabled={!selected.length}
           onClick={handleContinue}
+          className="continue-btn"
         >
           Tiếp tục
         </Button>
       </div>
 
-      <div style={{ marginTop: 20 }}>
+      <div className="seat-legends">
         <Tag color="blue">Ghế thường</Tag>
         <Tag color="volcano">Ghế VIP</Tag>
         <Tag color="magenta">Ghế đôi</Tag>

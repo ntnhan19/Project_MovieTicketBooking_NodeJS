@@ -13,7 +13,6 @@ const Step4Payment = ({
   selectedSeats = [],
   selectedSnacks = [],
 }) => {
-  // Tổng tiền cho ghế đã chọn
   const getSeatInfo = (id) => {
     const row = id.charAt(0);
     const col = parseInt(id.charAt(1)) - 1;
