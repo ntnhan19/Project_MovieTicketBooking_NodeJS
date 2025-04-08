@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Movie" ADD COLUMN     "duration" INTEGER NOT NULL DEFAULT 90;

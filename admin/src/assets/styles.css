@@ -1,0 +1,251 @@
+/* ======================= */
+/* RESET & BASE STYLES     */
+/* ======================= */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+}
+
+body:not([data-theme="dark"]) {
+  background-color: #f4f5f7;
+  color: #333;
+}
+
+/* ======================= */
+/* DASHBOARD LAYOUT        */
+/* ======================= */
+.dashboard-container {
+  padding: 20px;
+}
+
+.page-header {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #1e293b;
+  color: #fff;
+  border-radius: 8px;
+  text-align: center;
+}
+
+/* ======================= */
+/* STATS CARDS             */
+/* ======================= */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.stats-card {
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s;
+}
+
+.stats-card:hover {
+  transform: translateY(-5px);
+}
+
+/* ======================= */
+/* RECENT MOVIES TABLE     */
+/* ======================= */
+.recent-movies table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.recent-movies th,
+.recent-movies td {
+  padding: 15px;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.recent-movies th {
+  background-color: #f1f5f9;
+}
+
+/* ======================= */
+/* MOVIE STATUS COLORS     */
+/* ======================= */
+.status-active {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.status-inactive,
+.status-archived {
+  color: #f44336;
+  font-weight: bold;
+}
+
+.status-coming-soon {
+  color: #ff9800;
+  font-weight: bold;
+}
+
+/* ======================= */
+/* BUTTON STYLES           */
+/* ======================= */
+button {
+  background-color: #3b82f6;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-right: 5px;
+  cursor: pointer;
+  border: none;
+}
+
+button:hover {
+  background-color: #1d4ed8;
+}
+
+/* ======================= */
+/* ADMIN UI FIXES          */
+/* ======================= */
+.admin-menu-title {
+  font-size: 1.2rem;
+  font-weight: 500;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.RaAppBar-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 200px;
+  margin-right: auto !important;
+  margin-left: 16px !important;
+}
+
+.RaTopToolbar-root {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.MuiTablePagination-root:not(:first-of-type) {
+  display: none;
+}
+
+.RaLayout-appBar .MuiToolbar-root {
+  flex-direction: row-reverse;
+}
+
+/* ======================= */
+/* SIDEBAR STYLES          */
+/* ======================= */
+.RaSidebar-fixed {
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Active Menu Item */
+.RaMenuItemLink-active {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+body[data-theme="dark"] .RaMenuItemLink-active {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ======================= */
+/* LIGHT MODE FIXES        */
+/* ======================= */
+body:not([data-theme="dark"]) .RaMenuItemLink-root .MuiListItemText-primary,
+body:not([data-theme="dark"]) .RaMenuItemLink-root .MuiListItemIcon-root,
+body:not([data-theme="dark"]) .MuiList-root .MuiListItem-root,
+body:not([data-theme="dark"]) .MuiListItemText-primary,
+body:not([data-theme="dark"]) .MuiMenuItem-root,
+body:not([data-theme="dark"]) .MuiSvgIcon-root {
+  color: #333 !important;
+}
+
+body:not([data-theme="dark"]) .MuiMenuItem-root:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+body:not([data-theme="dark"]) .RaSidebar-fixed {
+  background-color: #fff !important;
+  color: #333 !important;
+}
+
+body:not([data-theme="dark"]) .RaSidebar-fixed a,
+body:not([data-theme="dark"]) .RaSidebar-fixed a *,
+body:not([data-theme="dark"]) .RaSidebar-fixed .MuiSvgIcon-root {
+  color: #333 !important;
+}
+
+/* AppBar Icons */
+body:not([data-theme="dark"]) .RaLayout-appBar .MuiToolbar-root .MuiButtonBase-root .MuiSvgIcon-root {
+  color: #fff !important;
+}
+
+/* ======================= */
+/* DARK MODE STYLES        */
+/* ======================= */
+body[data-theme="dark"],
+.admin-page[data-theme="dark"] {
+  background-color: #121212;
+  color: #fff;
+}
+
+/* General Text Contrast */
+[data-theme="dark"] .MuiTableCell-root,
+[data-theme="dark"] .MuiTypography-root,
+[data-theme="dark"] .MuiInputBase-input,
+[data-theme="dark"] .MuiButtonBase-root,
+[data-theme="dark"] .MuiListItemText-primary,
+[data-theme="dark"] .MuiMenuItem-root {
+  color: #fff !important;
+}
+
+/* Table Contrast */
+[data-theme="dark"] .MuiTableCell-head {
+  background-color: #1e293b !important;
+  color: #90caf9 !important;
+  font-weight: bold;
+}
+
+[data-theme="dark"] .MuiTableRow-root {
+  background-color: #1e1e1e;
+}
+
+/* Status Colors */
+[data-theme="dark"] .status-active {
+  color: #69f0ae !important;
+}
+
+[data-theme="dark"] .status-coming-soon {
+  color: #ffab40 !important;
+}
+
+[data-theme="dark"] .status-inactive,
+[data-theme="dark"] .status-archived {
+  color: #ff5252 !important;
+}
+
+/* Buttons, Inputs, Cards */
+[data-theme="dark"] .MuiButton-contained {
+  background-color: #3b82f6 !important;
+  color: #fff !important;
+}
+
+[data-theme="dark"] .MuiPaper-root,
+[data-theme="dark"] .stats-card {
+  background-color: #1e1e1e;
+  color: #fff;
+}
+
+[data-theme="dark"] .MuiInputBase-root {
+  background-color: rgba(255, 255, 255, 0.05);
+}
