@@ -53,14 +53,26 @@ model Movie {
   reviews      Review[]
 }
 
+model Theater {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  location    String
+  totalSeats  Int
+  rows        Int        // Số hàng ghế
+  columns     Int        // Số ghế mỗi hàng
+
+  showtimes   Showtime[]
+}
+
 model Showtime {
   id         Int       @id @default(autoincrement())
   movieId    Int
+  theaterId  Int
   startTime  DateTime
   endTime    DateTime
-  room       String
 
   movie      Movie     @relation(fields: [movieId], references: [id])
+  theater    Theater   @relation(fields: [theaterId], references: [id])
   tickets    Ticket[]
   seats      Seat[]
 }
