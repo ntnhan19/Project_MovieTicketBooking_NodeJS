@@ -2,10 +2,10 @@
 import React, { useState } from "react";
 import { Row, Col } from "antd";
 import { Link } from "react-router-dom";
-import MovieCard from "./MovieCard";
-import MovieModal from "./TrailerModal";
+import MovieCard from "./MovieCard.jsx";
+import MovieModal from "./TrailerModal.jsx";
 import "../index.css";
-import movies from "./movies.js";
+import movies from "./movies.jsx";
 
 const MovieList = ({ category }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
