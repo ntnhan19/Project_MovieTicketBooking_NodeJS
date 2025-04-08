@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SeatStatus {
+  AVAILABLE
+  BOOKED
+  LOCKED
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  phone     String
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tickets   Ticket[]
+  reviews   Review[]
+}
+
+model Genre {
+  id     Int     @id @default(autoincrement())
+  name   String  @unique
+  movies Movie[] @relation("MovieGenres")
+}
+
+model Movie {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String
+  releaseDate  DateTime
+  genres       Genre[]  @relation("MovieGenres")
+  poster       String
+  duration     Int      @default(90)
+  director     String   @default("")
+  mainActors   String   @default("")
+
+  showtimes    Showtime[]
+  reviews      Review[]
+}
+
+model Showtime {
+  id         Int       @id @default(autoincrement())
+  movieId    Int
+  startTime  DateTime
+  endTime    DateTime
+  room       String
+
+  movie      Movie     @relation(fields: [movieId], references: [id])
+  tickets    Ticket[]
+  seats      Seat[]
+}
+
+model Seat {
+  id         Int        @id @default(autoincrement())
+  showtimeId Int
+  row        String
+  column     String
+  status     SeatStatus
+
+  showtime   Showtime   @relation(fields: [showtimeId], references: [id])
+  tickets    Ticket[]
+}
+
+model Ticket {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  showtimeId Int
+  seatId     Int
+  price      Float
+  status     String
+
+  user       User      @relation(fields: [userId], references: [id])
+  showtime   Showtime  @relation(fields: [showtimeId], references: [id])
+  seat       Seat      @relation(fields: [seatId], references: [id])
+  payment    Payment?
+}
+
+model Payment {
+  id         Int       @id @default(autoincrement())
+  ticketId   Int       @unique
+  amount     Float
+  method     String
+  status     String
+  createdAt  DateTime  @default(now())
+
+  ticket     Ticket    @relation(fields: [ticketId], references: [id])
+}
+
+model Review {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  movieId    Int
+  rating     Int
+  comment    String?
+  createdAt  DateTime  @default(now())
+
+  user       User      @relation(fields: [userId], references: [id])
+  movie      Movie     @relation(fields: [movieId], references: [id])
+}
+
+model Promotion {
+  id          Int       @id @default(autoincrement())
+  code        String    @unique
+  discount    Float
+  validFrom   DateTime
+  validUntil  DateTime
+}
