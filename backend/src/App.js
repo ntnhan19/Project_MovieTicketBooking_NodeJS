@@ -2,8 +2,10 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');;
 const cors = require('cors');
+
 const movieRoutes = require('./routes/movieRoutes');
 const genreRoutes = require('./routes/genreRoutes');
+const showtimeRoutes = require('./routes/showtimeRoutes');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -11,11 +13,10 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
-// Sử dụng router với prefix /api/movies
+// Routes
 app.use('/api/movies', movieRoutes);
-
-// Sử dụng router với prefix /api/genres
 app.use('/api/genres', genreRoutes);
+app.use('/api/showtimes', showtimeRoutes); 
 
 app.get('/', (req, res) => {
   res.send('API is working ✅');
