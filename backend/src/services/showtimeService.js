@@ -2,40 +2,74 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-exports.getAllShowtimes = async () => {
-  return await prisma.showtime.findMany({
-    include: {
-      movie: true,
-      seats: true,
+const createShowtime = async ({ movieId, hallId, startTime, endTime }) => {
+  return await prisma.showtime.create({
+    data: {
+      movieId,
+      hallId,
+      startTime,
+      endTime,
     },
   });
 };
 
-exports.getShowtimeById = async (id) => {
+const generateSeats = async (showtimeId, hall) => {
+  const seatCount = hall.seatCount || 60;
+  const rows = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const totalRows = Math.ceil(seatCount / 10);
+
+  const seats = [];
+  for (let row = 0; row < totalRows; row++) {
+    for (let num = 1; num <= 10; num++) {
+      const seatNumber = `${rows[row]}${num}`;
+      seats.push({ seatNumber, showtimeId });
+    }
+  }
+
+  await prisma.seat.createMany({ data: seats });
+};
+
+const getAllShowtimes = async () => {
+  return await prisma.showtime.findMany({
+    include: {
+      movie: true,
+      hall: true,
+    },
+  });
+};
+
+const getShowtimeById = async (id) => {
   return await prisma.showtime.findUnique({
     where: { id },
     include: {
       movie: true,
-      seats: true,
+      hall: true,
     },
   });
 };
 
-exports.createShowtime = async (data) => {
-  return await prisma.showtime.create({
-    data,
-  });
-};
-
-exports.updateShowtime = async (id, data) => {
+const updateShowtime = async (id, { movieId, hallId, startTime, endTime }) => {
   return await prisma.showtime.update({
     where: { id },
-    data,
+    data: {
+      movieId,
+      hallId,
+      startTime,
+      endTime,
+    },
   });
 };
 
-exports.deleteShowtime = async (id) => {
-  return await prisma.showtime.delete({
-    where: { id },
-  });
+const deleteShowtime = async (id) => {
+  await prisma.seat.deleteMany({ where: { showtimeId: id } }); // xoá ghế trước
+  return await prisma.showtime.delete({ where: { id } });
+};
+
+module.exports = {
+  createShowtime,
+  generateSeats,
+  getAllShowtimes,
+  getShowtimeById,
+  updateShowtime,
+  deleteShowtime,
 };

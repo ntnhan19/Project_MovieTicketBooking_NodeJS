@@ -9,13 +9,15 @@ const ShowtimeList = () => {
         <ReferenceField source="movieId" reference="movies" label="Movie">
           <TextField source="title" />
         </ReferenceField>
-        <ReferenceField source="roomId" reference="rooms" label="Room">
+        <ReferenceField source="hallId" reference="halls" label="Hall">
           <TextField source="name" />
         </ReferenceField>
         <DateField source="startTime" showTime />
+        <DateField source="endTime" showTime />
       </Datagrid>
     </List>
   );
 };
 
 export default ShowtimeList;
+

@@ -6,9 +6,11 @@ const cors = require('cors');
 const movieRoutes = require('./routes/movieRoutes');
 const genreRoutes = require('./routes/genreRoutes');
 const showtimeRoutes = require('./routes/showtimeRoutes');
+const authRoutes = require("./routes/authRoutes");
+const hallRoutes = require('./routes/hallRoutes');
+const cinemaRoutes = require('./routes/cinemaRoutes');
 
 const app = express();
-const prisma = new PrismaClient();
 
 app.use(cors());
 app.use(express.json());
@@ -17,6 +19,9 @@ app.use(express.json());
 app.use('/api/movies', movieRoutes);
 app.use('/api/genres', genreRoutes);
 app.use('/api/showtimes', showtimeRoutes); 
+app.use('/api/halls', hallRoutes);
+app.use('/api/cinemas', cinemaRoutes);
+app.use('/api/auth', authRoutes);
 
 app.get('/', (req, res) => {
   res.send('API is working ✅');

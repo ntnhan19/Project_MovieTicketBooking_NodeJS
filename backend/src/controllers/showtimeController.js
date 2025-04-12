@@ -1,48 +1,90 @@
 //src/controllers/showtimeController.js
+const { PrismaClient } = require('@prisma/client');
 const showtimeService = require('../services/showtimeService');
 
-exports.getAllShowtimes = async (req, res) => {
+// Tạo suất chiếu (POST /api/showtimes)
+const createShowtime = async (req, res) => {
   try {
-    const showtimes = await showtimeService.getAllShowtimes();
-    res.json(showtimes);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+    const { movieId, theaterId, startTime } = req.body;
 
-exports.getShowtimeById = async (req, res) => {
-  try {
-    const showtime = await showtimeService.getShowtimeById(Number(req.params.id));
-    if (!showtime) return res.status(404).json({ message: 'Showtime not found' });
-    res.json(showtime);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+    const movie = await prisma.movie.findUnique({ where: { id: movieId } });
+    if (!movie) return res.status(404).json({ message: 'Movie not found' });
 
-exports.createShowtime = async (req, res) => {
-  try {
-    const newShowtime = await showtimeService.createShowtime(req.body);
+    const theater = await prisma.theater.findUnique({ where: { id: theaterId } });
+    if (!theater) return res.status(404).json({ message: 'Theater not found' });
+
+    const start = new Date(startTime);
+    const end = new Date(start.getTime() + movie.duration * 60000);
+
+    const newShowtime = await showtimeService.createShowtime({ movieId, theaterId, startTime: start, endTime: end });
+    await showtimeService.generateSeats(newShowtime.id, theater);
+
     res.status(201).json(newShowtime);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error creating showtime:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
-exports.updateShowtime = async (req, res) => {
+// Lấy tất cả suất chiếu (GET /api/showtimes)
+const getAllShowtimes = async (req, res) => {
   try {
-    const updated = await showtimeService.updateShowtime(Number(req.params.id), req.body);
-    res.json(updated);
+    const showtimes = await showtimeService.getAllShowtimes();
+    res.status(200).json(showtimes);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error getting showtimes:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
-exports.deleteShowtime = async (req, res) => {
+const getShowtimeById = async (req, res) => {
   try {
-    await showtimeService.deleteShowtime(Number(req.params.id));
-    res.status(204).end();
+    const id = parseInt(req.params.id);
+    const showtime = await showtimeService.getShowtimeById(id);
+    if (!showtime) return res.status(404).json({ message: 'Showtime not found' });
+    res.status(200).json(showtime);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error getting showtime:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
+};
+
+// Cập nhật suất chiếu (PUT /api/showtimes/:id)
+const updateShowtime = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { movieId, theaterId, startTime } = req.body;
+
+    const movie = await prisma.movie.findUnique({ where: { id: movieId } });
+    if (!movie) return res.status(404).json({ message: 'Movie not found' });
+
+    const start = new Date(startTime);
+    const end = new Date(start.getTime() + movie.duration * 60000);
+
+    const updatedShowtime = await showtimeService.updateShowtime(id, { movieId, theaterId, startTime: start, endTime: end });
+    res.status(200).json(updatedShowtime);
+  } catch (error) {
+    console.error('Error updating showtime:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Xóa suất chiếu (DELETE /api/showtimes/:id)
+const deleteShowtime = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await showtimeService.deleteShowtime(id);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting showtime:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+module.exports = {
+  createShowtime,
+  getAllShowtimes,
+  getShowtimeById,
+  updateShowtime,
+  deleteShowtime,
 };

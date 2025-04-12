@@ -10,11 +10,12 @@ const ShowtimeForm = () => {
         <SelectInput optionText="title" />
       </ReferenceInput>
 
-      <ReferenceInput source="roomId" reference="rooms" label="Room">
+      <ReferenceInput source="hallId" reference="halls" label="Hall">
         <SelectInput optionText="name" />
       </ReferenceInput>
 
       <DateTimeInput source="startTime" label="Start Time" />
+      <DateTimeInput source="endTime" label="End Time" />
     </>
   );
 };

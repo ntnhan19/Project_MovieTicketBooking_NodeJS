@@ -25,7 +25,7 @@ model User {
   email     String   @unique
   phone     String
   password  String
-  role      Role     @default(USER) // 👈 Thêm dòng này
+  role      Role     @default(USER) 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -59,26 +59,35 @@ model Movie {
   reviews      Review[]
 }
 
-model Theater {
-  id          Int        @id @default(autoincrement())
-  name        String     @unique
-  location    String
-  totalSeats  Int
-  rows        Int        // Số hàng ghế
-  columns     Int        // Số ghế mỗi hàng
+model Cinema {
+  id      Int    @id @default(autoincrement())
+  name    String
+  address String
 
-  showtimes   Showtime[]
+  halls   Hall[]
+}
+
+model Hall {
+  id         Int     @id @default(autoincrement())
+  name       String
+  totalSeats Int
+  rows       Int
+  columns    Int
+  cinemaId   Int
+
+  cinema     Cinema  @relation(fields: [cinemaId], references: [id])
+  showtimes  Showtime[]
 }
 
 model Showtime {
   id         Int       @id @default(autoincrement())
   movieId    Int
-  theaterId  Int
+  hallId    Int
   startTime  DateTime
   endTime    DateTime
 
   movie      Movie     @relation(fields: [movieId], references: [id])
-  theater    Theater   @relation(fields: [theaterId], references: [id])
+  hall      Hall     @relation(fields: [hallId], references: [id])
   tickets    Ticket[]
   seats      Seat[]
 }

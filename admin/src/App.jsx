@@ -22,10 +22,25 @@ import ShowtimeEdit from "./components/Showtimes/ShowtimeEdit";
 import ShowtimeCreate from "./components/Showtimes/ShowtimeCreate";
 import ShowtimeShow from "./components/Showtimes/ShowtimeShow";
 
+// Halls components
+import HallList from "./components/Halls/HallList";
+import HallEdit from "./components/Halls/HallEdit";
+import HallCreate from "./components/Halls/HallCreate";
+import HallShow from "./components/Halls/HallShow";
+
+// Cinemas components
+import CinemaList from "./components/Cinemas/CinemaList";
+import CinemaEdit from "./components/Cinemas/CinemaEdit";
+import CinemaCreate from "./components/Cinemas/CinemaCreate";
+import CinemaShow from "./components/Cinemas/CinemaShow";
+
 // Icons
 import MovieIcon from "@mui/icons-material/Movie";
 import CategoryIcon from "@mui/icons-material/Category";
 import ScheduleIcon from '@mui/icons-material/Schedule';
+import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
+import PlaceIcon from '@mui/icons-material/Place';
+
 
 function App() {
   return (
@@ -57,6 +72,22 @@ function App() {
         create={ShowtimeCreate}
         show={ShowtimeShow}
         icon={ScheduleIcon}
+      />
+      <Resource
+        name="halls"
+        list={HallList}
+        edit={HallEdit}
+        create={HallCreate}
+        show={HallShow}
+        icon={MeetingRoomIcon}
+      />
+      <Resource
+        name="cinemas"
+        list={CinemaList}
+        edit={CinemaEdit}
+        create={CinemaCreate}
+        show={CinemaShow}
+        icon={PlaceIcon}
       />
     </Admin>
   );
