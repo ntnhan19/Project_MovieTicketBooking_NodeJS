@@ -1,6 +1,5 @@
 //src/services/showtimeService.js
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../prisma/prisma');
 
 const createShowtime = async ({ movieId, hallId, startTime, endTime }) => {
   return await prisma.showtime.create({
@@ -14,15 +13,16 @@ const createShowtime = async ({ movieId, hallId, startTime, endTime }) => {
 };
 
 const generateSeats = async (showtimeId, hall) => {
-  const seatCount = hall.seatCount || 60;
-  const rows = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const totalRows = Math.ceil(seatCount / 10);
-
   const seats = [];
-  for (let row = 0; row < totalRows; row++) {
-    for (let num = 1; num <= 10; num++) {
-      const seatNumber = `${rows[row]}${num}`;
-      seats.push({ seatNumber, showtimeId });
+  for (let r = 0; r < hall.rows; r++) {
+    const rowLetter = String.fromCharCode(65 + r); // A, B, C, ...
+    for (let c = 1; c <= hall.columns; c++) {
+      seats.push({
+        showtimeId,
+        row: rowLetter,
+        column: c.toString(),
+        status: 'AVAILABLE' // Sử dụng enum SeatStatus
+      });
     }
   }
 

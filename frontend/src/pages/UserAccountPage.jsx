@@ -16,19 +16,17 @@ import {
   MailOutlined,
   LockFilled,
 } from "@ant-design/icons";
-import axios from "../utils/axiosInstance";
-import { useNavigate } from "react-router-dom";
+import axios from "../api/axiosInstance";
 
 const { TabPane } = Tabs;
 
 const UserAccountPage = () => {
   const [activeTab, setActiveTab] = useState("login");
-  const navigate = useNavigate();
 
   const handleLogin = async (values) => {
     try {
       const res = await axios.post("/api/auth/login", {
-        email: values.username, // dùng email để login
+        email: values.username,
         password: values.password,
       });
 
@@ -37,12 +35,8 @@ const UserAccountPage = () => {
       localStorage.setItem("user", JSON.stringify(user));
       message.success("Đăng nhập thành công!");
 
-      // redirect theo role
-      if (user.role === "ADMIN") {
-        navigate("/admin");
-      } else {
-        navigate("/showtimes");
-      }
+      // Sau khi đăng nhập thành công, reload trang để main.jsx xử lý điều hướng dựa trên role
+      window.location.href = user.role === "ADMIN" ? "/admin" : "/";
     } catch (err) {
       message.error(err.response?.data?.message || "Lỗi đăng nhập");
     }
@@ -65,11 +59,8 @@ const UserAccountPage = () => {
       localStorage.setItem("user", JSON.stringify(user));
       message.success("Đăng ký thành công!");
 
-      if (user.role === "ADMIN") {
-        navigate("/admin");
-      } else {
-        navigate("/showtimes");
-      }
+      // Reload trang để main.jsx xử lý điều hướng dựa trên role
+      window.location.href = user.role === "ADMIN" ? "/admin" : "/";
     } catch (err) {
       message.error(err.response?.data?.message || "Lỗi đăng ký");
     }

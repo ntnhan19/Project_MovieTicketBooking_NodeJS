@@ -1,150 +1,245 @@
-import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import { Steps, Button, Spin } from "antd";
-import movies from "../components/movies";
-import Step1SelectShowtime from "../components/Booking/Step1SelectShowtime";
-import Step2SelectSeats from "../components/Booking/Step2SelectSeats";
-import Step3SelectSnacks from "../components/Booking/Step3SelectSnacks";
-import Step4Payment from "../components/Booking/Step4Payment";
-import Step5Succes from "../components/Booking/Step5Success";
+//frontend/src/pages/BookingPage.jsx
+import React, { useState, useEffect } from 'react';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { 
+  Card, Steps, Button, Row, Col, Typography, 
+  Divider, Form, message, Spin, Space, Tag 
+} from 'antd';
+import { 
+  ShoppingCartOutlined, 
+  UserOutlined, 
+  CreditCardOutlined, 
+  CheckCircleOutlined,
+  ArrowLeftOutlined,
+  ArrowRightOutlined
+} from '@ant-design/icons';
+import { movieApi } from '../api/movieApi';
+import { bookingApi } from '../api/bookingApi';
+import SeatSelection from '../components/Booking/steps/Step2SeatSelection';
+import PaymentMethod from '../components/Booking/steps/Step4PaymentMethod';
+import CustomerInfoForm from '../components/Booking/CustomerInfoForm';
 
-const steps = [
-  { title: "Chọn suất", content: <Step1SelectShowtime /> },
-  { title: "Chọn ghế", content: <Step2SelectSeats /> },
-  { title: "Bắp nước", content: <Step3SelectSnacks /> },
-  { title: "Thanh toán", content: <Step4Payment /> },
-  { title: "Xác nhận", content: <Step5Succes /> },
-];
+const { Title, Text } = Typography;
 
 const BookingPage = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  
+  const cinema = searchParams.get('cinema');
+  const date = searchParams.get('date');
+  const time = searchParams.get('time');
+  
+  const [currentStep, setCurrentStep] = useState(0);
   const [movie, setMovie] = useState(null);
-  const [current, setCurrent] = useState(0);
-
-  // State lưu thông tin chọn suất, ghế và bắp nước
-  const [selectedShowtime, setSelectedShowtime] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState([]);
-  const [selectedSnacks, setSelectedSnacks] = useState([]);
-
+  const [loading, setLoading] = useState(true);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentComplete, setPaymentComplete] = useState(false);
+  const [bookingReference, setBookingReference] = useState('');
+  const [form] = Form.useForm();
+  
+  // Giá vé và phí (VND)
+  const ticketPrice = 90000;
+  const serviceFee = 10000;
+  
   useEffect(() => {
-    const selected = movies.find((m) => m.id === Number(id));
-    setMovie(selected);
+    const fetchMovieData = async () => {
+      try {
+        setLoading(true);
+        const movieData = await movieApi.getMovieById(id);
+        setMovie(movieData);
+      } catch (error) {
+        console.error("Không thể tải thông tin phim:", error);
+        message.error("Không thể tải thông tin phim. Vui lòng thử lại sau!");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchMovieData();
   }, [id]);
-
-  if (!movie) return <Spin tip="Đang tải thông tin phim..." />;
-
-  // Hàm để lưu thông tin suất chiếu
-  const handleShowtimeSelect = (showtime) => {
-    setSelectedShowtime(showtime);
-    setCurrent(1); // Tiến đến bước chọn ghế
-  };
-
-  // Hàm để lưu thông tin ghế đã chọn
-  const handleSeatSelect = (seats) => {
+  
+  const handleSeatSelection = (seats) => {
     setSelectedSeats(seats);
-    setCurrent(2); // Tiến đến bước chọn bắp nước
   };
-
-  // Hàm để lưu thông tin bắp nước đã chọn
-  const handleSnackSelect = (snacks) => {
-    setSelectedSnacks(snacks);
-    setCurrent(3); // Tiến đến bước thanh toán
+  
+  const calculateTotal = () => {
+    return selectedSeats.length * ticketPrice + serviceFee;
   };
-
-  // Hàm để chuyển sang bước tiếp theo
-  const nextStep = () => {
-    setCurrent(current + 1);
+  
+  const handleNext = () => {
+    if (currentStep === 0 && selectedSeats.length === 0) {
+      message.warning("Vui lòng chọn ít nhất một ghế.");
+      return;
+    }
+    
+    if (currentStep === 1) {
+      form.validateFields().then(() => {
+        setCurrentStep(currentStep + 1);
+      }).catch(() => {
+        message.error("Vui lòng điền đầy đủ thông tin");
+      });
+      return;
+    }
+    
+    setCurrentStep(currentStep + 1);
   };
-
-  // Hàm để quay lại bước trước
-  const prevStep = () => {
-    setCurrent(current - 1);
+  
+  const handlePrev = () => {
+    setCurrentStep(currentStep - 1);
   };
-
-  return (
-    <div style={{ maxWidth: 1000, margin: "auto", padding: 20 }}>
-      <div
-        style={{
-          backgroundColor: "#fff",
-          padding: "20px",
-          borderRadius: "10px",
-          boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-          marginBottom: "20px",
-        }}
-      >
-        <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
-          <img
-            src={movie.image}
-            alt={movie.title}
-            style={{ width: 200, borderRadius: 8 }}
-          />
-          <div>
-            <h1>{movie.title}</h1>
-            <p>
-              <b>Thời lượng:</b> {movie.runtime}
-            </p>
-            <p>
-              <b>Thể loại:</b> {movie.genre}
-            </p>
-            <p>
-              <b>Giới hạn độ tuổi:</b> {movie.rating}
-            </p>
-            <p>
-              <b>Ngày công chiếu:</b> {movie.releaseDate}
-            </p>
-            <p>
-              <b>Đạo diễn:</b> {movie.director}
-            </p>
+  
+  const handlePayment = async (paymentMethod) => {
+    try {
+      setPaymentLoading(true);
+      
+      // Lấy thông tin từ form
+      const userInfo = form.getFieldsValue();
+      
+      // Tạo object booking
+      const bookingData = {
+        movieId: id,
+        cinema: cinema,
+        showDate: date,
+        showTime: time,
+        seats: selectedSeats,
+        customerInfo: userInfo,
+        paymentMethod: paymentMethod,
+        amount: calculateTotal()
+      };
+      
+      // Gọi API đặt vé
+      const response = await bookingApi.createBooking(bookingData);
+      
+      // Lưu mã đặt vé để hiển thị
+      setBookingReference(response.bookingId || response.id || 'BK-' + Math.floor(Math.random() * 1000000));
+      setPaymentComplete(true);
+      message.success("Đặt vé thành công!");
+    } catch (error) {
+      console.error("Lỗi khi đặt vé:", error);
+      message.error("Đã xảy ra lỗi khi đặt vé. Vui lòng thử lại!");
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+  
+  const steps = [
+    {
+      title: 'Chọn ghế',
+      icon: <ShoppingCartOutlined />,
+      content: <SeatSelection onSelectSeats={handleSeatSelection} selectedSeats={selectedSeats} />
+    },
+    {
+      title: 'Thông tin',
+      icon: <UserOutlined />,
+      content: <CustomerInfoForm form={form} />
+    },
+    {
+      title: 'Thanh toán',
+      icon: <CreditCardOutlined />,
+      content: <PaymentMethod onPayment={handlePayment} loading={paymentLoading} />
+    },
+    {
+      title: 'Hoàn tất',
+      icon: <CheckCircleOutlined />,
+      content: paymentComplete ? (
+        <div className="booking-success">
+          <div className="booking-success-content">
+            <CheckCircleOutlined className="success-icon" />
+            <Title level={2}>Đặt vé thành công!</Title>
+            <Text className="booking-reference">Mã đặt vé: {bookingReference}</Text>
+            <Text className="booking-info">Vui lòng kiểm tra email để xem chi tiết.</Text>
+            
+            <Space className="action-buttons" size="middle">
+              <Button type="primary" size="large" onClick={() => navigate('/')}>
+                Về trang chủ
+              </Button>
+              <Button size="large" onClick={() => navigate('/profile/bookings')}>
+                Xem lịch sử đặt vé
+              </Button>
+            </Space>
           </div>
         </div>
-
-        <Steps current={current} style={{ marginBottom: 24 }}>
-          {steps.map((step) => (
-            <Steps.Step key={step.title} title={step.title} />
-          ))}
-        </Steps>
-
-        {/* Truyền dữ liệu cho các bước */}
-        <div>
-          {current === 0 && (
-            <Step1SelectShowtime onShowtimeSelect={handleShowtimeSelect} />
-          )}
-          {current === 1 && (
-            <Step2SelectSeats onSeatSelect={handleSeatSelect} />
-          )}
-          {current === 2 && (
-            <Step3SelectSnacks onSnackSelect={handleSnackSelect} />
-          )}
-          {current === 3 && (
-            <Step4Payment
-              selectedSeats={selectedSeats}
-              selectedSnacks={selectedSnacks}
-            />
-          )}
-          {current === 4 && (
-            <Step5Succes
-              selectedShowtime={selectedShowtime}
-              selectedSeats={selectedSeats}
-              selectedSnacks={selectedSnacks}
-            />
-          )}
+      ) : (
+        <div className="payment-processing">
+          <Spin size="large" tip="Đang xử lý thanh toán..." />
         </div>
-
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: 24,
-          }}
-        >
-          {current > 0 && <Button onClick={prevStep}>Quay lại</Button>}
-          {current < steps.length - 1 && (
-            <Button type="primary" onClick={nextStep}>
-              Tiếp tục
-            </Button>
-          )}
-        </div>
+      )
+    },
+  ];
+  
+  if (loading && !movie) {
+    return (
+      <div className="loading-container">
+        <Spin size="large" tip="Đang tải thông tin..." />
       </div>
+    );
+  }
+  
+  return (
+    <div className="booking-page-container">
+      <Card bordered={false} className="booking-card">
+        {movie && (
+          <Row gutter={[24, 24]}>
+            <Col xs={24} sm={8} md={6}>
+              <div className="movie-poster">
+                <img 
+                  src={movie.poster || movie.image} 
+                  alt={movie.title}
+                />
+              </div>
+            </Col>
+            <Col xs={24} sm={16} md={18}>
+              <Title level={2}>{movie.title}</Title>
+              
+              <Space size="large" wrap className="movie-info">
+                <div className="info-item">
+                  <Text strong>Rạp:</Text> <Tag color="blue">{cinema}</Tag>
+                </div>
+                <div className="info-item">
+                  <Text strong>Ngày:</Text> <Tag color="purple">{date}</Tag>
+                </div>
+                <div className="info-item">
+                  <Text strong>Giờ chiếu:</Text> <Tag color="green">{time}</Tag>
+                </div>
+              </Space>
+              
+              <Divider />
+              
+              <Steps current={currentStep} className="booking-steps">
+                {steps.map(item => (
+                  <Steps.Step key={item.title} title={item.title} icon={item.icon} />
+                ))}
+              </Steps>
+            </Col>
+          </Row>
+        )}
+        
+        <div className="steps-content">
+          {steps[currentStep].content}
+        </div>
+        
+        {currentStep < 3 && (
+          <div className="steps-action">
+            {currentStep > 0 && (
+              <Button 
+                icon={<ArrowLeftOutlined />}
+                onClick={handlePrev}
+              >
+                Quay lại
+              </Button>
+            )}
+            <Button 
+              type="primary" 
+              onClick={handleNext}
+              icon={currentStep === steps.length - 2 ? null : <ArrowRightOutlined />}
+            >
+              {currentStep === steps.length - 2 ? 'Hoàn tất' : 'Tiếp tục'}
+            </Button>
+          </div>
+        )}
+      </Card>
     </div>
   );
 };

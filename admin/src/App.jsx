@@ -1,4 +1,4 @@
-//src/App.jsx
+// Admin/src/App.jsx
 import { Admin, Resource } from "react-admin";
 import dataProvider from "./services/dataProvider";
 import authProvider from "./services/authProvider";
@@ -34,12 +34,28 @@ import CinemaEdit from "./components/Cinemas/CinemaEdit";
 import CinemaCreate from "./components/Cinemas/CinemaCreate";
 import CinemaShow from "./components/Cinemas/CinemaShow";
 
+
+//Promotions components
+import PromotionList from './components/Promotions/PromotionList';
+import PromotionEdit from './components/Promotions/PromotionEdit';
+import PromotionCreate from './components/Promotions/PromotionCreate';
+import PromotionShow from './components/Promotions/PromotionShow';
+
+// Users components
+import UserList from "./components/Users/UserList";
+import UserEdit from "./components/Users/UserEdit";
+import UserCreate from "./components/Users/UserCreate";
+import UserShow from "./components/Users/UserShow";
+
+
 // Icons
 import MovieIcon from "@mui/icons-material/Movie";
 import CategoryIcon from "@mui/icons-material/Category";
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import PlaceIcon from '@mui/icons-material/Place';
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import UserIcon from "@mui/icons-material/Person";
 
 
 function App() {
@@ -88,6 +104,22 @@ function App() {
         create={CinemaCreate}
         show={CinemaShow}
         icon={PlaceIcon}
+      />
+      <Resource
+        name="promotions"
+        list={PromotionList}
+        edit={PromotionEdit}
+        create={PromotionCreate}
+        show={PromotionShow}
+        icon={LocalOfferIcon}
+      />
+      <Resource
+        name="users"
+        list={UserList}
+        edit={UserEdit}
+        create={UserCreate}
+        show={UserShow}
+        icon={UserIcon}
       />
     </Admin>
   );

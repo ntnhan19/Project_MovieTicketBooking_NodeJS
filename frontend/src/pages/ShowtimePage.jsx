@@ -1,65 +1,13 @@
-import React, { useState } from "react";
-import { Col, Row, Typography, Divider, Tag, Button, DatePicker } from "antd";
-
+// frontend/src/pages/ShowtimePage.jsx
+import React, { useState, useEffect } from "react";
+import { Col, Row, Typography, Divider, Tag, Button, DatePicker, Spin, Empty, Select, message } from "antd";
 import dayjs from "dayjs";
 import "../index.css";
-import showtimesData from "../data/showtimesData";
+import { showtimeApi } from "../api/showtimeApi";
+import { Link } from "react-router-dom";
 
 const { Title, Text } = Typography;
-const movies = [
-  {
-    id: 1,
-    title: "Nhà Gia Tiên",
-    image: "/images/img1.jpg",
-    releaseDate: "21/02/2025",
-    runtime: "1 giờ 57 phút",
-    director: "Huỳnh Lập",
-    genre: "Supernatural, Family, Comedy - 2D",
-    rating: "T18",
-    format: "2D",
-    description: "Một câu chuyện đa góc nhìn về các thế hệ...",
-    trailer: "https://www.youtube.com/watch?v=hXGozmNBwt4",
-  },
-  {
-    id: 2,
-    title: "Quỷ Nhập Tràng",
-    image: "/images/img2.jpg",
-    releaseDate: "07/03/2025",
-    runtime: "2 giờ 2 phút",
-    director: "Pom Nguyễn",
-    genre: "Horror - 2D",
-    format: "2D",
-    rating: "T18",
-    description: "Lấy cảm hứng từ truyền thuyết kinh dị...",
-    trailer: "https://www.youtube.com/watch?v=fQKxDM-hxoU",
-  },
-  {
-    id: 3,
-    title: "FLOW: Lạc Trôi",
-    image: "/images/img3.jpg",
-    releaseDate: "07/04/2025",
-    runtime: "1 giờ 29 phút",
-    director: "Gints Zilbalodis",
-    genre: "Cartoon - 2D",
-    format: "2D",
-    rating: "P",
-    description: "Một chú mèo nhút nhát phải rời bỏ vùng an toàn...",
-    trailer: "https://www.youtube.com/watch?v=B3V-9tiuQTo",
-  },
-  {
-    id: 4,
-    title: "SÁT THỦ VÔ CÙNG CỰC HÀI",
-    image: "/images/img4.jpg",
-    releaseDate: "14/04/2025",
-    runtime: "1 giờ 47 phút",
-    director: "Choi Won-sub",
-    genre: "Comedy, Action - 2D Dub",
-    format: "2D",
-    rating: "T16",
-    description: "Câu chuyện về một họa sĩ webtoon...",
-    trailer: "https://www.youtube.com/watch?v=0g1v2x4X8aE",
-  },
-];
+const { Option } = Select;
 
 const generateDateList = () => {
   const days = [];
@@ -79,10 +27,86 @@ const ShowtimePage = () => {
   const [selectedDate, setSelectedDate] = useState(
     dayjs().format("DD/MM/YYYY")
   );
-  const [selectedTheater] = useState("id");
+  const [selectedTheater, setSelectedTheater] = useState("all");
+  const [theaters, setTheaters] = useState([]);
+  const [showtimes, setShowtimes] = useState({});
+  const [movies, setMovies] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const showtimesForTheater =
-    showtimesData[selectedDate]?.[selectedTheater] || {};
+  // Lấy danh sách rạp khi component mount
+  useEffect(() => {
+    const fetchTheaters = async () => {
+      try {
+        // Giả sử API này trả về danh sách các rạp phim
+        const response = await fetch('http://localhost:5000/api/cinemas');
+        const data = await response.json();
+        setTheaters(data);
+      } catch (error) {
+        console.error("Failed to fetch theaters:", error);
+        message.error("Không thể tải danh sách rạp phim!");
+      }
+    };
+
+    fetchTheaters();
+  }, []);
+
+  // Lấy lịch chiếu khi ngày hoặc rạp thay đổi
+  useEffect(() => {
+    const fetchShowtimes = async () => {
+      try {
+        setLoading(true);
+        
+        // Thực hiện gọi API lấy lịch chiếu
+        let data;
+        if (selectedTheater === "all") {
+          data = await showtimeApi.getShowtimesByDate(selectedDate);
+        } else {
+          data = await showtimeApi.getShowtimesByCinema(selectedTheater);
+          // Lọc theo ngày nếu cần
+          if (data && Object.keys(data).length > 0) {
+            Object.keys(data).forEach(cinemaId => {
+              const filteredDates = {};
+              if (data[cinemaId][selectedDate]) {
+                filteredDates[selectedDate] = data[cinemaId][selectedDate];
+              }
+              data[cinemaId] = filteredDates;
+            });
+          }
+        }
+        
+        setShowtimes(data || {});
+        
+        // Lấy thông tin chi tiết của các phim trong lịch chiếu
+        const movieIds = new Set();
+        if (data) {
+          Object.keys(data).forEach(cinema => {
+            Object.keys(data[cinema]).forEach(date => {
+              Object.keys(data[cinema][date]).forEach(movieId => {
+                movieIds.add(parseInt(movieId));
+              });
+            });
+          });
+        }
+        
+        // Lấy thông tin phim từ IDs
+        if (movieIds.size > 0) {
+          const moviesData = await Promise.all(
+            Array.from(movieIds).map(id => 
+              fetch(`http://localhost:5000/api/movies/${id}`).then(res => res.json())
+            )
+          );
+          setMovies(moviesData);
+        }
+      } catch (error) {
+        console.error("Failed to fetch showtimes:", error);
+        message.error("Không thể tải lịch chiếu. Vui lòng thử lại sau!");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchShowtimes();
+  }, [selectedDate, selectedTheater]);
 
   const handleDateChange = (date) => {
     if (date) {
@@ -90,8 +114,47 @@ const ShowtimePage = () => {
     }
   };
 
+  const handleTheaterChange = (value) => {
+    setSelectedTheater(value);
+  };
+
+  const getShowtimesForMovie = (movieId) => {
+    const result = {};
+    Object.keys(showtimes).forEach(cinema => {
+      if (showtimes[cinema][selectedDate] && showtimes[cinema][selectedDate][movieId]) {
+        result[cinema] = showtimes[cinema][selectedDate][movieId];
+      }
+    });
+    return result;
+  };
+
+  const findMovie = (movieId) => {
+    return movies.find(m => m.id === parseInt(movieId));
+  };
+
   return (
     <div className="showtime-page">
+      {/* Bộ lọc */}
+      <div style={{ marginBottom: 20 }}>
+        <Row gutter={[16, 16]} align="middle">
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <Select 
+              placeholder="Chọn rạp" 
+              style={{ width: '100%' }}
+              onChange={handleTheaterChange}
+              value={selectedTheater}
+            >
+              <Option value="all">Tất cả rạp</Option>
+              {theaters.map(theater => (
+                <Option key={theater.id} value={theater.id}>
+                  {theater.name}
+                </Option>
+              ))}
+            </Select>
+          </Col>
+        </Row>
+      </div>
+
       {/* Date Select Buttons + Picker */}
       <div
         style={{
@@ -122,57 +185,85 @@ const ShowtimePage = () => {
 
       <Divider />
 
-      {/* Movie showtimes remain the same */}
-      <Row gutter={[24, 24]} justify="center">
-        {Object.keys(showtimesForTheater).map((movieId) => {
-          const movie = movies.find((m) => m.id === parseInt(movieId));
-          if (!movie) return null;
-          return (
-            <Col key={movie.id} span={20}>
-              <div className="movie-showtime-box">
-                <Row gutter={16} align="middle">
-                  <Col xs={4} sm={3} md={2}>
-                    <img
-                      src={movie.image}
-                      alt={movie.title}
-                      style={{ width: "100%", borderRadius: 8 }}
-                    />
-                  </Col>
-                  <Col xs={16} sm={18} md={20}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <Title level={5}>{movie.title}</Title>
-                      <Tag color={movie.format === "IMAX" ? "blue" : "purple"}>
-                        {movie.format}
-                      </Tag>
-                    </div>
-                    <Text>
-                      {movie.runtime} • {movie.rating} • {movie.genre}
-                    </Text>
-                    <div style={{ marginTop: 10 }}>
-                      {showtimesForTheater[movieId].map((time, index) => (
-                        <Button
-                          key={index}
-                          type="default"
-                          size="middle"
-                          style={{ margin: "4px 8px 4px 0" }}
-                        >
-                          {time}
-                        </Button>
+      {/* Movie showtimes */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '50px' }}>
+          <Spin size="large" />
+        </div>
+      ) : Object.keys(showtimes).length === 0 ? (
+        <Empty description="Không có lịch chiếu nào cho ngày này" />
+      ) : (
+        <Row gutter={[24, 24]} justify="center">
+          {movies.length > 0 && movies.map(movie => {
+            const movieShowtimes = getShowtimesForMovie(movie.id.toString());
+            if (Object.keys(movieShowtimes).length === 0) return null;
+            
+            return (
+              <Col key={movie.id} span={20}>
+                <div className="movie-showtime-box">
+                  <Row gutter={16} align="middle">
+                    <Col xs={4} sm={3} md={2}>
+                      <Link to={`/movies/${movie.id}`}>
+                        <img
+                          src={movie.poster || movie.image}
+                          alt={movie.title}
+                          style={{ width: "100%", borderRadius: 8 }}
+                        />
+                      </Link>
+                    </Col>
+                    <Col xs={16} sm={18} md={20}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Link to={`/movies/${movie.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                          <Title level={5}>{movie.title}</Title>
+                        </Link>
+                        <Tag color="purple">
+                          {movie.format || '2D'}
+                        </Tag>
+                      </div>
+                      <Text>
+                        {movie.duration} phút • {movie.rating} • {
+                          Array.isArray(movie.genres) 
+                            ? movie.genres.map(g => g.name).join(', ') 
+                            : "Chưa cập nhật"
+                        }
+                      </Text>
+                      
+                      {Object.entries(movieShowtimes).map(([cinema, times]) => (
+                        <div key={cinema} style={{ marginTop: 10 }}>
+                          <Text strong>{cinema}</Text>
+                          <div>
+                            {times.map((time, idx) => (
+                              <Link 
+                                key={idx} 
+                                to={`/booking/${movie.id}?time=${time}&date=${selectedDate}&cinema=${cinema}`}
+                              >
+                                <Button
+                                  type="default"
+                                  size="middle"
+                                  style={{ margin: "4px 8px 4px 0" }}
+                                >
+                                  {time}
+                                </Button>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
                       ))}
-                    </div>
-                  </Col>
-                </Row>
-              </div>
-            </Col>
-          );
-        })}
-      </Row>
+                    </Col>
+                  </Row>
+                </div>
+              </Col>
+            );
+          })}
+        </Row>
+      )}
     </div>
   );
 };
+
 export default ShowtimePage;

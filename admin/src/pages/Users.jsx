@@ -1,23 +1,71 @@
-// src/pages/Users.jsx
-import React from 'react';
-import { List, Create, Edit } from 'react-admin';
-import UserList from '@/components/Users/UserList';
-import UserForm from '@/components/Users/UserForm';
+// admin/src/pages/Users.jsx
+import {
+  List,
+  Datagrid,
+  TextField,
+  EmailField,
+  DateField,
+  Show,
+  SimpleShowLayout,
+  Edit,
+  SimpleForm,
+  TextInput,
+  Create,
+  SelectInput,
+} from "react-admin";
 
-export const UserListView = (props) => (
-  <List {...props} title="Danh sách người dùng">
-    <UserList {...props} />
+const roleChoices = [
+  { id: "ADMIN", name: "Quản trị viên" },
+  { id: "USER", name: "Khách hàng" },
+];
+
+export const UserList = () => (
+  <List>
+    <Datagrid rowClick="show">
+      <TextField source="id" />
+      <TextField source="name" label="Tên người dùng" />
+      <EmailField source="email" label="Email" />
+      <TextField source="phone" label="Số điện thoại" />
+      <TextField source="role" label="Vai trò" />
+      <DateField source="createdAt" label="Ngày tạo" />
+    </Datagrid>
   </List>
 );
 
-export const UserCreateView = (props) => (
-  <Create {...props} title="Thêm người dùng mới">
-    <UserForm {...props} />
-  </Create>
+export const UserShow = () => (
+  <Show>
+    <SimpleShowLayout>
+      <TextField source="id" label="ID" />
+      <TextField source="name" label="Tên người dùng" />
+      <EmailField source="email" label="Email" />
+      <TextField source="phone" label="Số điện thoại" />
+      <TextField source="role" label="Vai trò" />
+      <DateField source="createdAt" label="Ngày tạo" />
+      <DateField source="updatedAt" label="Ngày cập nhật" />
+    </SimpleShowLayout>
+  </Show>
 );
 
-export const UserEditView = (props) => (
-  <Edit {...props} title="Chỉnh sửa thông tin người dùng">
-    <UserForm {...props} />
+export const UserEdit = () => (
+  <Edit>
+    <SimpleForm>
+      <TextInput source="name" label="Tên người dùng" />
+      <TextInput source="email" label="Email" />
+      <TextInput source="phone" label="Số điện thoại" />
+      <TextInput source="password" type="password" label="Mật khẩu" />
+      <SelectInput source="role" choices={roleChoices} label="Vai trò" />
+    </SimpleForm>
   </Edit>
+);
+
+export const UserCreate = () => (
+  <Create>
+    <SimpleForm>
+      <TextInput source="name" label="Tên người dùng" />
+      <TextInput source="email" label="Email" />
+      <TextInput source="phone" label="Số điện thoại" />
+      <TextInput source="password" type="password" label="Mật khẩu" />
+      <SelectInput source="role" choices={roleChoices} label="Vai trò" />
+    </SimpleForm>
+  </Create>
 );

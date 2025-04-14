@@ -14,7 +14,6 @@ import {
 import { Grid, Typography, Box, Card, CardContent, Divider, Avatar } from '@mui/material';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
-// User show actions
 const UserShowActions = ({ basePath, data, resource }) => (
   <TopToolbar>
     <EditButton basePath={basePath} record={data} />

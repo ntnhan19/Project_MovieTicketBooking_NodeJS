@@ -1,8 +1,8 @@
-// MoviePage.jsx
+// frontend/src/pages/MoviePage.jsx
 import React from "react";
 import { Tabs } from "antd";
-import BookingOptions from "../components/BookingOptions";
-import MovieList from "../components/MovieList";
+import BookingOptions from "../components/Booking/BookingOptions";
+import MovieList from "../components/Movies/MovieList";
 
 const MoviePage = () => {
   return (
@@ -13,15 +13,19 @@ const MoviePage = () => {
         centered
         className="mt-5"
         size="large"
-      >
-        <Tabs.TabPane tab=" Phim Đang Chiếu" key="nowShowing">
-          <MovieList category="nowShowing" />
-        </Tabs.TabPane>
-
-        <Tabs.TabPane tab=" Phim Sắp Chiếu" key="comingSoon">
-          <MovieList category="comingSoon" />
-        </Tabs.TabPane>
-      </Tabs>
+        items={[
+          {
+            label: "Phim Đang Chiếu",
+            key: "nowShowing",
+            children: <MovieList category="nowShowing" />,
+          },
+          {
+            label: "Phim Sắp Chiếu",
+            key: "comingSoon",
+            children: <MovieList category="comingSoon" />,
+          },
+        ]}
+      />
     </div>
   );
 };

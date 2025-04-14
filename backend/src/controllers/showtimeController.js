@@ -1,23 +1,24 @@
 //src/controllers/showtimeController.js
 const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 const showtimeService = require('../services/showtimeService');
 
 // Tạo suất chiếu (POST /api/showtimes)
 const createShowtime = async (req, res) => {
   try {
-    const { movieId, theaterId, startTime } = req.body;
+    const { movieId, hallId, startTime } = req.body;
 
     const movie = await prisma.movie.findUnique({ where: { id: movieId } });
     if (!movie) return res.status(404).json({ message: 'Movie not found' });
 
-    const theater = await prisma.theater.findUnique({ where: { id: theaterId } });
-    if (!theater) return res.status(404).json({ message: 'Theater not found' });
+    const hall = await prisma.hall.findUnique({ where: { id: hallId } });
+    if (!hall) return res.status(404).json({ message: 'Hall not found' });
 
     const start = new Date(startTime);
     const end = new Date(start.getTime() + movie.duration * 60000);
 
-    const newShowtime = await showtimeService.createShowtime({ movieId, theaterId, startTime: start, endTime: end });
-    await showtimeService.generateSeats(newShowtime.id, theater);
+    const newShowtime = await showtimeService.createShowtime({ movieId, hallId, startTime: start, endTime: end });
+    await showtimeService.generateSeats(newShowtime.id, hall);
 
     res.status(201).json(newShowtime);
   } catch (error) {
@@ -53,7 +54,7 @@ const getShowtimeById = async (req, res) => {
 const updateShowtime = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { movieId, theaterId, startTime } = req.body;
+    const { movieId, hallId, startTime } = req.body;
 
     const movie = await prisma.movie.findUnique({ where: { id: movieId } });
     if (!movie) return res.status(404).json({ message: 'Movie not found' });
@@ -61,7 +62,7 @@ const updateShowtime = async (req, res) => {
     const start = new Date(startTime);
     const end = new Date(start.getTime() + movie.duration * 60000);
 
-    const updatedShowtime = await showtimeService.updateShowtime(id, { movieId, theaterId, startTime: start, endTime: end });
+    const updatedShowtime = await showtimeService.updateShowtime(id, { movieId, hallId, startTime: start, endTime: end });
     res.status(200).json(updatedShowtime);
   } catch (error) {
     console.error('Error updating showtime:', error);

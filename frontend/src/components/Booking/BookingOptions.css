@@ -1,0 +1,77 @@
+/* frontend/src/components/Booking/BookingOptions.css */
+.booking-options {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .booking-step {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 180px;
+  }
+  
+  .step-number {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: #0d6efd;
+    color: white;
+    font-weight: bold;
+    margin-right: 10px;
+  }
+  
+  .step-content {
+    flex: 1;
+  }
+  
+  .step-title {
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 600;
+  }
+  
+  .select-cinema,
+  .select-movie,
+  .select-date,
+  .select-showtime {
+    width: 100%;
+  }
+  
+  .book-now-button {
+    background-color: #0d6efd;
+    height: 42px;
+    min-width: 120px;
+    font-weight: 600;
+    font-size: 16px;
+    margin-left: auto;
+  }
+  
+  /* Responsive */
+  @media (max-width: 992px) {
+    .booking-options {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    
+    .booking-step {
+      width: 100%;
+      margin-bottom: 15px;
+    }
+    
+    .book-now-button {
+      width: 100%;
+      margin-top: 10px;
+      margin-left: 0;
+    }
+  }

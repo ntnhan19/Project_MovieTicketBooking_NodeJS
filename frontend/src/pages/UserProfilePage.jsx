@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Form, Input, Button, Tabs, Table, DatePicker } from "antd";
 import { LockOutlined } from "@ant-design/icons";
-import Header from "../components/Header";
+import AppHeader from "../components/common/AppHeader.jsx";
 import "../index.css";
 
 const { TabPane } = Tabs;
@@ -110,7 +110,7 @@ const UserProfilePage = () => {
   return (
     <div>
       {typeof setUser === "function" && (
-        <Header user={user} setUser={setUser} />
+        <AppHeader user={user} setUser={setUser} />
       )}
       <div className="profile-container">
         <Tabs defaultActiveKey="1" centered>

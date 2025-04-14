@@ -4,7 +4,7 @@ import HallForm from './HallForm';
 
 const HallCreate = () => (
   <Create title="Tạo phòng chiếu">
-    <SimpleForm>
+    <SimpleForm redirect="list">
       <HallForm />
     </SimpleForm>
   </Create>

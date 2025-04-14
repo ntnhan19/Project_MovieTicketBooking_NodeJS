@@ -1,6 +1,5 @@
 //backend/src/services/cinemaService.js
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../prisma/prisma');
 
 exports.getAllCinemas = () => {
     return prisma.cinema.findMany({
