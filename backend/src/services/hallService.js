@@ -1,6 +1,5 @@
 //backend/src/services/hallService.js
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../prisma/prisma');
 
 exports.getAll = () => prisma.hall.findMany();
 exports.getById = (id) => prisma.hall.findUnique({ where: { id } });

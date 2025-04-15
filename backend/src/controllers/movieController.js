@@ -76,6 +76,33 @@ exports.getMovieById = async (req, res) => {
   }
 };
 
+//
+exports.getMoviesByCinema = async (req, res) => {
+  try {
+    const cinemaId = Number(req.params.cinemaId);
+    
+    const movies = await prisma.movie.findMany({
+      where: {
+        showtimes: {
+          some: {
+            hall: {
+              cinemaId: cinemaId
+            }
+          }
+        }
+      },
+      include: {
+        genres: true
+      }
+    });
+    
+    res.json(movies);
+  } catch (err) {
+    console.error("Lỗi getMoviesByCinema:", err);
+    res.status(500).json({ error: "Lỗi server" });
+  }
+};
+
 // Tạo phim mới
 exports.createMovie = async (req, res) => {
   try {

@@ -1,18 +1,33 @@
-import React from 'react';
-import { List, Datagrid, TextField, EditButton, DeleteButton } from 'react-admin';
+// admin/src/components/Users/UserList.jsx
+import {
+  List,
+  Datagrid,
+  TextField,
+  EmailField,
+  DateField,
+  TextInput,
+} from "react-admin";
 
-const UserList = (props) => {
-    return (
-        <List {...props} className="admin-page">
-            <Datagrid rowClick="edit" className="table">
-                <TextField source="id" label="ID" />
-                <TextField source="username" label="Tên Người Dùng" />
-                <TextField source="email" label="Email" />
-                <EditButton className="button-primary" />
-                <DeleteButton className="button-primary" />
-            </Datagrid>
-        </List>
-    );
-};
+const userFilters = [
+  <TextInput label="Tên người dùng" source="name" alwaysOn />,
+  <TextInput label="Email" source="email" />,
+];
+
+const UserList = (props) => (
+  <List
+    {...props}
+    filters={userFilters}
+    title="Danh sách người dùng"
+    perPage={10}
+  >
+    <Datagrid rowClick="edit">
+      <TextField source="id" label="ID" />
+      <TextField source="name" label="Họ tên" />
+      <EmailField source="email" label="Email" />
+      <TextField source="role" label="Phân quyền" />
+      <DateField source="createdAt" label="Ngày tạo" showTime />
+    </Datagrid>
+  </List>
+);
 
 export default UserList;

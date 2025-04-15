@@ -1,0 +1,42 @@
+/* frontend/src/components/Users/UserMenu.css */
+.user-menu-trigger {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 24px;
+    transition: all 0.3s;
+  }
+  
+  .user-menu-trigger:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .username-display {
+    color: #fff;
+    margin-left: 8px;
+    font-weight: 500;
+  }
+  
+  .user-avatar {
+    background-color: #1890ff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .user-avatar.logged-in {
+    background-color: #52c41a;
+  }
+  
+  .user-dropdown-menu {
+    min-width: 180px;
+  }
+  
+  .ant-dropdown-menu-item {
+    padding: 10px 12px;
+  }
+  
+  .ant-dropdown-menu-item-icon {
+    margin-right: 8px;
+  }

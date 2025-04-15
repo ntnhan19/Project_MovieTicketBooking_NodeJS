@@ -1,25 +1,66 @@
-import React from "react";
-import { Divider } from "antd";
-import Banner from "../components/Banner";
-import MoviePage from "./MoviePage"; // Giữ nguyên MoviePage
-import AppFooter from "../components/AppFooter";
-import "../index.css";
+// frontend/src/pages/HomePage.jsx
+import React, { useState } from "react";
+import { Spin, Empty } from "antd";
+import useMovies from "../hooks/useMovies";
+import MovieList from "../components/Movies/MovieList";
+import BookingOptions from "../components/Booking/BookingOptions";
+import AppHeader from "../components/common/AppHeader";
+import Footer from "../components/common/Footer";
+import "../styles/HomePage.css";
 
 const HomePage = () => {
+  const [activeTab, setActiveTab] = useState("nowShowing");
+  const { nowShowing, comingSoon, loading } = useMovies();
+
+  const moviesToShow = activeTab === "nowShowing" ? nowShowing : comingSoon;
+
+  const handleCinemaChange = (cinemaId) => {
+    console.log("Cinema selected:", cinemaId);
+  };
+
   return (
-    <div className="main-container">
-      <Banner />
+    <div className="home-page">
+      <AppHeader />
+      <main className="main-content">
+        <section className="booking-section">
+          <div className="booking-container">
+            <BookingOptions onCinemaChange={handleCinemaChange} />
+          </div>
+        </section>
 
-      <Divider style={{ backgroundColor: "#ccc", height: "2px" }} />
+        <section className="movies-section">
+          <h2 className="section-title">Danh sách phim</h2>
 
-      {/* Hiển thị nội dung MoviePage mà không cần category */}
-      <div style={{ flex: 1, padding: "0 40px", width: "90%" }}>
-        <MoviePage /> {/* Hiển thị MoviePage mà không truyền props category */}
-      </div>
+          <div className="movie-tabs">
+            <div className="tab-header">
+              {["nowShowing", "comingSoon"].map((tab) => (
+                <button
+                  key={tab}
+                  className={`tab-button ${activeTab === tab ? "active" : ""}`}
+                  onClick={() => setActiveTab(tab)}
+                >
+                  {tab === "nowShowing" ? "Phim Đang Chiếu" : "Phim Sắp Chiếu"}
+                </button>
+              ))}
+            </div>
 
-      <Divider style={{ backgroundColor: "#ccc", height: "2px" }} />
-
-      <AppFooter />
+            <div className="tab-content">
+              {loading ? (
+                <div className="loading-container">
+                  <Spin tip="Đang tải phim..." size="large">
+                    <div style={{ height: "200px" }} />
+                  </Spin>
+                </div>
+              ) : moviesToShow.length ? (
+                <MovieList movies={moviesToShow} />
+              ) : (
+                <Empty description={activeTab === "nowShowing" ? "Không có phim đang chiếu" : "Không có phim sắp chiếu"} />
+              )}
+            </div>
+          </div>
+        </section>
+      </main>
+      <Footer />
     </div>
   );
 };

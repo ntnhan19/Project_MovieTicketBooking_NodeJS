@@ -1,12 +1,14 @@
-// src/components/Promotions/PromotionForm.jsx
+// admin/src/components/Promotions/PromotionForm.jsx
 import React from 'react';
-import { SimpleForm, TextInput, required } from 'react-admin';
+import { TextInput, NumberInput, DateInput } from 'react-admin';
 
-const PromotionForm = (props) => (
-  <SimpleForm {...props}>
-    <TextInput source="name" label="Tên khuyến mãi" validate={required()} />
-    <TextInput source="description" label="Mô tả" validate={required()} />
-  </SimpleForm>
+const PromotionForm = () => (
+  <>
+    <TextInput source="code" label="Mã khuyến mãi" fullWidth />
+    <NumberInput source="discount" label="Giảm giá (%)" fullWidth />
+    <DateInput source="validFrom" label="Ngày bắt đầu" fullWidth />
+    <DateInput source="validUntil" label="Ngày kết thúc" fullWidth />
+  </>
 );
 
 export default PromotionForm;

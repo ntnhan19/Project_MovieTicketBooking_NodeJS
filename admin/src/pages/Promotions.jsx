@@ -1,24 +1,15 @@
 // src/pages/Promotions.jsx
-import React from 'react';
-import { List, Create, Edit } from 'react-admin';
-import PromotionList from '@/components/Promotions/PromotionList';
-import PromotionForm from '@/components/Promotions/PromotionForm';
+import PromotionList from '../components/Promotions/PromotionList';
+import PromotionCreate from '../components/Promotions/PromotionCreate';
+import PromotionEdit from '../components/Promotions/PromotionEdit';
+import PromotionShow from '../components/Promotions/PromotionShow';
 import "@/assets/styles.css";
 
-export const PromotionListView = (props) => (
-  <List {...props} title="Danh sách khuyến mãi">
-    <PromotionList {...props} />
-  </List>
-);
+const Promotions = {
+  list: PromotionList,
+  create: PromotionCreate,
+  edit: PromotionEdit,
+  show: PromotionShow,
+};
 
-export const PromotionCreateView = (props) => (
-  <Create {...props} title="Thêm khuyến mãi mới">
-    <PromotionForm {...props} />
-  </Create>
-);
-
-export const PromotionEditView = (props) => (
-  <Edit {...props} title="Chỉnh sửa thông tin khuyến mãi">
-    <PromotionForm {...props} />
-  </Edit>
-);
+export default Promotions;

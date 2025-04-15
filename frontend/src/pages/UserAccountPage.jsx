@@ -1,160 +1,132 @@
-//Frontend/src/pages/UserAccountPage.jsx
-import React, { useState } from "react";
-import {
-  Form,
-  Input,
-  Button,
-  Tabs,
-  DatePicker,
-  Checkbox,
-  message,
-} from "antd";
-import {
-  UserOutlined,
-  LockOutlined,
-  PhoneOutlined,
-  MailOutlined,
-  LockFilled,
-} from "@ant-design/icons";
-import axios from "../utils/axiosInstance";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Form, Input, Button, Tabs, Table, DatePicker } from "antd";
+import { LockOutlined } from "@ant-design/icons";
+import AppHeader from "../components/common/AppHeader.jsx";
+import "../index.css";
 
 const { TabPane } = Tabs;
 
-const UserAccountPage = () => {
-  const [activeTab, setActiveTab] = useState("login");
-  const navigate = useNavigate();
+const UserProfile = ({ user }) => {
+  return (
+    <Form layout="vertical" className="profile-form">
+      <Form.Item label="Họ và tên">
+        <Input value={user?.fullName || ""} disabled />
+      </Form.Item>
+      <Form.Item label="Email">
+        <Input value={user?.email || ""} disabled />
+      </Form.Item>
+      <Form.Item label="Số điện thoại">
+        <Input value={user?.phone || ""} disabled />
+      </Form.Item>
+      <Form.Item label="Ngày sinh">
+        <DatePicker
+          value={user?.dob || null}
+          disabled
+          style={{ width: "100%" }}
+        />
+      </Form.Item>
+    </Form>
+  );
+};
 
-  const handleLogin = async (values) => {
-    try {
-      const res = await axios.post("/api/auth/login", {
-        email: values.username, // dùng email để login
-        password: values.password,
-      });
-
-      const { token, user } = res.data;
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-      message.success("Đăng nhập thành công!");
-
-      // redirect theo role
-      if (user.role === "ADMIN") {
-        navigate("/admin");
-      } else {
-        navigate("/showtimes");
-      }
-    } catch (err) {
-      message.error(err.response?.data?.message || "Lỗi đăng nhập");
-    }
-  };
-
-  const handleRegister = async (values) => {
-    try {
-      const newUser = {
-        name: values.fullName,
-        email: values.email,
-        password: values.password,
-        phone: values.phone,
-        dob: values.dob.toISOString().split("T")[0],
-      };
-
-      const res = await axios.post("/api/auth/register", newUser);
-
-      const { token, user } = res.data;
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-      message.success("Đăng ký thành công!");
-
-      if (user.role === "ADMIN") {
-        navigate("/admin");
-      } else {
-        navigate("/showtimes");
-      }
-    } catch (err) {
-      message.error(err.response?.data?.message || "Lỗi đăng ký");
-    }
-  };
+const TicketHistory = ({ tickets }) => {
+  const columns = [
+    { title: "Mã vé", dataIndex: "ticketId", key: "ticketId" },
+    { title: "Phim", dataIndex: "movie", key: "movie" },
+    { title: "Ngày xem", dataIndex: "date", key: "date" },
+    { title: "Rạp", dataIndex: "cinema", key: "cinema" },
+    { title: "Ghế", dataIndex: "seat", key: "seat" },
+  ];
 
   return (
-    <div className="auth-container">
-      <Tabs activeKey={activeTab} onChange={setActiveTab} centered>
-        <TabPane tab="ĐĂNG NHẬP" key="login">
-          <Form className="auth-form" onFinish={handleLogin}>
-            <Form.Item
-              name="username"
-              rules={[{ required: true, message: "Vui lòng nhập email!" }]}
-            >
-              <Input prefix={<UserOutlined />} placeholder="Email" />
-            </Form.Item>
-            <Form.Item
-              name="password"
-              rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
-            >
-              <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" />
-            </Form.Item>
-            <Form.Item>
-              <Button type="primary" htmlType="submit" className="auth-button">
-                ĐĂNG NHẬP
-              </Button>
-            </Form.Item>
-          </Form>
-        </TabPane>
+    <Table
+      dataSource={tickets}
+      columns={columns}
+      pagination={{ pageSize: 5 }}
+      className="ticket-table"
+    />
+  );
+};
 
-        <TabPane tab="ĐĂNG KÝ" key="register">
-          <Form className="auth-form" onFinish={handleRegister}>
-            <Form.Item name="fullName" rules={[{ required: true, message: "Nhập họ tên!" }]}>
-              <Input prefix={<UserOutlined />} placeholder="Họ tên" />
-            </Form.Item>
-            <Form.Item name="dob" rules={[{ required: true, message: "Chọn ngày sinh!" }]}>
-              <DatePicker style={{ width: "100%" }} placeholder="Ngày sinh" />
-            </Form.Item>
-            <Form.Item name="phone" rules={[{ required: true, message: "Nhập số điện thoại!" }]}>
-              <Input prefix={<PhoneOutlined />} placeholder="Số điện thoại" />
-            </Form.Item>
-            <Form.Item name="email" rules={[{ required: true, type: "email", message: "Email không hợp lệ!" }]}>
-              <Input prefix={<MailOutlined />} placeholder="Email" />
-            </Form.Item>
-            <Form.Item name="password" rules={[{ required: true, message: "Nhập mật khẩu!" }]}>
-              <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" />
-            </Form.Item>
-            <Form.Item
-              name="confirmPassword"
-              dependencies={["password"]}
-              rules={[
-                { required: true, message: "Xác nhận mật khẩu!" },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    return value === getFieldValue("password")
-                      ? Promise.resolve()
-                      : Promise.reject(new Error("Mật khẩu không khớp!"));
-                  },
-                }),
-              ]}
-            >
-              <Input.Password prefix={<LockFilled />} placeholder="Xác nhận mật khẩu" />
-            </Form.Item>
-            <Form.Item
-              name="terms"
-              valuePropName="checked"
-              rules={[
-                {
-                  validator: (_, value) =>
-                    value ? Promise.resolve() : Promise.reject(new Error("Phải đồng ý điều khoản!")),
-                },
-              ]}
-            >
-              <Checkbox>Đồng ý điều khoản của DHL CINEMA</Checkbox>
-            </Form.Item>
-            <Form.Item>
-              <Button type="primary" htmlType="submit" className="auth-button">
-                ĐĂNG KÝ
-              </Button>
-            </Form.Item>
-          </Form>
-        </TabPane>
-      </Tabs>
+const ChangePassword = () => {
+  return (
+    <Form layout="vertical" className="change-password-form">
+      <Form.Item label="Mật khẩu hiện tại">
+        <Input.Password
+          prefix={<LockOutlined />}
+          placeholder="Nhập mật khẩu hiện tại"
+        />
+      </Form.Item>
+      <Form.Item label="Mật khẩu mới">
+        <Input.Password
+          prefix={<LockOutlined />}
+          placeholder="Nhập mật khẩu mới"
+        />
+      </Form.Item>
+      <Form.Item label="Xác nhận mật khẩu mới">
+        <Input.Password
+          prefix={<LockOutlined />}
+          placeholder="Xác nhận mật khẩu mới"
+        />
+      </Form.Item>
+      <Form.Item>
+        <Button type="primary" className="change-password-button">
+          Đổi mật khẩu
+        </Button>
+      </Form.Item>
+    </Form>
+  );
+};
+
+const UserProfilePage = () => {
+  const [user, setUser] = useState(() => {
+    return JSON.parse(localStorage.getItem("user")) || null;
+  });
+  const [tickets, setTickets] = useState([]);
+
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+    if (storedUser) {
+      setUser(storedUser);
+    }
+    setTickets([
+      {
+        ticketId: "123456",
+        movie: "Godzilla x Kong",
+        date: "01/04/2025",
+        cinema: "Cinestar Quốc Thanh",
+        seat: "D5",
+      },
+      {
+        ticketId: "789012",
+        movie: "Dune: Part Two",
+        date: "28/03/2025",
+        cinema: "Cinestar Huế",
+        seat: "A7",
+      },
+    ]);
+  }, []);
+
+  return (
+    <div>
+      {typeof setUser === "function" && (
+        <AppHeader user={user} setUser={setUser} />
+      )}
+      <div className="profile-container">
+        <Tabs defaultActiveKey="1" centered>
+          <TabPane tab="Thông tin cá nhân" key="1">
+            {user && <UserProfile user={user} />}
+          </TabPane>
+          <TabPane tab="Lịch sử đặt vé" key="2">
+            <TicketHistory tickets={tickets} />
+          </TabPane>
+          <TabPane tab="Đổi mật khẩu" key="3">
+            <ChangePassword />
+          </TabPane>
+        </Tabs>
+      </div>
     </div>
   );
 };
 
-export default UserAccountPage;
+export default UserProfilePage;
