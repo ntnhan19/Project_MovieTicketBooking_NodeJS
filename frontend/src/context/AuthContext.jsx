@@ -6,14 +6,21 @@ import { message } from "antd";
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const user = localStorage.getItem("user");
+    return user ? JSON.parse(user) : null;
+  });
+
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Kiểm tra nếu người dùng đã đăng nhập
-    const user = authApi.getCurrentUser();
-    setCurrentUser(user);
-    setLoading(false);
+    // Nếu đã có token & user trong localStorage thì giữ lại trạng thái đăng nhập
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+
+    if (token && user) {
+      setCurrentUser(JSON.parse(user));
+    }
   }, []);
 
   // Đăng nhập
@@ -21,9 +28,16 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const response = await authApi.login({ email, password });
-      setCurrentUser(response.user);
+
+      const { token, user } = response;
+
+      // Lưu token & user vào localStorage
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      setCurrentUser(user);
       message.success("Đăng nhập thành công!");
-      return response;
+      return { token, user };
     } catch (error) {
       message.error(error.response?.data?.message || "Đăng nhập thất bại!");
       throw error;
@@ -49,17 +63,20 @@ export const AuthProvider = ({ children }) => {
 
   // Đăng xuất
   const logout = () => {
-    authApi.logout();
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setCurrentUser(null);
     message.success("Đã đăng xuất!");
   };
 
-  // Cập nhật thông tin người dùng
+  // Cập nhật thông tin
   const updateProfile = async (userId, userData) => {
     try {
       setLoading(true);
       const response = await authApi.updateProfile(userId, userData);
-      setCurrentUser({ ...currentUser, ...userData });
+      const updatedUser = { ...currentUser, ...userData };
+      setCurrentUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
       message.success("Cập nhật thông tin thành công!");
       return response;
     } catch (error) {

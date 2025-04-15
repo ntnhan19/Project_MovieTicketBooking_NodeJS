@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Card, Form, Input, Button, Typography, Divider, message } from "antd";
 import { UserOutlined, LockOutlined, GoogleOutlined, FacebookOutlined } from "@ant-design/icons";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const { Title, Text } = Typography;
@@ -10,22 +10,27 @@ const { Title, Text } = Typography;
 const LoginPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-
-  // Lấy trang chuyển hướng sau khi đăng nhập (nếu có)
-  const from = location.state?.from?.pathname || "/";
 
   const onFinish = async (values) => {
     try {
       setLoading(true);
-      await login(values.email, values.password);
-      // Chuyển hướng về trang trước đó hoặc trang chủ
-      navigate(from, { replace: true });
+      const response = await login(values.email, values.password);
+      const { token, user } = response;
+  
+      // ✅ Lưu token và role vào localStorage
+      localStorage.setItem("token", token);
+      localStorage.setItem("role", user.role);
+  
+      // ✅ Chuyển hướng theo role
+      if (user.role?.toUpperCase() === "ADMIN") {
+        window.location.href = "http://localhost:3001"; // redirect đến trang admin
+      } else {
+        navigate("/");
+      }
     } catch (error) {
       console.error("Login error:", error);
-      // Thông báo lỗi được xử lý trong context
     } finally {
       setLoading(false);
     }
@@ -36,42 +41,33 @@ const LoginPage = () => {
   };
 
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "80vh" }}>
-      <Card style={{ width: 400, borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>Đăng nhập</Title>
-          <Text type="secondary">Chào mừng bạn quay trở lại</Text>
+    <div className="flex justify-center items-center min-h-screen bg-gray-100">
+      <Card className="w-full max-w-md shadow-lg">
+        <div className="text-center mb-6">
+          <Title level={2}>Đăng Nhập</Title>
         </div>
 
         <Form
           form={form}
-          name="login_form"
+          name="login"
           onFinish={onFinish}
           layout="vertical"
-          requiredMark={false}
         >
           <Form.Item
             name="email"
-            rules={[
-              { required: true, message: "Vui lòng nhập email!" },
-              { type: "email", message: "Email không hợp lệ!" }
-            ]}
-          >
+            rules={[{ required: true, message: "Vui lòng nhập email!" }]}>
             <Input prefix={<UserOutlined />} placeholder="Email" size="large" />
           </Form.Item>
 
           <Form.Item
             name="password"
-            rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
-          >
+            rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}>
             <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" size="large" />
           </Form.Item>
 
-          <Form.Item>
-            <Link to="/forgot-password" style={{ float: "right" }}>
-              Quên mật khẩu?
-            </Link>
-          </Form.Item>
+          <div className="flex justify-end mb-4">
+            <Link to="/forgot-password">Quên mật khẩu?</Link>
+          </div>
 
           <Form.Item>
             <Button
@@ -86,15 +82,14 @@ const LoginPage = () => {
           </Form.Item>
         </Form>
 
-        <Divider>
-          <Text type="secondary">Hoặc đăng nhập với</Text>
-        </Divider>
+        <Divider>Hoặc đăng nhập với</Divider>
 
-        <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 24 }}>
+        <div className="flex gap-4 mb-4">
           <Button
             icon={<GoogleOutlined />}
             size="large"
             onClick={() => handleSocialLogin("Google")}
+            block
           >
             Google
           </Button>
@@ -102,14 +97,17 @@ const LoginPage = () => {
             icon={<FacebookOutlined />}
             size="large"
             onClick={() => handleSocialLogin("Facebook")}
+            block
           >
             Facebook
           </Button>
         </div>
 
-        <div style={{ textAlign: "center" }}>
-          <Text type="secondary">Chưa có tài khoản? </Text>
-          <Link to="/register">Đăng ký ngay</Link>
+        <div className="text-center">
+          <Text>
+            Chưa có tài khoản?{" "}
+            <Link to="/register">Đăng ký ngay</Link>
+          </Text>
         </div>
       </Card>
     </div>

@@ -1,48 +1,52 @@
 // frontend/src/api/showtimeApi.js
-import axiosInstance from './axiosInstance';
+import axios from 'axios';
+
+const API_URL = 'http://localhost:3000/api'; // Điều chỉnh URL API server của bạn
 
 export const showtimeApi = {
-  // Lấy lịch chiếu theo ngày
-  getShowtimesByDate: async (date) => {
+  // Lấy thông tin suất chiếu
+  getShowtimeById: async (id) => {
     try {
-      const response = await axiosInstance.get(`/showtimes?date=${date}`);
+      const response = await axios.get(`${API_URL}/showtimes/${id}`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching showtimes:', error);
+      console.error('Error fetching showtime:', error);
       throw error;
     }
   },
-
-  // Lấy lịch chiếu theo phim
+  
+  // Lấy danh sách suất chiếu theo phim
   getShowtimesByMovie: async (movieId) => {
     try {
-      const response = await axiosInstance.get(`/showtimes/movie/${movieId}`);
+      const response = await axios.get(`${API_URL}/movies/${movieId}/showtimes`);
       return response.data;
     } catch (error) {
-      console.error(`Error fetching showtimes for movie ${movieId}:`, error);
+      console.error('Error fetching showtimes by movie:', error);
       throw error;
     }
   },
-
-  // Lấy lịch chiếu theo rạp chiếu
-  getShowtimesByCinema: async (cinemaId) => {
+  
+  // Lấy trạng thái ghế của một suất chiếu
+  getSeatsStatus: async (showtimeId) => {
     try {
-      const response = await axiosInstance.get(`/showtimes/cinema/${cinemaId}`);
+      const response = await axios.get(`${API_URL}/showtimes/${showtimeId}/seats`);
       return response.data;
     } catch (error) {
-      console.error(`Error fetching showtimes for cinema ${cinemaId}:`, error);
+      console.error('Error fetching seats status:', error);
       throw error;
     }
   },
-
-  // Lấy lịch chiếu theo phim và ngày
-  getShowtimesByMovieAndDate: async (movieId, date) => {
+  
+  // Đặt giữ ghế tạm thời
+  reserveSeats: async (showtimeId, seats) => {
     try {
-      const response = await axiosInstance.get(`/showtimes/movie/${movieId}?date=${date}`);
+      const response = await axios.post(`${API_URL}/showtimes/${showtimeId}/reserve`, { seats });
       return response.data;
     } catch (error) {
-      console.error(`Error fetching showtimes for movie ${movieId} on ${date}:`, error);
+      console.error('Error reserving seats:', error);
       throw error;
     }
   }
 };
+
+export default showtimeApi;

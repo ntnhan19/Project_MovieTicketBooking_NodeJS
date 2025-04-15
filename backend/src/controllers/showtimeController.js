@@ -50,6 +50,95 @@ const getShowtimeById = async (req, res) => {
   }
 };
 
+// Lấy danh sách ghế theo suất chiếu (GET /api/showtimes/:id/seats)
+const getSeatsByShowtime = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const seats = await prisma.seat.findMany({
+      where: { showtimeId: parseInt(id) },
+      select: {
+        id: true,
+        row: true,
+        column: true,
+        status: true,
+      },
+      orderBy: [
+        { row: 'asc' },
+        { column: 'asc' }
+      ]
+    });
+
+    res.status(200).json(seats);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const getDatesByMovieAndCinema = async (req, res) => {
+  try {
+    const movieId = parseInt(req.query.movieId);
+    const cinemaId = parseInt(req.query.cinemaId);
+
+    // Lấy tất cả showtime của movie tại các hall thuộc cinema đó
+    const showtimes = await prisma.showtime.findMany({
+      where: {
+        movieId,
+        hall: { cinemaId }
+      },
+      select: { startTime: true }
+    });
+
+    // Lọc unique ngày
+    const uniqueDates = Array.from(new Set(
+      showtimes.map(s => s.startTime.toISOString().split('T')[0])
+    ));
+
+    return res.status(200).json(uniqueDates);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const getTimesByMovieCinemaDate = async (req, res) => {
+  try {
+    const movieId = parseInt(req.query.movieId);
+    const cinemaId = parseInt(req.query.cinemaId);
+    const date = req.query.date; // 'YYYY-MM-DD'
+
+    // Giới hạn từ 00:00 đến 23:59 ngày đó
+    const start = new Date(date + 'T00:00:00');
+    const end = new Date(date + 'T23:59:59');
+
+    const showtimes = await prisma.showtime.findMany({
+      where: {
+        movieId,
+        hall: { cinemaId },
+        startTime: { gte: start, lte: end }
+      },
+      select: {
+        id: true,
+        startTime: true,
+        price: true
+      },
+      orderBy: { startTime: 'asc' }
+    });
+
+    const result = showtimes.map(s => ({
+      id: s.id,
+      time: s.startTime.toISOString().slice(11, 16), // 'HH:MM'
+      price: s.price
+    }));
+
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 // Cập nhật suất chiếu (PUT /api/showtimes/:id)
 const updateShowtime = async (req, res) => {
   try {
@@ -88,4 +177,7 @@ module.exports = {
   getShowtimeById,
   updateShowtime,
   deleteShowtime,
+  getDatesByMovieAndCinema,
+  getTimesByMovieCinemaDate,
+  getSeatsByShowtime,
 };

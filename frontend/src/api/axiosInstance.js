@@ -2,17 +2,17 @@
 import axios from 'axios';
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3002/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-  }
+  },
 });
 
-// Add a request interceptor for authentication
+// Interceptor đính kèm token vào headers
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token'); // CHUẨN HÓA key token
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -21,27 +21,26 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Add a response interceptor for error handling
+// Interceptor xử lý lỗi phản hồi
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handle common errors like 401, 403, etc.
-    if (error.response) {
-      switch (error.response.status) {
+    const status = error.response?.status;
+    if (status) {
+      switch (status) {
         case 401:
-          // Unauthorized - redirect to login
           localStorage.removeItem('token');
+          localStorage.removeItem('user');
           window.location.href = '/login';
           break;
         case 403:
-          // Forbidden
-          console.error('Access denied');
+          console.error('Không có quyền truy cập.');
           break;
         case 500:
-          console.error('Server error');
+          console.error('Lỗi server.');
           break;
         default:
-          console.error('An error occurred');
+          console.error('Lỗi không xác định.');
       }
     }
     return Promise.reject(error);

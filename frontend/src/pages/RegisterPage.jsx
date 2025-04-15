@@ -14,23 +14,18 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false);
 
   const onFinish = async (values) => {
-    // Kiểm tra mật khẩu khớp nhau
     if (values.password !== values.confirmPassword) {
       message.error("Mật khẩu không khớp!");
       return;
     }
-
+  
     try {
       setLoading(true);
-      // Gửi thông tin đăng ký (không bao gồm confirmPassword)
-      const { confirmPassword, agreement, ...userData } = values;
+      const { confirmPassword: _, agreement: __, ...userData } = values;
       await register(userData);
-      
-      // Chuyển hướng đến trang đăng nhập
       navigate("/login");
     } catch (error) {
       console.error("Registration error:", error);
-      // Thông báo lỗi được xử lý trong context
     } finally {
       setLoading(false);
     }

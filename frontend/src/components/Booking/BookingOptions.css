@@ -1,77 +1,220 @@
 /* frontend/src/components/Booking/BookingOptions.css */
+.booking-options-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+
+.booking-title {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #ff6b01;
+  font-size: 28px;
+  font-weight: 700;
+}
+
 .booking-options {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    background-color: white;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  background-color: white;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  margin-bottom: 30px;
+  position: relative;
+}
+
+.booking-step {
+  display: flex;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 220px;
+  position: relative;
+}
+
+.step-number {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b01, #ff9248);
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+  margin-right: 12px;
+  box-shadow: 0 2px 8px rgba(255, 107, 1, 0.3);
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.step-content {
+  flex: 1;
+  min-width: 0; /* Prevent overflow in flex items */
+}
+
+.step-title {
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: #333;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.step-icon {
+  margin-right: 8px;
+  color: #ff6b01;
+}
+
+.select-control {
+  width: 100%;
+  height: 40px;
+}
+
+.select-control:not(:disabled):hover .ant-select-selector {
+  border-color: #ff6b01;
+}
+
+.select-control:not(:disabled).ant-select-focused .ant-select-selector {
+  border-color: #ff6b01;
+  box-shadow: 0 0 0 2px rgba(255, 107, 1, 0.2);
+}
+
+.book-now-button {
+  background: linear-gradient(135deg, #ff6b01, #ff9248);
+  border: none;
+  height: 46px;
+  min-width: 140px;
+  font-weight: 600;
+  font-size: 16px;
+  border-radius: 8px;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(255, 107, 1, 0.3);
+  transition: all 0.3s ease;
+}
+
+.book-now-button:hover, 
+.book-now-button:focus {
+  background: linear-gradient(135deg, #ff5a00, #ff8330);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 107, 1, 0.4);
+}
+
+.book-now-button:disabled {
+  background: #d9d9d9;
+  color: rgba(0, 0, 0, 0.25);
+  box-shadow: none;
+  transform: none;
+}
+
+/* Showtime option styles */
+.showtime-option {
+  font-weight: 500;
+}
+
+.showtime-price {
+  font-size: 12px;
+  color: #52c41a;
+  background-color: rgba(82, 196, 26, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Thông tin đã chọn */
+.selection-summary {
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 20px;
+  border-left: 4px solid #ff6b01;
+}
+
+.summary-title {
+  font-size: 18px;
+  color: #ff6b01;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.summary-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #555;
+}
+
+.summary-item .anticon {
+  margin-right: 8px;
+  color: #ff6b01;
+}
+
+.summary-item span {
+  font-weight: 500;
+  color: #333;
+  margin-left: 5px;
+}
+
+/* Add sequential connector lines between steps */
+.booking-step::after {
+  content: '';
+  position: absolute;
+  top: 18px;
+  right: -10px;
+  width: 20px;
+  height: 2px;
+  background-color: #ff6b01;
+  z-index: 0;
+}
+
+.booking-step:last-of-type::after {
+  display: none;
+}
+
+/* Responsive styles */
+@media (max-width: 992px) {
+  .booking-options {
+    flex-direction: column;
   }
   
   .booking-step {
-    display: flex;
-    align-items: center;
-    flex: 1;
-    min-width: 180px;
-  }
-  
-  .step-number {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background-color: #0d6efd;
-    color: white;
-    font-weight: bold;
-    margin-right: 10px;
-  }
-  
-  .step-content {
-    flex: 1;
-  }
-  
-  .step-title {
-    font-size: 14px;
-    margin-bottom: 8px;
-    color: #333;
-    font-weight: 600;
-  }
-  
-  .select-cinema,
-  .select-movie,
-  .select-date,
-  .select-showtime {
     width: 100%;
+    margin-bottom: 15px;
+  }
+  
+  .booking-step::after {
+    display: none;
   }
   
   .book-now-button {
-    background-color: #0d6efd;
-    height: 42px;
-    min-width: 120px;
-    font-weight: 600;
-    font-size: 16px;
-    margin-left: auto;
+    width: 100%;
+    margin-top: 15px;
+    margin-left: 0;
   }
   
-  /* Responsive */
-  @media (max-width: 992px) {
-    .booking-options {
-      flex-direction: column;
-      align-items: stretch;
-    }
-    
-    .booking-step {
-      width: 100%;
-      margin-bottom: 15px;
-    }
-    
-    .book-now-button {
-      width: 100%;
-      margin-top: 10px;
-      margin-left: 0;
-    }
+  .summary-content {
+    grid-template-columns: 1fr;
   }
+}
+
+@media (max-width: 576px) {
+  .booking-options {
+    padding: 20px 15px;
+  }
+  
+  .booking-title {
+    font-size: 24px;
+  }
+}

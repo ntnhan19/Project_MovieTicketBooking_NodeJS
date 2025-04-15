@@ -63,7 +63,6 @@ function App() {
     <Admin
       dataProvider={dataProvider}
       authProvider={authProvider}
-      layout={CustomLayout}
     >
       <Resource
         name="movies"

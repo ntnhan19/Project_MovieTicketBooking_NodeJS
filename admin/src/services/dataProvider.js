@@ -2,16 +2,11 @@
 import { fetchUtils } from "react-admin";
 
 // URL cơ sở của API
-const apiUrl = 'http://localhost:3001/api';
+const apiUrl = 'http://localhost:3000/api';  // Cập nhật lại URL API backend (3000)
 
 // Hàm lấy token từ localStorage
 const getToken = () => {
-  try {
-    const auth = JSON.parse(localStorage.getItem("auth"));
-    return auth?.token || null;
-  } catch (error) {
-    return null;
-  }
+  return localStorage.getItem("token");
 };
 
 // HTTP client tùy chỉnh với khả năng đính kèm token

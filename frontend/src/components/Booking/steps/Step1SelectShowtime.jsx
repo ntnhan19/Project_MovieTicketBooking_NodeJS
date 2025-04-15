@@ -95,12 +95,19 @@ const Step1SelectShowtime = () => {
       
       // Store movie info in context
       updateBookingData({
+        showtime: {
+          id: showtime.id,
+          date: showtime.date,
+          time: showtime.time
+        },
         movie: {
           id: movie.id,
           title: movie.title,
-          image: movie.image
+          duration: movie.duration,
+          genre: movie.genre
         }
       });
+      navigate(`/booking/${movieId}?&date=${showtime.date}&time=${showtime.time}`);
       
       // Use the hook to select showtime and navigate
       const showtime = `${selectedDate} ${selectedTime}`;
@@ -159,6 +166,7 @@ const Step1SelectShowtime = () => {
               const showtimeObj = timesByDate[selectedDate].find(
                 t => t.time === e.target.value
               );
+              console.log("Selected showtimeObj:", showtimeObj);
             }}
           >
             <Space wrap>

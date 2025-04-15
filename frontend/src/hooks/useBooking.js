@@ -3,162 +3,147 @@ import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookingContext } from '../context/BookingContext';
 import { bookingApi } from '../api/bookingApi';
-import { showtimeApi } from '../api/showtimeApi';
-import { paymentApi } from '../api/paymentApi';
 
 export const useBooking = () => {
+  const navigate = useNavigate();
   const { bookingData, updateBookingData, resetBookingData } = useContext(BookingContext);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
 
-  // Fetch available showtimes for a movie
-  const fetchShowtimes = async (movieId) => {
-    setLoading(true);
-    setError(null);
+  // Chọn suất chiếu và chuyển đến trang chọn ghế
+  const selectShowtime = async (movieId, showtimeId, showtimeInfo) => {
     try {
-      const showtimes = await showtimeApi.getShowtimes(movieId);
-      return showtimes;
-    } catch (err) {
-      setError(err.message || 'Failed to fetch showtimes');
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Select a showtime and update booking context
-  const selectShowtime = async (movieId, showtimeId, dateTime) => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Fetch movie details and showtime details
-      const showtime = { id: showtimeId, date: dateTime.split(' ')[0], time: dateTime.split(' ')[1] };
+      setLoading(true);
+      setError(null);
       
-      // Update booking context
+      // Phân tách thông tin ngày và giờ từ chuỗi showtimeInfo
+      const [date, time] = showtimeInfo.split(' ');
+      
+      // Cập nhật thông tin suất chiếu trong context
       updateBookingData({
-        movie: { id: movieId },
-        showtime: showtime,
-        bookingId: `BOOK-${Date.now()}`
+        showtime: {
+          id: showtimeId,
+          date,
+          time
+        },
+        ticketPrice: 90000 // Giá vé mặc định
       });
       
-      navigate('/booking/seats');
+      // Chuyển hướng đến trang chọn ghế
+      navigate(`/booking/seats/${showtimeId}`);
       return true;
     } catch (err) {
-      setError(err.message || 'Failed to select showtime');
+      console.error("Lỗi khi chọn suất chiếu:", err);
+      setError("Không thể chọn suất chiếu. Vui lòng thử lại.");
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch available seats for a showtime
-  const fetchAvailableSeats = async (showtimeId) => {
-    setLoading(true);
-    setError(null);
+  // Chọn ghế và chuyển đến trang chọn đồ ăn
+  const selectSeats = async (seats) => {
     try {
-      const seatsData = await bookingApi.getAvailableSeats(showtimeId);
-      return seatsData;
+      setLoading(true);
+      setError(null);
+      
+      // Kiểm tra xem đã chọn ghế chưa
+      if (!seats || seats.length === 0) {
+        setError("Vui lòng chọn ít nhất một ghế.");
+        return false;
+      }
+      
+      // Cập nhật thông tin ghế đã chọn trong context
+      updateBookingData({ seats });
+      
+      // Chuyển hướng đến trang chọn đồ ăn
+      navigate(`/booking/snacks`);
+      return true;
     } catch (err) {
-      setError(err.message || 'Failed to fetch available seats');
-      return null;
+      console.error("Lỗi khi chọn ghế:", err);
+      setError("Không thể chọn ghế. Vui lòng thử lại.");
+      return false;
     } finally {
       setLoading(false);
     }
   };
 
-  // Select seats and update booking context
-  const selectSeats = (selectedSeats, ticketPrice) => {
-    updateBookingData({
-      seats: selectedSeats,
-      ticketPrice: ticketPrice
-    });
-    navigate('/booking/snacks');
-  };
-
-  // Select snacks and update booking context
-  const selectSnacks = (selectedSnacks) => {
-    updateBookingData({
-      snacks: selectedSnacks
-    });
-    navigate('/booking/payment');
-  };
-
-  // Process payment
-  const processPayment = async (paymentDetails) => {
-    setLoading(true);
-    setError(null);
+  // Chọn đồ ăn và chuyển đến trang thanh toán
+  const selectSnacks = async (snacks) => {
     try {
-      // Create payment payload
-      const paymentPayload = {
-        bookingId: bookingData.bookingId,
-        amount: calculateTotalAmount(),
-        paymentMethod: paymentDetails.paymentMethod,
-        cardDetails: paymentDetails.cardDetails,
-        items: [
-          { type: 'tickets', quantity: bookingData.seats.length, price: bookingData.ticketPrice },
-          ...bookingData.snacks.map(snack => ({
-            type: 'snack',
-            id: snack.id,
-            name: snack.name,
-            quantity: snack.quantity,
-            price: snack.price
-          }))
-        ]
-      };
+      setLoading(true);
+      setError(null);
+      
+      // Cập nhật thông tin đồ ăn đã chọn trong context
+      updateBookingData({ snacks });
+      
+      // Chuyển hướng đến trang thanh toán
+      navigate(`/booking/payment`);
+      return true;
+    } catch (err) {
+      console.error("Lỗi khi chọn đồ ăn:", err);
+      setError("Không thể xử lý đồ ăn đã chọn. Vui lòng thử lại.");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // Process payment
-      const result = await paymentApi.processPayment(paymentPayload);
-
-      // Update booking data with payment info
-      updateBookingData({
-        payment: {
-          id: result.paymentId,
-          status: result.status,
-          transactionId: result.transactionId
-        }
-      });
-
-      // Create final booking record
-      await bookingApi.createBooking({
-        bookingId: bookingData.bookingId,
+  // Xử lý thanh toán và hoàn tất đặt vé
+  const processPayment = async (paymentMethod, cardDetails = null) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Tính tổng tiền
+      const ticketsTotal = bookingData.seats.length * bookingData.ticketPrice;
+      const snacksTotal = bookingData.snacks.reduce((total, snack) => 
+        total + (snack.price * snack.quantity), 0);
+      const totalAmount = ticketsTotal + snacksTotal;
+      
+      // Tạo dữ liệu đặt vé
+      const bookingPayload = {
         movieId: bookingData.movie.id,
         showtimeId: bookingData.showtime.id,
         seats: bookingData.seats,
         snacks: bookingData.snacks,
-        totalAmount: calculateTotalAmount(),
-        paymentId: result.paymentId
+        amount: totalAmount,
+        paymentMethod,
+        cardDetails
+      };
+      
+      // Gọi API để tạo đặt vé
+      const response = await bookingApi.createBooking(bookingPayload);
+      
+      // Cập nhật thông tin thanh toán trong context
+      updateBookingData({
+        bookingId: response.id || response.bookingId,
+        payment: {
+          id: response.paymentId,
+          status: 'COMPLETED',
+          transactionId: response.transactionId || `TXN-${Date.now()}`
+        }
       });
-
+      
+      // Chuyển hướng đến trang thành công
       navigate('/booking/success');
       return true;
     } catch (err) {
-      setError(err.response?.data?.message || 'Payment processing failed. Please try again.');
+      console.error("Lỗi khi xử lý thanh toán:", err);
+      setError("Không thể xử lý thanh toán. Vui lòng thử lại.");
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  // Calculate total amount
-  const calculateTotalAmount = () => {
-    const ticketsTotal = bookingData.seats.length * bookingData.ticketPrice;
-    const snacksTotal = bookingData.snacks.reduce((total, snack) => 
-      total + (snack.price * snack.quantity), 0);
-    return ticketsTotal + snacksTotal;
-  };
-
   return {
-    bookingData,
-    loading,
-    error,
-    fetchShowtimes,
     selectShowtime,
-    fetchAvailableSeats,
     selectSeats,
     selectSnacks,
     processPayment,
-    calculateTotalAmount,
+    loading,
+    error,
     resetBookingData
   };
 };

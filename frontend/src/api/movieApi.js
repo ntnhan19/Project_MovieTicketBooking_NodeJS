@@ -55,5 +55,16 @@ export const movieApi = {
       console.error('Error searching movies:', error);
       throw error;
     }
+  },
+
+  
+  getMoviesByCinema: async (cinemaId) => {
+    try {
+      const response = await axiosInstance.get(`/movies/cinema/${cinemaId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching movies for cinema ${cinemaId}:`, error);
+      throw error;
+    }
   }
 };

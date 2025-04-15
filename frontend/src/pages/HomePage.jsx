@@ -1,90 +1,26 @@
 // frontend/src/pages/HomePage.jsx
-import React, { useState, useEffect } from "react";
-import { Spin, message, Empty } from "antd";
+import React, { useState } from "react";
+import { Spin, Empty } from "antd";
+import useMovies from "../hooks/useMovies";
 import MovieList from "../components/Movies/MovieList";
 import BookingOptions from "../components/Booking/BookingOptions";
-import AppHeader from "../components/common/AppHeader.jsx";
+import AppHeader from "../components/common/AppHeader";
 import Footer from "../components/common/Footer";
-import { movieApi } from "../api/movieApi";
 import "../styles/HomePage.css";
 
 const HomePage = () => {
-  const [nowShowingMovies, setNowShowingMovies] = useState([]);
-  const [comingSoonMovies, setComingSoonMovies] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("nowShowing");
+  const { nowShowing, comingSoon, loading } = useMovies();
 
-  useEffect(() => {
-    const fetchMovies = async () => {
-      try {
-        setLoading(true);
-        const nowShowing = await movieApi.getNowShowing();
-        const comingSoon = await movieApi.getComingSoon();
-
-        // Kiểm tra và đảm bảo ảnh là URL đầy đủ
-        const addFullPosterUrl = (movies) =>
-          movies.map((movie) => ({
-            ...movie,
-            poster: movie.poster?.startsWith("http")
-              ? movie.poster
-              : `${import.meta.env.VITE_BACKEND_URL}/${movie.poster}`, // hoặc cấu hình URL phù hợp
-          }));
-
-        setNowShowingMovies(addFullPosterUrl(nowShowing));
-        setComingSoonMovies(addFullPosterUrl(comingSoon));
-      } catch (error) {
-        console.error("Failed to fetch movies:", error);
-        message.error("Không thể tải danh sách phim. Vui lòng thử lại sau!");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMovies();
-  }, []);
-
-  const handleTabChange = (tabKey) => {
-    setActiveTab(tabKey);
-  };
+  const moviesToShow = activeTab === "nowShowing" ? nowShowing : comingSoon;
 
   const handleCinemaChange = (cinemaId) => {
-    console.log("Cinema đã chọn:", cinemaId);
-    // Có thể set state để lọc lại suất chiếu nếu muốn
-  };
-
-  const renderMovies = () => {
-    if (loading) {
-      return (
-        <div className="loading-container">
-          <Spin tip="Đang tải danh sách phim..." size="large">
-            <div style={{ height: "200px" }} />
-          </Spin>
-        </div>
-      );
-    }
-
-    const currentMovies =
-      activeTab === "nowShowing" ? nowShowingMovies : comingSoonMovies;
-
-    if (currentMovies.length === 0) {
-      return (
-        <Empty
-          description={
-            activeTab === "nowShowing"
-              ? "Không có phim đang chiếu"
-              : "Không có phim sắp chiếu"
-          }
-        />
-      );
-    }
-
-    return <MovieList movies={currentMovies} />;
+    console.log("Cinema selected:", cinemaId);
   };
 
   return (
     <div className="home-page">
       <AppHeader />
-
       <main className="main-content">
         <section className="booking-section">
           <div className="booking-container">
@@ -97,25 +33,30 @@ const HomePage = () => {
 
           <div className="movie-tabs">
             <div className="tab-header">
-              <button
-                className={`tab-button ${
-                  activeTab === "nowShowing" ? "active" : ""
-                }`}
-                onClick={() => handleTabChange("nowShowing")}
-              >
-                Phim Đang Chiếu
-              </button>
-              <button
-                className={`tab-button ${
-                  activeTab === "comingSoon" ? "active" : ""
-                }`}
-                onClick={() => handleTabChange("comingSoon")}
-              >
-                Phim Sắp Chiếu
-              </button>
+              {["nowShowing", "comingSoon"].map((tab) => (
+                <button
+                  key={tab}
+                  className={`tab-button ${activeTab === tab ? "active" : ""}`}
+                  onClick={() => setActiveTab(tab)}
+                >
+                  {tab === "nowShowing" ? "Phim Đang Chiếu" : "Phim Sắp Chiếu"}
+                </button>
+              ))}
             </div>
 
-            <div className="tab-content">{renderMovies()}</div>
+            <div className="tab-content">
+              {loading ? (
+                <div className="loading-container">
+                  <Spin tip="Đang tải phim..." size="large">
+                    <div style={{ height: "200px" }} />
+                  </Spin>
+                </div>
+              ) : moviesToShow.length ? (
+                <MovieList movies={moviesToShow} />
+              ) : (
+                <Empty description={activeTab === "nowShowing" ? "Không có phim đang chiếu" : "Không có phim sắp chiếu"} />
+              )}
+            </div>
           </div>
         </section>
       </main>

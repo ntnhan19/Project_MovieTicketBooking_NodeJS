@@ -1,240 +1,252 @@
 // frontend/src/components/Booking/steps/Step4PaymentMethod.jsx
 import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { paymentService } from '../../../services/paymentService';
+import { Row, Col, Button, Typography, Card, Radio, Form, Input, Divider, message, Alert, Space } from 'antd';
+import { CreditCardOutlined, WalletOutlined, GoogleOutlined } from '@ant-design/icons';
 import { BookingContext } from '../../../context/BookingContext';
+import { useBooking } from '../../../hooks/useBooking';
 
-function Step4Payment() {
-  const navigate = useNavigate();
-  const { bookingData, updateBookingData } = useContext(BookingContext);
+const { Title, Text } = Typography;
+
+function Step4PaymentMethod() {
+  const { bookingData } = useContext(BookingContext);
+  const { processPayment, loading, error } = useBooking();
+  
   const [paymentMethod, setPaymentMethod] = useState('credit_card');
-  const [cardDetails, setCardDetails] = useState({
-    cardNumber: '',
-    cardholderName: '',
-    expiryDate: '',
-    cvv: ''
-  });
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setCardDetails({
-      ...cardDetails,
-      [name]: value
-    });
-  };
-
-  const handlePaymentMethodChange = (method) => {
-    setPaymentMethod(method);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsProcessing(true);
-    setError(null);
-
-    try {
-      // Create payment payload
-      const paymentPayload = {
-        bookingId: bookingData.bookingId,
-        amount: calculateTotalAmount(),
-        paymentMethod,
-        cardDetails: paymentMethod === 'credit_card' ? cardDetails : null,
-        items: [
-          { type: 'tickets', quantity: bookingData.seats.length, price: bookingData.ticketPrice },
-          ...bookingData.snacks.map(snack => ({
-            type: 'snack',
-            id: snack.id,
-            name: snack.name,
-            quantity: snack.quantity,
-            price: snack.price
-          }))
-        ]
-      };
-
-      // Process payment
-      const result = await paymentService.processPayment(paymentPayload);
-
-      // Update booking data with payment info
-      updateBookingData({
-        ...bookingData,
-        payment: {
-          id: result.paymentId,
-          status: result.status,
-          transactionId: result.transactionId
-        }
-      });
-
-      // Navigate to success page
-      navigate('/booking/success');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Payment processing failed. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const calculateTotalAmount = () => {
+  const [form] = Form.useForm();
+  
+  // Tính tổng tiền
+  const calculateTotal = () => {
     const ticketsTotal = bookingData.seats.length * bookingData.ticketPrice;
     const snacksTotal = bookingData.snacks.reduce((total, snack) => 
       total + (snack.price * snack.quantity), 0);
     return ticketsTotal + snacksTotal;
   };
-
+  
+  // Xử lý khi chọn phương thức thanh toán
+  const handlePaymentMethodChange = (e) => {
+    setPaymentMethod(e.target.value);
+  };
+  
+  // Xử lý khi nhấn nút thanh toán
+  const handleSubmit = async (values) => {
+    let cardDetails = null;
+    
+    if (paymentMethod === 'credit_card') {
+      cardDetails = {
+        cardNumber: values.cardNumber,
+        cardholderName: values.cardholderName,
+        expiryDate: values.expiryDate,
+        cvv: values.cvv
+      };
+    }
+    
+    await processPayment(paymentMethod, cardDetails);
+  };
+  
+  // Thể hiện thông tin đặt chỗ
+  const renderBookingSummary = () => (
+    <Card title="Thông tin đặt vé" bordered={false}>
+      <div className="summary-item">
+        <Text strong>Phim:</Text>
+        <Text>{bookingData.movie?.title}</Text>
+      </div>
+      <div className="summary-item">
+        <Text strong>Suất chiếu:</Text>
+        <Text>{bookingData.showtime?.date} - {bookingData.showtime?.time}</Text>
+      </div>
+      <div className="summary-item">
+        <Text strong>Ghế:</Text>
+        <Text>{bookingData.seats?.join(', ')}</Text>
+      </div>
+      <div className="summary-item">
+        <Text strong>Giá vé:</Text>
+        <Text>{bookingData.ticketPrice?.toLocaleString()} đ x {bookingData.seats?.length}</Text>
+      </div>
+      <div className="summary-item">
+        <Text strong>Tổng tiền vé:</Text>
+        <Text>{(bookingData.seats?.length * bookingData.ticketPrice).toLocaleString()} đ</Text>
+      </div>
+      
+      {bookingData.snacks?.length > 0 && (
+        <>
+          <Divider />
+          <Title level={5}>Đồ ăn</Title>
+          {bookingData.snacks.map((snack, index) => (
+            <div key={index} className="summary-item">
+              <Text>{snack.name} x{snack.quantity}:</Text>
+              <Text>{(snack.price * snack.quantity).toLocaleString()} đ</Text>
+            </div>
+          ))}
+        </>
+      )}
+      
+      <Divider />
+      <div className="summary-item total">
+        <Text strong>Tổng cộng:</Text>
+        <Text strong style={{ fontSize: '18px', color: '#f5222d' }}>
+          {calculateTotal().toLocaleString()} đ
+        </Text>
+      </div>
+    </Card>
+  );
+  
   return (
     <div className="payment-container">
-      <h2>Payment Details</h2>
+      <Title level={3}>Thanh toán</Title>
       
-      <div className="booking-summary">
-        <h3>Booking Summary</h3>
-        <div className="summary-item">
-          <span>Movie:</span>
-          <span>{bookingData.movie?.title}</span>
-        </div>
-        <div className="summary-item">
-          <span>Showtime:</span>
-          <span>{bookingData.showtime?.date} - {bookingData.showtime?.time}</span>
-        </div>
-        <div className="summary-item">
-          <span>Seats:</span>
-          <span>{bookingData.seats?.join(', ')}</span>
-        </div>
-        {bookingData.snacks?.length > 0 && (
-          <div className="summary-item">
-            <span>Snacks:</span>
-            <ul>
-              {bookingData.snacks.map((snack, index) => (
-                <li key={index}>{snack.name} x{snack.quantity} - ${snack.price * snack.quantity}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        <div className="total-amount">
-          <strong>Total Amount:</strong>
-          <strong>${calculateTotalAmount().toFixed(2)}</strong>
-        </div>
-      </div>
-
-      <div className="payment-methods">
-        <h3>Select Payment Method</h3>
-        <div className="payment-method-options">
-          <button 
-            className={`method-btn ${paymentMethod === 'credit_card' ? 'active' : ''}`}
-            onClick={() => handlePaymentMethodChange('credit_card')}
-          >
-            Credit Card
-          </button>
-          <button 
-            className={`method-btn ${paymentMethod === 'paypal' ? 'active' : ''}`}
-            onClick={() => handlePaymentMethodChange('paypal')}
-          >
-            PayPal
-          </button>
-          <button 
-            className={`method-btn ${paymentMethod === 'google_pay' ? 'active' : ''}`}
-            onClick={() => handlePaymentMethodChange('google_pay')}
-          >
-            Google Pay
-          </button>
-        </div>
-      </div>
-
-      {paymentMethod === 'credit_card' && (
-        <form onSubmit={handleSubmit} className="payment-form">
-          <div className="form-group">
-            <label htmlFor="cardNumber">Card Number</label>
-            <input
-              type="text"
-              id="cardNumber"
-              name="cardNumber"
-              value={cardDetails.cardNumber}
-              onChange={handleInputChange}
-              placeholder="1234 5678 9012 3456"
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="cardholderName">Cardholder Name</label>
-            <input
-              type="text"
-              id="cardholderName"
-              name="cardholderName"
-              value={cardDetails.cardholderName}
-              onChange={handleInputChange}
-              placeholder="John Doe"
-              required
-            />
-          </div>
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="expiryDate">Expiry Date</label>
-              <input
-                type="text"
-                id="expiryDate"
-                name="expiryDate"
-                value={cardDetails.expiryDate}
-                onChange={handleInputChange}
-                placeholder="MM/YY"
-                required
+      <Row gutter={[24, 24]}>
+        <Col xs={24} md={10}>
+          {renderBookingSummary()}
+        </Col>
+        
+        <Col xs={24} md={14}>
+          <Card title="Phương thức thanh toán" bordered={false}>
+            {error && (
+              <Alert
+                message="Lỗi thanh toán"
+                description={error}
+                type="error"
+                showIcon
+                style={{ marginBottom: '20px' }}
               />
-            </div>
+            )}
             
-            <div className="form-group">
-              <label htmlFor="cvv">CVV</label>
-              <input
-                type="text"
-                id="cvv"
-                name="cvv"
-                value={cardDetails.cvv}
-                onChange={handleInputChange}
-                placeholder="123"
-                required
-              />
+            <Radio.Group 
+              value={paymentMethod} 
+              onChange={handlePaymentMethodChange}
+              style={{ width: '100%', marginBottom: '20px' }}
+            >
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Radio.Button value="credit_card" style={{ height: 'auto', padding: '10px', width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <CreditCardOutlined style={{ fontSize: '24px', marginRight: '10px' }} />
+                    <div>
+                      <div>Thẻ tín dụng / Ghi nợ</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Visa, Mastercard, JCB</div>
+                    </div>
+                  </div>
+                </Radio.Button>
+                
+                <Radio.Button value="paypal" style={{ height: 'auto', padding: '10px', width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <WalletOutlined style={{ fontSize: '24px', marginRight: '10px' }} />
+                    <div>
+                      <div>Ví điện tử</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Momo, ZaloPay, VNPay</div>
+                    </div>
+                  </div>
+                </Radio.Button>
+                
+                <Radio.Button value="google_pay" style={{ height: 'auto', padding: '10px', width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <GoogleOutlined style={{ fontSize: '24px', marginRight: '10px' }} />
+                    <div>
+                      <div>Google Pay</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Thanh toán nhanh chóng với Google Pay</div>
+                    </div>
+                  </div>
+                </Radio.Button>
+              </Space>
+            </Radio.Group>
+            
+            {paymentMethod === 'credit_card' && (
+              <Form
+                form={form}
+                layout="vertical"
+                onFinish={handleSubmit}
+              >
+                <Form.Item
+                  name="cardNumber"
+                  label="Số thẻ"
+                  rules={[{ required: true, message: 'Vui lòng nhập số thẻ' }]}
+                >
+                  <Input placeholder="1234 5678 9012 3456" maxLength={19} />
+                </Form.Item>
+                
+                <Form.Item
+                  name="cardholderName"
+                  label="Tên chủ thẻ"
+                  rules={[{ required: true, message: 'Vui lòng nhập tên chủ thẻ' }]}
+                >
+                  <Input placeholder="NGUYEN VAN A" />
+                </Form.Item>
+                
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item
+                      name="expiryDate"
+                      label="Ngày hết hạn"
+                      rules={[{ required: true, message: 'Vui lòng nhập ngày hết hạn' }]}
+                    >
+                      <Input placeholder="MM/YY" maxLength={5} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item
+                      name="cvv"
+                      label="CVV"
+                      rules={[{ required: true, message: 'Vui lòng nhập mã CVV' }]}
+                    >
+                      <Input placeholder="123" maxLength={3} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                
+                <Form.Item>
+                  <Button 
+                    type="primary" 
+                    htmlType="submit" 
+                    loading={loading}
+                    block
+                    size="large"
+                  >
+                    Thanh toán {calculateTotal().toLocaleString()} đ
+                  </Button>
+                </Form.Item>
+              </Form>
+            )}
+            
+            {(paymentMethod === 'paypal' || paymentMethod === 'google_pay') && (
+              <div style={{ textAlign: 'center' }}>
+                <p>
+                  {paymentMethod === 'paypal' 
+                    ? 'Bạn sẽ được chuyển đến trang thanh toán của ví điện tử để hoàn tất giao dịch.' 
+                    : 'Bạn sẽ được chuyển đến trang thanh toán của Google Pay để hoàn tất giao dịch.'}
+                </p>
+                <Button 
+                  type="primary" 
+                  onClick={() => handleSubmit({})}
+                  loading={loading}
+                  block
+                  size="large"
+                  style={{ marginTop: '20px' }}
+                >
+                  Tiếp tục thanh toán {calculateTotal().toLocaleString()} đ
+                </Button>
+              </div>
+            )}
+            
+            <div style={{ marginTop: '20px', textAlign: 'center' }}>
+              <Text type="secondary">
+                Thông tin thanh toán của bạn được bảo mật và mã hóa.
+                <br />
+                Bạn sẽ nhận được email xác nhận sau khi thanh toán thành công.
+              </Text>
             </div>
-          </div>
-          
-          {error && <div className="error-message">{error}</div>}
-          
-          <button 
-            type="submit" 
-            className="pay-button"
-            disabled={isProcessing}
-          >
-            {isProcessing ? 'Processing...' : `Pay $${calculateTotalAmount().toFixed(2)}`}
-          </button>
-        </form>
-      )}
-
-      {paymentMethod === 'paypal' && (
-        <div className="alternate-payment">
-          <p>You will be redirected to PayPal to complete your payment.</p>
-          <button 
-            onClick={handleSubmit}
-            className="pay-button paypal-button"
-            disabled={isProcessing}
-          >
-            {isProcessing ? 'Processing...' : 'Continue to PayPal'}
-          </button>
-        </div>
-      )}
-
-      {paymentMethod === 'google_pay' && (
-        <div className="alternate-payment">
-          <p>Pay with Google Pay</p>
-          <button 
-            onClick={handleSubmit}
-            className="pay-button google-pay-button"
-            disabled={isProcessing}
-          >
-            {isProcessing ? 'Processing...' : 'Pay with Google Pay'}
-          </button>
-        </div>
-      )}
+          </Card>
+        </Col>
+      </Row>
+      
+      <div className="payment-notice" style={{ marginTop: '20px' }}>
+        <Alert
+          message="Lưu ý"
+          description="Vé sẽ được giữ trong vòng 15 phút. Sau thời gian này, nếu bạn chưa hoàn tất thanh toán, hệ thống sẽ tự động hủy đặt vé."
+          type="info"
+          showIcon
+        />
+      </div>
     </div>
   );
 }
 
-export default Step4Payment;
+export default Step4PaymentMethod;
