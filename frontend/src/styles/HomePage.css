@@ -1,11 +1,12 @@
-/* HomePage.css - Định dạng trang chủ */
+/* HomePage.css - Định dạng trang chủ nâng cấp */
 .home-page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: #051138 !important;
+  background: linear-gradient(180deg, #051138 0%, #0a1e4d 100%) !important;
   color: #fff;
   width: 100%;
+  overflow-x: hidden;
 }
 
 .main-content {
@@ -15,54 +16,248 @@
   width: 100%;
   padding: 0 20px;
   box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+
+/* Hero Banner Section */
+.hero-banner {
+  width: 100%;
+  height: 550px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 0;
+}
+
+.banner-loading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(180deg, #051138 0%, #0a1e4d 100%);
+}
+
+.banner-carousel {
+  height: 100%;
+}
+
+.banner-slide {
+  height: 550px;
+  position: relative;
+}
+
+.banner-image {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.banner-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(5, 17, 56, 0.9) 0%, rgba(5, 17, 56, 0.4) 100%);
+  display: flex;
+  align-items: center;
+}
+
+.banner-content {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+  animation: fadeIn 1s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.banner-title {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #fff;
+  max-width: 50%;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.banner-description {
+  font-size: 1.1rem;
+  margin-bottom: 32px;
+  max-width: 50%;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.banner-buttons {
+  display: flex;
+  gap: 16px;
+}
+
+.banner-buttons .ant-btn {
+  height: 48px;
+  padding: 0 24px;
+  font-size: 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.banner-buttons .ant-btn-primary {
+  background: #0d6efd;
+  border-color: #0d6efd;
+}
+
+.banner-buttons .book-button {
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid #fff;
+  color: #fff;
+  backdrop-filter: blur(5px);
+  transition: all 0.3s ease;
+}
+
+.banner-buttons .book-button:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+/* Custom Carousel Arrows */
+.custom-arrow {
+  z-index: 10;
+  font-size: 20px;
+  color: white;
+}
+
+.prev-arrow {
+  left: 20px;
+}
+
+.next-arrow {
+  right: 20px;
+}
+
+.custom-arrow .ant-btn {
+  background: rgba(13, 110, 253, 0.8);
+  border-color: transparent;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+}
+
+.custom-arrow .ant-btn:hover {
+  background: rgba(13, 110, 253, 1);
+  transform: scale(1.05);
 }
 
 /* Booking Section */
 .booking-section {
-  padding: 30px 0;
+  padding: 0;
   background: transparent;
   display: flex;
   justify-content: center;
-  margin-bottom: 20px;
   width: 100%;
+  position: relative;
+  z-index: 10;
+  margin-top: -50px;
+  margin-bottom: 50px;
 }
 
-/* Chỉnh sửa lại cho booking-container */
 .booking-container {
   width: 100%;
-  background: transparent !important;
-  padding: 0 !important;
-  border-radius: 0 !important;
+  background: rgba(10, 30, 77, 0.95) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   margin: 0 auto;
-  max-width: 1000px; /* Đảm bảo container không quá to */
+  max-width: 1000px;
+  padding: 0 !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.booking-header {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  background: rgba(13, 110, 253, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.booking-icon {
+  font-size: 24px;
+  margin-right: 12px;
+  color: #0d6efd;
+}
+
+.booking-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: #fff;
 }
 
 /* Movies Section */
 .movies-section {
-  padding: 0 0 40px 0;
+  padding: 60px 0;
   width: 100%;
   box-sizing: border-box;
+  position: relative;
+}
+
+.movies-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 200%;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%230d6efd' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+  opacity: 0.5;
+  z-index: -1;
 }
 
 .section-title {
-  font-size: 32px;
-  font-weight: 700;
-  margin-bottom: 20px;
-  color: #fff;
-  text-align: center;
-  position: relative;
-  padding-bottom: 10px;
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  margin-bottom: 40px !important;
+  color: #fff !important;
+  text-align: center !important;
+  position: relative !important;
 }
 
-.section-title::after {
+.title-highlight {
+  position: relative;
+  z-index: 1;
+}
+
+.title-highlight::after {
   content: '';
   position: absolute;
-  bottom: 0;
+  bottom: -10px;
   left: 50%;
   transform: translateX(-50%);
   width: 80px;
   height: 4px;
-  background-color: #0d6efd;
+  background: linear-gradient(90deg, #0d6efd, #4dabf7);
   border-radius: 2px;
 }
 
@@ -75,38 +270,39 @@
 .tab-header {
   display: flex;
   justify-content: center;
-  margin-bottom: 30px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 40px;
+  gap: 16px;
 }
 
 .tab-button {
-  background: none;
-  border: none;
-  color: #b0b9c5;
-  font-size: 18px;
-  font-weight: 600;
-  padding: 12px 30px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
+  background: transparent !important;
+  border: none !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  padding: 12px 30px !important;
+  position: relative !important;
+  transition: all 0.3s ease !important;
+  height: auto !important;
 }
 
 .tab-button:hover {
-  color: #fff;
+  color: #fff !important;
 }
 
 .tab-button.active {
-  color: #0d6efd;
+  color: #fff !important;
 }
 
 .tab-button.active::after {
   content: '';
   position: absolute;
-  bottom: -1px;
-  left: 0;
-  width: 100%;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
   height: 3px;
-  background-color: #0d6efd;
+  background: linear-gradient(90deg, #0d6efd, #4dabf7);
   border-radius: 3px 3px 0 0;
 }
 
@@ -127,39 +323,163 @@
   color: #0d6efd !important;
 }
 
-.loading-container .ant-spin-dot-item {
+.loading-container .ant-spin-dot i {
   background-color: #0d6efd !important;
 }
 
 /* Empty State */
-.movies-section .ant-empty {
-  margin: 40px 0;
+.empty-container {
+  padding: 60px 0;
 }
 
-.movies-section .ant-empty-description {
-  color: #b0b9c5 !important;
+.empty-text {
+  color: rgba(255, 255, 255, 0.7) !important;
   font-size: 16px !important;
+}
+
+/* Promotion Section */
+.promotion-section {
+  padding: 60px 0;
+  position: relative;
+}
+
+.promo-card {
+  background: rgba(10, 30, 77, 0.6);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  height: 100%;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.promo-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+}
+
+.promo-image {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+
+.promo-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: all 0.3s ease;
+}
+
+.promo-card:hover .promo-image img {
+  transform: scale(1.05);
+}
+
+.promo-content {
+  padding: 20px;
+}
+
+.promo-content h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+.promo-content p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.promo-content .ant-btn {
+  background: linear-gradient(90deg, #0d6efd, #4dabf7);
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  height: 40px;
+}
+
+.promo-content .ant-btn:hover {
+  background: linear-gradient(90deg, #0a58ca, #0d6efd);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
 }
 
 /* Responsive Design */
 @media (max-width: 992px) {
   .section-title {
-    font-size: 28px;
+    font-size: 28px !important;
+  }
+  
+  .banner-title {
+    font-size: 2.5rem;
+    max-width: 70%;
+  }
+  
+  .banner-description {
+    max-width: 70%;
+  }
+  
+  .hero-banner, 
+  .banner-slide {
+    height: 500px;
   }
 }
 
 @media (max-width: 768px) {
   .booking-section {
-    padding: 20px 0;
+    margin-top: -30px;
+    margin-bottom: 30px;
   }
   
   .tab-button {
-    padding: 10px 20px;
-    font-size: 16px;
+    padding: 10px 20px !important;
+    font-size: 16px !important;
   }
   
   .section-title {
-    font-size: 24px;
+    font-size: 24px !important;
+  }
+  
+  .banner-title {
+    font-size: 2rem;
+    max-width: 90%;
+  }
+  
+  .banner-description {
+    max-width: 90%;
+    font-size: 1rem;
+  }
+  
+  .banner-buttons {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .banner-buttons .ant-btn {
+    width: 200px;
+  }
+  
+  .hero-banner, 
+  .banner-slide {
+    height: 450px;
+  }
+  
+  .custom-arrow .ant-btn {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .prev-arrow {
+    left: 10px;
+  }
+  
+  .next-arrow {
+    right: 10px;
   }
 }
 
@@ -169,15 +489,38 @@
   }
   
   .booking-section {
-    padding: 15px 0;
+    margin-top: 0;
+    padding: 15px;
   }
   
   .section-title {
-    font-size: 22px;
+    font-size: 22px !important;
   }
   
   .tab-button {
-    padding: 8px 15px;
-    font-size: 14px;
+    padding: 8px 15px !important;
+    font-size: 14px !important;
+  }
+  
+  .banner-title {
+    font-size: 1.8rem;
+    max-width: 100%;
+  }
+  
+  .banner-description {
+    font-size: 0.9rem;
+    max-width: 100%;
+    margin-bottom: 20px;
+  }
+  
+  .banner-overlay {
+    background: linear-gradient(0deg, rgba(5, 17, 56, 0.9) 0%, rgba(5, 17, 56, 0.5) 100%);
+    align-items: flex-end;
+    padding-bottom: 20px;
+  }
+  
+  .hero-banner, 
+  .banner-slide {
+    height: 400px;
   }
 }
