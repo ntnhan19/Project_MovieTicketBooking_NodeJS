@@ -1,0 +1,210 @@
+/* auth-styles.css - Styles cho trang đăng nhập và đăng ký */
+
+/* Styles chung cho trang đăng nhập và đăng ký */
+.login-container,
+.register-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #012444 0%, #001529 100%);
+  padding: 20px;
+}
+
+.login-wrapper,
+.register-wrapper {
+  width: 100%;
+  max-width: 480px;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-card,
+.register-card {
+  border-radius: 16px !important;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px);
+  padding: 30px !important;
+}
+
+.login-header,
+.register-header {
+  position: relative;
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.back-button {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #1890ff;
+}
+
+.login-title,
+.register-title {
+  margin-top: 8px;
+}
+
+.login-title h2,
+.register-title h2 {
+  font-size: 28px !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+  background: linear-gradient(90deg, #0d6efd, #1890ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.login-form,
+.register-form {
+  margin-top: 20px;
+}
+
+.login-input,
+.register-input {
+  border-radius: 8px !important;
+  height: 48px !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.3s ease !important;
+}
+
+.login-input:hover,
+.register-input:hover,
+.login-input:focus,
+.register-input:focus {
+  border-color: #1890ff !important;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1) !important;
+}
+
+.site-form-item-icon {
+  color: rgba(0, 0, 0, 0.45) !important;
+}
+
+.login-button,
+.register-button {
+  height: 48px !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  background: linear-gradient(90deg, #0d6efd, #1890ff) !important;
+  border: none !important;
+  transition: all 0.3s ease !important;
+}
+
+.login-button:hover,
+.register-button:hover {
+  background: linear-gradient(90deg, #0a58ca, #096dd9) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(24, 144, 255, 0.3) !important;
+}
+
+.forgot-password {
+  color: #1890ff !important;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.forgot-password:hover {
+  color: #0a58ca !important;
+  text-decoration: underline;
+}
+
+.login-divider,
+.register-divider {
+  margin: 28px 0 !important;
+  color: rgba(0, 0, 0, 0.45) !important;
+}
+
+.social-login {
+  width: 100%;
+  margin-bottom: 28px;
+}
+
+.google-button,
+.facebook-button {
+  height: 48px !important;
+  font-size: 16px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.3s ease !important;
+}
+
+.google-button {
+  background-color: white !important;
+  color: #5f6368 !important;
+  border: 1px solid #dadce0 !important;
+}
+
+.google-button:hover {
+  background-color: #f8f9fa !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+}
+
+.facebook-button {
+  background-color: #1877f2 !important;
+  color: white !important;
+  border: none !important;
+}
+
+.facebook-button:hover {
+  background-color: #166fe5 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+}
+
+.login-footer,
+.register-footer {
+  text-align: center;
+  margin-top: 16px;
+}
+
+.register-link,
+.login-link,
+.agreement-link {
+  color: #1890ff !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease;
+}
+
+.register-link:hover,
+.login-link:hover,
+.agreement-link:hover {
+  color: #0a58ca !important;
+  text-decoration: underline;
+}
+
+.agreement-checkbox {
+  margin-bottom: 24px !important;
+}
+
+/* Responsive styles */
+@media (max-width: 576px) {
+  .login-wrapper,
+  .register-wrapper {
+    max-width: 100%;
+  }
+  
+  .login-card,
+  .register-card {
+    padding: 20px !important;
+  }
+  
+  .login-title h2,
+  .register-title h2 {
+    font-size: 24px !important;
+  }
+}

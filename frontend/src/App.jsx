@@ -18,6 +18,7 @@ import PaymentPage from "./pages/PaymentPage";
 import { AuthProvider } from "./context/AuthContext";
 import { authApi } from "./api/authApi";
 import "./index.css";
+import './styles/auth-styles.css';
 
 function App() {
   const [user, setUser] = useState(null);

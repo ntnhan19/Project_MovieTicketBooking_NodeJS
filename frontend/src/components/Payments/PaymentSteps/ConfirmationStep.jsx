@@ -108,15 +108,6 @@ const ConfirmationStep = ({ showtimeDetails, seatDetails, totalPrice }) => {
                 <Text>{totalPrice.toLocaleString("vi-VN")}đ</Text>
               </Col>
             </Row>
-
-            <Row justify="space-between" className="price-row">
-              <Col>
-                <Text>Phí dịch vụ</Text>
-              </Col>
-              <Col>
-                <Text>0đ</Text>
-              </Col>
-            </Row>
             
             <Row justify="space-between" className="price-row total">
               <Col>
