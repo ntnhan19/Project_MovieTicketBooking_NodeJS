@@ -1,8 +1,7 @@
 // backend/src/controllers/genreController.js
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../prisma/prisma');
 
-// Get all genres
+// Lấy tất cả thể loại
 exports.getAllGenres = async (req, res) => {
   try {
     const genres = await prisma.genre.findMany();
@@ -12,7 +11,7 @@ exports.getAllGenres = async (req, res) => {
   }
 };
 
-// Get genre by ID
+// Lấy thể loại theo ID
 exports.getGenreById = async (req, res) => {
   const id = Number(req.params.id);
   try {
@@ -23,7 +22,7 @@ exports.getGenreById = async (req, res) => {
   }
 };
 
-// Create a new genre
+// Tao thể loại mới
 exports.createGenre = async (req, res) => {
   const { name } = req.body;
   try {
@@ -36,7 +35,7 @@ exports.createGenre = async (req, res) => {
   }
 };
 
-// Update genre by ID
+// Câp nhật thể loại theo ID
 exports.updateGenre = async (req, res) => {
   const id = Number(req.params.id);
   const { name } = req.body;
@@ -51,7 +50,7 @@ exports.updateGenre = async (req, res) => {
   }
 };
 
-// Delete genre by ID
+// Xóa thể loại theo ID
 exports.deleteGenre = async (req, res) => {
   const id = Number(req.params.id);
   try {

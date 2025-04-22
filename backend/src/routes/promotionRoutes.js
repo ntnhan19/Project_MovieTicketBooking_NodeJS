@@ -2,11 +2,17 @@
 const express = require('express');
 const router = express.Router();
 const promotionController = require('../controllers/promotionController');
+const { authenticate, authorizeRoles } = require('../middlewares/authMiddlewares');
 
+// Routes công khai
 router.get('/', promotionController.getAllPromotions);
 router.get('/:id', promotionController.getPromotionById);
-router.post('/', promotionController.createPromotion);
-router.put('/:id', promotionController.updatePromotion);
-router.delete('/:id', promotionController.deletePromotion);
+router.get('/code/:code', promotionController.getPromotionByCode);
+router.get('/validate/:code', promotionController.validatePromotionCode);
+
+// Routes yêu cầu quyền admin
+router.post('/', authenticate, authorizeRoles('ADMIN'), promotionController.createPromotion);
+router.put('/:id', authenticate, authorizeRoles('ADMIN'), promotionController.updatePromotion);
+router.delete('/:id', authenticate, authorizeRoles('ADMIN'), promotionController.deletePromotion);
 
 module.exports = router;

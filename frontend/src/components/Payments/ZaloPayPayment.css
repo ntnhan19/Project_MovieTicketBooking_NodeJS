@@ -1,0 +1,105 @@
+.zalopay-payment-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .zalopay-payment-card {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .zalopay-payment-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  
+  .zalopay-logo {
+    width: 40px;
+    height: 40px;
+    margin-right: 12px;
+    object-fit: contain;
+  }
+  
+  .payment-alert {
+    margin-bottom: 16px;
+  }
+  
+  .payment-amount {
+    text-align: center;
+    margin-bottom: 24px;
+    padding: 12px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+  }
+  
+  .payment-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  
+  .payment-qr {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .countdown-timer {
+    margin-top: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #ff4d4f;
+  }
+  
+  .payment-instructions {
+    flex: 1;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .open-zalopay-btn {
+    margin-top: 16px;
+    background-color: #0068ff;
+    border-color: #0068ff;
+  }
+  
+  .open-zalopay-btn:hover {
+    background-color: #0055cc;
+    border-color: #0055cc;
+  }
+  
+  .payment-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 24px;
+  }
+  
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    gap: 16px;
+  }
+  
+  @media (max-width: 576px) {
+    .payment-info {
+      flex-direction: column;
+    }
+    
+    .payment-actions {
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .payment-actions button {
+      width: 100%;
+    }
+  }

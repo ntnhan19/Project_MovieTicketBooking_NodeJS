@@ -1,14 +1,26 @@
+// backend/src/routes/paymentRoutes.js
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/paymentController');
-console.log('paymentController:', paymentController); // Giả sử bạn đã tạo controller cho thanh toán
-const { authenticate } = require('../middlewares/authMiddlewares'); // Giả sử bạn có middleware xác thực
+const { authenticate, authorizeRoles } = require('../middlewares/authMiddlewares');
 
-// Routes cho thanh toán
-router.post('/payments', authenticate, paymentController.createPayment);
-router.get('/payments/:id', authenticate, paymentController.getPaymentById);
-router.get('/payments/ticket/:ticketId', authenticate, paymentController.getPaymentByTicketId);
-router.put('/payments/:id/status', authenticate, paymentController.updatePaymentStatus);
-router.post('/payments/webhook', paymentController.paymentWebhook); // Webhook không cần xác thực
+// Routes không cần xác thực
+router.post('/webhook', paymentController.paymentWebhook); // Webhook tổng hợp
+router.post('/zalopay-callback', paymentController.zaloPayCallback); // Callback từ ZaloPay
+router.get('/zalopay-result', paymentController.zaloPayRedirect); // Redirect từ ZaloPay sau khi thanh toán
+
+// Routes cần xác thực
+router.get('/ticket/:ticketId', authenticate, paymentController.getPaymentByTicketId);
+router.get('/:id/check-status', authenticate, paymentController.checkZaloPayStatus);
+router.get('/:id', authenticate, paymentController.getPaymentById);
+router.post('/', authenticate, paymentController.createPayment);
+
+// Routes dành cho user
+router.post('/user-payment', authenticate, paymentController.createPayment);
+router.patch('/:id/status', authenticate, paymentController.updatePaymentStatus); // User có thể hủy thanh toán
+
+// Routes dành cho admin
+router.put('/:id/status', authenticate, authorizeRoles('ADMIN'), paymentController.updatePaymentStatus);
+router.post('/:id/simulate-success', authenticate, authorizeRoles('ADMIN'), paymentController.simulatePaymentSuccess);
 
 module.exports = router;

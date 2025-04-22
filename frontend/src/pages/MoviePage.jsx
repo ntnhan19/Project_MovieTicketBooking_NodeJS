@@ -1,13 +1,13 @@
 // frontend/src/pages/MoviePage.jsx
 import React from "react";
 import { Tabs } from "antd";
-import BookingOptions from "../components/Booking/BookingOptions";
+import QuickBookingWidget from "../components/Payments/QuickBookingWidget";
 import MovieList from "../components/Movies/MovieList";
 
 const MoviePage = () => {
   return (
     <div className="p-10">
-      <BookingOptions />
+      <QuickBookingWidget />
       <Tabs
         defaultActiveKey="nowShowing"
         centered

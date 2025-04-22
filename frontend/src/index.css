@@ -1,225 +1,50 @@
+/* index.css - File CSS cơ sở */
 body,
 html {
-  background: #012444; /* Màu nền giống header */
+  background: #012444; 
   margin: 0;
   padding: 0;
   width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  overflow-x: hidden; /* Ngăn không cho scroll ngang */
 }
 
-.main-container {
-  width: 90%; /* Đặt độ rộng cố định */
-  margin: 0 auto; /* Căn giữa */
-  background: #012444; /* Đảm bảo nền trùng màu */
-  padding: 20px;
+.app-container {
+  width: 100%;
   min-height: 100vh;
-}
-/* index.css */
-
-.booking-container {
-  background: #e8ecf3;
-  padding: 15px 20px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  width: 97%;
+  background-color: #012444;
 }
 
-.booking-title {
-  font-size: 20px;
-  font-weight: bold;
-  color: #015c92;
-  margin-right: 15px;
+.main-content {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+  box-sizing: border-box;
 }
 
-.booking-dropdown-button {
-  font-size: 16px;
-  font-weight: bold;
-  color: #015c92;
-  border: 2px solid #015c92;
-  border-radius: 6px;
-  padding: 8px 20px;
-  background-color: white;
+/* Các quy tắc chung cho toàn bộ ứng dụng */
+a {
+  text-decoration: none;
 }
 
-.booking-now-button {
-  font-size: 16px;
-  font-weight: bold;
-  color: white;
-  background-color: #015c92;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 20px;
-}
-/* Movie List */
-.movie-list-container {
-  padding: 20px;
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 0;
 }
 
-/* Movie Card */
-.movie-card {
-  min-height: 200px;
+/* Antd default override - chỉ đặt các style rất cơ bản */
+.ant-btn-primary {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
 }
 
-.movie-image {
-  width: 267px;
-  height: 400px;
-  object-fit: cover;
+.ant-btn-primary:hover {
+  background-color: #0a58ca;
+  border-color: #0a58ca;
 }
 
-.icon-action {
-  font-size: 24px;
-  transition: transform 0.3s ease-in-out;
-}
-
-.icon-action:hover {
-  transform: scale(1.1);
-}
-
-/* Movie Modal */
-.modal-content {
-  display: flex;
-  gap: 20px;
-  text-align: left;
-}
-
-.modal-image {
-  width: 250px;
-  height: 350px;
-  object-fit: cover;
-  border-radius: 10px;
-}
-
-.modal-info {
-  flex: 1;
-}
-
-.modal-title {
-  font-size: 28px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.rating-tag {
-  font-size: 16px;
-  font-weight: bold;
-  background-color: yellow;
-  color: black;
-}
-
-.modal-genre {
-  font-size: 16px;
-  color: gray;
-  margin-bottom: 10px;
-}
-
-.modal-description {
-  text-align: justify;
-  line-height: 1.6;
-}
-/* Tăng kích thước & làm đậm tab */
-.ant-tabs-tab {
-  font-size: 18px !important;
-  font-weight: bold !important;
-  color: #ffffff !important;
-  transition: all 0.3s ease-in-out;
-}
-
-/* Màu nền & hiệu ứng viền cho tab được chọn */
-.ant-tabs-tab-active {
-  color: #ffffff !important;
-  border-bottom: 3px solid #ffffff !important;
-}
-
-/* Hiệu ứng hover: sáng màu chữ */
-.ant-tabs-tab:hover {
-  color: #ffffff !important;
-  transform: scale(1.05);
-}
-
-/* Animation khi chuyển tab */
-.ant-tabs-ink-bar {
-  background-color: #ffffff !important;
-  transition: all 0.3s ease-in-out;
-}
-.showtime-page {
-  background-color: #f5f7fa;
-  padding: 24px;
-  min-height: 100vh;
-}
-
-.movie-showtime-box {
-  background-color: #fff;
-  padding: 20px;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s ease;
-}
-
-.movie-showtime-box:hover {
-  transform: translateY(-2px);
-}
-
-.movie-showtime-box img {
-  object-fit: cover;
-  border-radius: 12px;
-}
-
-.movie-showtime-box .ant-typography {
-  margin-bottom: 4px;
-}
-
-.movie-showtime-box .ant-tag {
-  font-size: 11px; /* Giảm cỡ chữ hơn nữa nếu cần */
-  padding: 0 6px; /* Cân chỉnh padding ngang */
-  height: 20px; /* Set chiều cao cụ thể */
-  line-height: 18px; /* Cho text nằm giữa */
-  border-radius: 4px;
-}
-
-.movie-showtime-box .ant-btn {
-  border-color: #1890ff;
-  color: #1890ff;
-  background: #fff;
-  font-weight: 500;
-  border-radius: 8px;
-  transition: all 0.2s ease-in-out;
-}
-
-.movie-showtime-box .ant-btn:hover {
-  background-color: #e6f4ff;
-  color: #096dd9;
-  border-color: #40a9ff;
-}
-
-.movie-details-container {
-  display: flex;
-  align-items: flex-start; /* Căn theo chiều dọc */
-  gap: 20px; /* Khoảng cách giữa ảnh và thông tin */
-  padding: 20px;
-}
-
-.movie-poster {
-  width: 300px; /* Đặt kích thước ảnh */
-  height: auto;
-  border-radius: 10px;
-}
-
-.movie-info {
-  flex: 1; /* Để thông tin chiếm hết phần còn lại */
-  text-align: left;
-  color: white; /* Màu chữ */
-}
-.movie-age-rating {
-  font-size: 16px;
-  font-weight: bold;
-  color: rgb(0, 0, 0); /* Màu chữ */
-  margin-bottom: 10px;
-}
+/* Header style */
 .header {
   position: fixed;
   top: 0;
@@ -237,7 +62,7 @@ html {
 }
 
 .header-container {
-  max-width: 960px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 15px 20px;
   display: flex;
@@ -253,7 +78,7 @@ html {
   color: white;
   font-size: 22px;
   font-weight: bold;
-  font-family: "Pacifico";
+  font-family: "Pacifico", cursive;
   transition: font-size 0.3s ease-in-out;
 }
 
@@ -272,123 +97,10 @@ html {
 .spacer {
   height: 70px;
 }
-.auth-page-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: #012444;
-}
 
-.auth-container {
-  background: white;
-  padding: 40px;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-  width: 400px;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.auth-form {
-  display: flex;
-  flex-direction: column;
-}
-
-.auth-button {
-  width: 100%;
-  background-color: #015c92;
-  border: none;
-  color: white;
-  font-size: 16px;
-  font-weight: bold;
-  padding: 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-
-.auth-button:hover {
-  background-color: #013f6b;
-}
-
-.forgot-password {
-  display: block;
-  text-align: right;
-  color: #015c92;
-  text-decoration: none;
-  margin-bottom: 15px;
-}
-
-.forgot-password:hover {
-  text-decoration: underline;
-}
-
-.ant-tabs-tab {
-  font-size: 18px !important;
-  font-weight: bold !important;
-  color: #015c92 !important;
-  transition: all 0.3s ease-in-out;
-}
-
-.ant-tabs-tab-active {
-  color: #012444 !important;
-  border-bottom: 3px solid #012444 !important;
-}
-
-.ant-tabs-tab:hover {
-  color: #013f6b !important;
-  transform: scale(1.05);
-}
-
-.ant-tabs-ink-bar {
-  background-color: #015c92 !important;
-  transition: all 0.3s ease-in-out;
-}
-.profile-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.profile-form .ant-form-item {
-  margin-bottom: 15px;
-}
-
-.ticket-table {
-  margin-top: 20px;
-}
-
-.change-password-form {
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.change-password-button {
-  width: 100%;
-}
-.bookingpage-container {
-  background-color: transparent !important;
-  padding: 20px;
-}
-
-.movie-detail {
-  padding: 10px;
-  background-color: transparent !important;
-  box-shadow: none;
-}
-
-.bookingpage-options {
-  text-align: center;
-}
+/* Banner styles */
 .banner-wrapper {
-  width: 100vw; /* Chiếm toàn bộ chiều ngang trình duyệt */
-  margin-left: calc(-50vw + 50%); /* Offset để phá vỡ .main-container */
+  width: 100%;
   overflow: hidden;
   max-height: 639px;
 }
@@ -405,8 +117,9 @@ html {
   max-height: 639px;
 }
 
+/* App header styles */
 .app-header {
-  background-color: #1f2937 !important; /* tailwind bg-gray-900 */
+  background-color: #1f2937 !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
@@ -415,5 +128,12 @@ html {
 }
 
 .ant-menu-item-selected a {
-  color: #facc15 !important; /* yellow-400 */
+  color: #facc15 !important;
+}
+
+/* Media queries để đảm bảo responsive */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 0 15px;
+  }
 }

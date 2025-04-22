@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, Button, Tag, Spin, Empty, message } from "antd";
-import { movieApi } from "../../api/movieApi";
-import { showtimeApi } from "../../api/showtimeApi";
+import { movieApi } from "../api/movieApi";
+import { showtimeApi } from "../api/showtimeApi";
 
 const MovieDetails = () => {
   const { id } = useParams();

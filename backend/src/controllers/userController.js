@@ -1,95 +1,150 @@
 // backend/src/controllers/userController.js
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
 const userService = require('../services/userService');
 
-const getUsers = async (req, res) => {
-  const { page = 1, pageSize = 10, search = '' } = req.query;
-
+// Lấy danh sách người dùng
+exports.getUsers = async (req, res) => {
   try {
-    const users = await prisma.user.findMany({
-      where: {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ],
-      },
-      skip: (page - 1) * pageSize,
-      take: parseInt(pageSize),
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const totalCount = await prisma.user.count({
-      where: {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ],
-      },
-    });
-
-    res.json({
-      users,
-      totalCount,
-      page: Number(page),
-      totalPages: Math.ceil(totalCount / pageSize),
-    });
+    const { page, pageSize, search, role, sortBy, sortOrder } = req.query;
+    
+    const filter = {
+      page,
+      pageSize,
+      search,
+      role,
+      sortBy,
+      sortOrder
+    };
+    
+    const result = await userService.getUsers(filter);
+    
+    res.json(result);
   } catch (error) {
-    res.status(500).json({ error: 'Có lỗi xảy ra khi lấy người dùng' });
+    console.error('Lỗi khi lấy danh sách người dùng:', error);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi lấy danh sách người dùng' });
   }
 };
 
-const getAllUsers = async (req, res) => {
+// Lấy thông tin chi tiết của một người dùng
+exports.getUserById = async (req, res) => {
   try {
-    const users = await userService.getAllUsers();
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const getUserById = async (req, res) => {
-  try {
-    const user = await userService.getUserById(Number(req.params.id));
-    if (!user) return res.status(404).json({ message: 'User không tồn tại' });
+    const userId = req.params.id;
+    const user = await userService.getUserById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Không tìm thấy người dùng' });
+    }
+    
     res.json(user);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Lỗi khi lấy thông tin người dùng:', error);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi lấy thông tin người dùng' });
   }
 };
 
-const createUser = async (req, res) => {
+// Tạo người dùng mới
+exports.createUser = async (req, res) => {
   try {
-    const user = await userService.createUser(req.body);
-    res.status(201).json(user);
+    // Kiểm tra dữ liệu đầu vào
+    const { name, email, phone, password } = req.body;
+    
+    if (!name || !email || !phone || !password) {
+      return res.status(400).json({ error: 'Vui lòng cung cấp đầy đủ thông tin' });
+    }
+    
+    const newUser = await userService.createUser(req.body);
+    res.status(201).json(newUser);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Lỗi khi tạo người dùng:', error);
+    
+    if (error.message === 'Email đã được sử dụng') {
+      return res.status(400).json({ error: error.message });
+    }
+    
+    res.status(500).json({ error: 'Có lỗi xảy ra khi tạo người dùng' });
   }
 };
 
-const updateUser = async (req, res) => {
+// Cập nhật thông tin người dùng
+exports.updateUser = async (req, res) => {
   try {
-    const updated = await userService.updateUser(Number(req.params.id), req.body);
-    res.json(updated);
+    const userId = req.params.id;
+    
+    // Kiểm tra xem người dùng có quyền cập nhật hay không
+    if (req.user.role !== 'ADMIN' && req.user.id !== Number(userId)) {
+      return res.status(403).json({ error: 'Bạn không có quyền cập nhật thông tin của người dùng khác' });
+    }
+    
+    const updatedUser = await userService.updateUser(userId, req.body);
+    res.json(updatedUser);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Lỗi khi cập nhật người dùng:', error);
+    
+    if (error.message === 'Người dùng không tồn tại' || error.message === 'Email đã được sử dụng') {
+      return res.status(400).json({ error: error.message });
+    }
+    
+    res.status(500).json({ error: 'Có lỗi xảy ra khi cập nhật thông tin người dùng' });
   }
 };
 
-const deleteUser = async (req, res) => {
+// Xóa người dùng
+exports.deleteUser = async (req, res) => {
   try {
-    await userService.deleteUser(Number(req.params.id));
-    res.json({ message: 'User đã bị xoá' });
+    const userId = req.params.id;
+    
+    // Chỉ admin mới có quyền xóa người dùng
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Bạn không có quyền xóa người dùng' });
+    }
+    
+    await userService.deleteUser(userId);
+    res.json({ message: 'Người dùng đã được xóa thành công' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Lỗi khi xóa người dùng:', error);
+    
+    if (error.message.includes('Không thể xóa người dùng đã có vé')) {
+      return res.status(400).json({ error: error.message });
+    }
+    
+    if (error.message === 'Người dùng không tồn tại') {
+      return res.status(404).json({ error: error.message });
+    }
+    
+    res.status(500).json({ error: 'Có lỗi xảy ra khi xóa người dùng' });
   }
 };
 
-module.exports = {
-  getUsers,
-  getAllUsers,
-  getUserById,
-  createUser,
-  updateUser,
-  deleteUser,
+// Lấy thông tin người dùng hiện tại
+exports.getCurrentUser = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await userService.getCurrentUser(userId);
+    res.json(user);
+  } catch (error) {
+    console.error('Lỗi khi lấy thông tin người dùng hiện tại:', error);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi lấy thông tin người dùng' });
+  }
+};
+
+// Thay đổi mật khẩu
+exports.changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới' });
+    }
+    
+    await userService.changePassword(userId, { currentPassword, newPassword });
+    res.json({ message: 'Mật khẩu đã được thay đổi thành công' });
+  } catch (error) {
+    console.error('Lỗi khi thay đổi mật khẩu:', error);
+    
+    if (error.message === 'Mật khẩu hiện tại không đúng') {
+      return res.status(400).json({ error: error.message });
+    }
+    
+    res.status(500).json({ error: 'Có lỗi xảy ra khi thay đổi mật khẩu' });
+  }
 };

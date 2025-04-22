@@ -1,7 +1,12 @@
 // frontend/src/pages/LoginPage.jsx
 import React, { useState } from "react";
 import { Card, Form, Input, Button, Typography, Divider, message } from "antd";
-import { UserOutlined, LockOutlined, GoogleOutlined, FacebookOutlined } from "@ant-design/icons";
+import {
+  UserOutlined,
+  LockOutlined,
+  GoogleOutlined,
+  FacebookOutlined,
+} from "@ant-design/icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -18,11 +23,12 @@ const LoginPage = () => {
       setLoading(true);
       const response = await login(values.email, values.password);
       const { token, user } = response;
-  
-      // ✅ Lưu token và role vào localStorage
+
+      // ✅ Lưu token, role và userId vào localStorage
       localStorage.setItem("token", token);
       localStorage.setItem("role", user.role);
-  
+      localStorage.setItem("userId", user.id); // Thêm dòng này để lưu userId
+
       // ✅ Chuyển hướng theo role
       if (user.role?.toUpperCase() === "ADMIN") {
         window.location.href = "http://localhost:3001"; // redirect đến trang admin
@@ -31,6 +37,9 @@ const LoginPage = () => {
       }
     } catch (error) {
       console.error("Login error:", error);
+      message.error(
+        "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin đăng nhập."
+      );
     } finally {
       setLoading(false);
     }
@@ -47,22 +56,23 @@ const LoginPage = () => {
           <Title level={2}>Đăng Nhập</Title>
         </div>
 
-        <Form
-          form={form}
-          name="login"
-          onFinish={onFinish}
-          layout="vertical"
-        >
+        <Form form={form} name="login" onFinish={onFinish} layout="vertical">
           <Form.Item
             name="email"
-            rules={[{ required: true, message: "Vui lòng nhập email!" }]}>
+            rules={[{ required: true, message: "Vui lòng nhập email!" }]}
+          >
             <Input prefix={<UserOutlined />} placeholder="Email" size="large" />
           </Form.Item>
 
           <Form.Item
             name="password"
-            rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}>
-            <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" size="large" />
+            rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="Mật khẩu"
+              size="large"
+            />
           </Form.Item>
 
           <div className="flex justify-end mb-4">
@@ -105,8 +115,7 @@ const LoginPage = () => {
 
         <div className="text-center">
           <Text>
-            Chưa có tài khoản?{" "}
-            <Link to="/register">Đăng ký ngay</Link>
+            Chưa có tài khoản? <Link to="/register">Đăng ký ngay</Link>
           </Text>
         </div>
       </Card>

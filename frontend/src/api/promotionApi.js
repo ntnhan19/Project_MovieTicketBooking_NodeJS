@@ -2,28 +2,47 @@
 import axiosInstance from './axiosInstance';
 
 export const promotionApi = {
+  // Lấy danh sách các promotion hiện có
   getAllPromotions: async () => {
-    const response = await axiosInstance.get("/promotions");
-    return response.data;
+    try {
+      const response = await axiosInstance.get('/promotions');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching promotions:', error);
+      throw error;
+    }
   },
-
-  getPromotionById: async (id) => {
-    const response = await axiosInstance.get(`/promotions/${id}`);
-    return response.data;
+  
+  // Lấy thông tin chi tiết một promotion
+  getPromotionById: async (promotionId) => {
+    try {
+      const response = await axiosInstance.get(`/promotions/${promotionId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching promotion ${promotionId}:`, error);
+      throw error;
+    }
   },
-
-  createPromotion: async (data) => {
-    const response = await axiosInstance.post("/promotions", data);
-    return response.data;
+  
+  // Áp dụng mã khuyến mãi
+  applyPromoCode: async (promoCode) => {
+    try {
+      const response = await axiosInstance.post('/promotions/apply', { code: promoCode });
+      return response.data;
+    } catch (error) {
+      console.error('Error applying promo code:', error);
+      throw error;
+    }
   },
-
-  updatePromotion: async (id, data) => {
-    const response = await axiosInstance.put(`/promotions/${id}`, data);
-    return response.data;
-  },
-
-  deletePromotion: async (id) => {
-    const response = await axiosInstance.delete(`/promotions/${id}`);
-    return response.data;
-  },
+  
+  // Kiểm tra tính hợp lệ của mã khuyến mãi
+  validatePromoCode: async (promoCode) => {
+    try {
+      const response = await axiosInstance.get(`/promotions/validate/${promoCode}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error validating promo code:', error);
+      throw error;
+    }
+  }
 };

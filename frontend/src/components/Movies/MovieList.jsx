@@ -45,7 +45,7 @@ const MovieList = ({ movies }) => {
               </p>
             )}
             <div className="movie-actions">
-              <Link to={`/booking/${movie.id}`}>
+              <Link to={`/movie/${movie.id}`}>
                 <Button type="primary" className="book-button">
                   ĐẶT VÉ
                 </Button>

@@ -2,11 +2,15 @@
 const express = require('express');
 const router = express.Router();
 const genreController = require('../controllers/genreController');
+const { authenticate, authorizeRoles } = require('../middlewares/authMiddlewares');
 
-router.get('/', genreController.getAllGenres);  // Get all genres
-router.get('/:id', genreController.getGenreById);  // Get genre by ID
-router.post('/', genreController.createGenre);  // Create genre
-router.put('/:id', genreController.updateGenre);  // Update genre by ID
-router.delete('/:id', genreController.deleteGenre);  // Delete genre by ID
+// Routes công khai
+router.get('/', genreController.getAllGenres);  
+router.get('/:id', genreController.getGenreById);
+
+// Routes yêu cầu quyền admin
+router.post('/', authenticate, authorizeRoles('ADMIN'), genreController.createGenre);    
+router.put('/:id', authenticate, authorizeRoles('ADMIN'), genreController.updateGenre);  
+router.delete('/:id', authenticate, authorizeRoles('ADMIN'), genreController.deleteGenre); 
 
 module.exports = router;

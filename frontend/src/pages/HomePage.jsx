@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Spin, Empty } from "antd";
 import useMovies from "../hooks/useMovies";
 import MovieList from "../components/Movies/MovieList";
-import BookingOptions from "../components/Booking/BookingOptions";
+import QuickBookingWidget from "../components/Payments/QuickBookingWidget";
 import AppHeader from "../components/common/AppHeader";
 import Footer from "../components/common/Footer";
 import "../styles/HomePage.css";
@@ -24,7 +24,7 @@ const HomePage = () => {
       <main className="main-content">
         <section className="booking-section">
           <div className="booking-container">
-            <BookingOptions onCinemaChange={handleCinemaChange} />
+            <QuickBookingWidget onCinemaChange={handleCinemaChange} />
           </div>
         </section>
 

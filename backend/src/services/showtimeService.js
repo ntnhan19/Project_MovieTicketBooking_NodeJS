@@ -1,39 +1,41 @@
 //src/services/showtimeService.js
 const prisma = require('../../prisma/prisma');
+const seatService = require('./seatService');
 
-const createShowtime = async ({ movieId, hallId, startTime, endTime }) => {
-  return await prisma.showtime.create({
+const createShowtime = async ({ movieId, hallId, startTime, endTime, price }) => {
+  // Kiểm tra giá cơ bản
+  if (price === undefined || price === null) {
+    throw new Error('Giá cơ bản của suất chiếu là bắt buộc');
+  }
+  
+  const showtime = await prisma.showtime.create({
     data: {
       movieId,
       hallId,
       startTime,
       endTime,
+      price,
     },
   });
-};
-
-const generateSeats = async (showtimeId, hall) => {
-  const seats = [];
-  for (let r = 0; r < hall.rows; r++) {
-    const rowLetter = String.fromCharCode(65 + r); // A, B, C, ...
-    for (let c = 1; c <= hall.columns; c++) {
-      seats.push({
-        showtimeId,
-        row: rowLetter,
-        column: c.toString(),
-        status: 'AVAILABLE' // Sử dụng enum SeatStatus
-      });
-    }
+  
+  // Sau khi tạo showtime, tạo ghế tương ứng
+  const hall = await prisma.hall.findUnique({ where: { id: hallId } });
+  if (hall) {
+    await seatService.generateSeats(showtime.id, hall);
   }
-
-  await prisma.seat.createMany({ data: seats });
+  
+  return showtime;
 };
 
 const getAllShowtimes = async () => {
   return await prisma.showtime.findMany({
     include: {
       movie: true,
-      hall: true,
+      hall: {
+        include: {
+          cinema: true
+        }
+      },
     },
   });
 };
@@ -43,12 +45,25 @@ const getShowtimeById = async (id) => {
     where: { id },
     include: {
       movie: true,
-      hall: true,
+      hall: {
+        include: {
+          cinema: true
+        }
+      },
     },
   });
 };
 
-const updateShowtime = async (id, { movieId, hallId, startTime, endTime }) => {
+const updateShowtime = async (id, { movieId, hallId, startTime, endTime, price }) => {
+  // Kiểm tra xem có vé nào đã được đặt cho suất chiếu này chưa
+  const existingTickets = await prisma.ticket.findMany({
+    where: { showtimeId: id }
+  });
+  
+  if (existingTickets.length > 0) {
+    throw new Error('Cannot update showtime with existing tickets');
+  }
+  
   return await prisma.showtime.update({
     where: { id },
     data: {
@@ -56,20 +71,76 @@ const updateShowtime = async (id, { movieId, hallId, startTime, endTime }) => {
       hallId,
       startTime,
       endTime,
+      price,
     },
   });
 };
 
 const deleteShowtime = async (id) => {
-  await prisma.seat.deleteMany({ where: { showtimeId: id } }); // xoá ghế trước
+  // Kiểm tra xem có vé nào đã được đặt cho suất chiếu này chưa
+  const existingTickets = await prisma.ticket.findMany({
+    where: { showtimeId: id }
+  });
+  
+  if (existingTickets.length > 0) {
+    throw new Error('Cannot delete showtime with existing tickets');
+  }
+  
+  // Xóa tất cả ghế liên quan trước
+  await prisma.seat.deleteMany({ where: { showtimeId: id } });
+  
+  // Sau đó xóa suất chiếu
   return await prisma.showtime.delete({ where: { id } });
+};
+
+const getShowtimesByMovie = async (movieId) => {
+  return await prisma.showtime.findMany({
+    where: { movieId },
+    include: {
+      hall: {
+        include: {
+          cinema: true
+        }
+      }
+    },
+    orderBy: { startTime: 'asc' }
+  });
+};
+
+const getShowtimesByCinema = async (cinemaId) => {
+  return await prisma.showtime.findMany({
+    where: {
+      hall: {
+        cinemaId
+      }
+    },
+    include: {
+      movie: true,
+      hall: true
+    },
+    orderBy: { startTime: 'asc' }
+  });
+};
+
+
+const getAvailableSeatCount = async (showtimeId) => {
+  const seats = await prisma.seat.findMany({
+    where: {
+      showtimeId,
+      status: 'AVAILABLE'
+    }
+  });
+  
+  return seats.length;
 };
 
 module.exports = {
   createShowtime,
-  generateSeats,
   getAllShowtimes,
   getShowtimeById,
   updateShowtime,
   deleteShowtime,
+  getShowtimesByMovie,
+  getShowtimesByCinema,
+  getAvailableSeatCount
 };

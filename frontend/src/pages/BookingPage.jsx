@@ -24,10 +24,10 @@ import {
   ArrowRightOutlined,
 } from "@ant-design/icons";
 import { movieApi } from "../api/movieApi";
-import { bookingApi } from "../api/bookingApi";
-import SeatSelection from "../components/Booking/steps/Step2SeatSelection";
-import PaymentMethod from "../components/Booking/steps/Step4PaymentMethod";
-import CustomerInfoForm from "../components/Booking/CustomerInfoForm";
+import { ticketApi } from "../api/ticketApi";
+import SeatSelection from "../components/Payments/SeatSelectionPage";
+import PaymentMethod from "./PaymentPage";
+import CustomerInfoForm from "../components/Payments/CustomerInfoForm";
 
 const { Title, Text } = Typography;
 
@@ -130,7 +130,7 @@ const BookingPage = () => {
       };
 
       // Gọi API đặt vé
-      const response = await bookingApi.createBooking(bookingData);
+      const response = await ticketApi.createBooking(bookingData);
 
       // Lưu mã đặt vé để hiển thị
       setBookingReference(

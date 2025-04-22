@@ -1,116 +1,183 @@
-// frontend/src/styles/HomePage.css
-/* frontend/src/styles/HomePage.css */
+/* HomePage.css - Định dạng trang chủ */
 .home-page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: #010b1d;
-  color: white;
+  background-color: #051138 !important;
+  color: #fff;
+  width: 100%;
 }
 
 .main-content {
   flex: 1;
-  padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+  padding: 0 20px;
+  box-sizing: border-box;
 }
 
-/* Phần booking */
+/* Booking Section */
 .booking-section {
-  margin-bottom: 40px;
-  background-color: #f0f3f8;
-  border-radius: 8px;
-  padding: 20px;
+  padding: 30px 0;
+  background: transparent;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  width: 100%;
 }
 
+/* Chỉnh sửa lại cho booking-container */
 .booking-container {
-  background-color: #f0f3f8;
-  border-radius: 8px;
-  overflow: hidden;
+  width: 100%;
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  margin: 0 auto;
+  max-width: 1000px; /* Đảm bảo container không quá to */
 }
 
-/* Phần tab phim */
+/* Movies Section */
 .movies-section {
-  margin-top: 30px;
+  padding: 0 0 40px 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .section-title {
-  font-size: 28px;
-  margin-bottom: 24px;
-  color: white;
-  text-align: center;
+  font-size: 32px;
   font-weight: 700;
+  margin-bottom: 20px;
+  color: #fff;
+  text-align: center;
+  position: relative;
+  padding-bottom: 10px;
 }
 
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 4px;
+  background-color: #0d6efd;
+  border-radius: 2px;
+}
+
+/* Movie Tabs */
 .movie-tabs {
   margin-top: 20px;
+  width: 100%;
 }
 
 .tab-header {
   display: flex;
-  border-bottom: 2px solid #0d6efd;
+  justify-content: center;
   margin-bottom: 30px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .tab-button {
-  padding: 12px 24px;
+  background: none;
+  border: none;
+  color: #b0b9c5;
   font-size: 18px;
   font-weight: 600;
-  background: transparent;
-  border: none;
-  color: #6c757d;
+  padding: 12px 30px;
   cursor: pointer;
   transition: all 0.3s ease;
+  position: relative;
+}
+
+.tab-button:hover {
+  color: #fff;
 }
 
 .tab-button.active {
   color: #0d6efd;
-  border-bottom: 4px solid #0d6efd;
-  margin-bottom: -2px;
 }
 
-.tab-button:hover:not(.active) {
-  color: #0a58ca;
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: #0d6efd;
+  border-radius: 3px 3px 0 0;
 }
 
 .tab-content {
-  min-height: 300px;
+  min-height: 400px;
+  width: 100%;
 }
 
-/* Phần danh sách phim */
-.movie-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
-}
-
+/* Loading Container */
 .loading-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 300px;
+  min-height: 300px;
 }
 
-/* Responsive */
+.loading-container .ant-spin {
+  color: #0d6efd !important;
+}
+
+.loading-container .ant-spin-dot-item {
+  background-color: #0d6efd !important;
+}
+
+/* Empty State */
+.movies-section .ant-empty {
+  margin: 40px 0;
+}
+
+.movies-section .ant-empty-description {
+  color: #b0b9c5 !important;
+  font-size: 16px !important;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .section-title {
+    font-size: 28px;
+  }
+}
+
 @media (max-width: 768px) {
+  .booking-section {
+    padding: 20px 0;
+  }
+  
   .tab-button {
-    padding: 10px 16px;
+    padding: 10px 20px;
     font-size: 16px;
   }
-
-  .movie-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  
+  .section-title {
+    font-size: 24px;
   }
 }
 
 @media (max-width: 576px) {
-  .tab-button {
-    padding: 8px 12px;
-    font-size: 14px;
+  .main-content {
+    padding: 0 15px;
   }
-
-  .movie-grid {
-    grid-template-columns: 1fr;
+  
+  .booking-section {
+    padding: 15px 0;
+  }
+  
+  .section-title {
+    font-size: 22px;
+  }
+  
+  .tab-button {
+    padding: 8px 15px;
+    font-size: 14px;
   }
 }

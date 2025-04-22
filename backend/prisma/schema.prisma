@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,29 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum SeatStatus {
-  AVAILABLE
-  BOOKED
-  LOCKED
-}
-
 model User {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
   phone     String
   password  String
-  role      Role     @default(USER) 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  tickets   Ticket[]
+  role      Role     @default(USER)
+  avatar    String?
   reviews   Review[]
-}
-
-enum Role {
-  ADMIN
-  USER
+  tickets   Ticket[]
 }
 
 model Genre {
@@ -45,51 +28,51 @@ model Genre {
 }
 
 model Movie {
-  id           Int      @id @default(autoincrement())
-  title        String
-  description  String
-  releaseDate  DateTime
-  genres       Genre[]  @relation("MovieGenres")
-  poster       String
-  duration     Int      @default(90)
-  director     String   @default("")
-  mainActors   String   @default("")
-
-  showtimes    Showtime[]
-  reviews      Review[]
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String
+  releaseDate DateTime
+  poster      String
+  duration    Int        @default(90)
+  director    String     @default("")
+  mainActors  String     @default("")
+  trailerUrl  String?
+  reviews     Review[]
+  showtimes   Showtime[]
+  genres      Genre[]    @relation("MovieGenres")
 }
 
 model Cinema {
-  id      Int    @id @default(autoincrement())
+  id      Int     @id @default(autoincrement())
   name    String
   address String
-
+  image   String?
+  mapUrl  String?
   halls   Hall[]
 }
 
 model Hall {
-  id         Int     @id @default(autoincrement())
+  id         Int        @id @default(autoincrement())
   name       String
   totalSeats Int
   rows       Int
   columns    Int
   cinemaId   Int
-
-  cinema     Cinema  @relation(fields: [cinemaId], references: [id])
+  cinema     Cinema     @relation(fields: [cinemaId], references: [id])
   showtimes  Showtime[]
 }
 
 model Showtime {
-  id         Int       @id @default(autoincrement())
-  movieId    Int
+  id        Int      @id @default(autoincrement())
+  movieId   Int
+  startTime DateTime
+  endTime   DateTime
   hallId    Int
-  startTime  DateTime
-  endTime    DateTime
-
-  movie      Movie     @relation(fields: [movieId], references: [id])
+  seats     Seat[]
+  price     Float?
   hall      Hall     @relation(fields: [hallId], references: [id])
-  tickets    Ticket[]
-  seats      Seat[]
+  movie     Movie    @relation(fields: [movieId], references: [id])
+  tickets   Ticket[]
 }
 
 model Seat {
@@ -98,46 +81,73 @@ model Seat {
   row        String
   column     String
   status     SeatStatus
-
+  type       SeatType   @default(STANDARD)
   showtime   Showtime   @relation(fields: [showtimeId], references: [id])
   tickets    Ticket[]
 }
 
 model Ticket {
-  id         Int       @id @default(autoincrement())
-  userId     Int
-  showtimeId Int
-  seatId     Int
-  price      Float
-  status     String
-
-  user       User      @relation(fields: [userId], references: [id])
-  showtime   Showtime  @relation(fields: [showtimeId], references: [id])
-  seat       Seat      @relation(fields: [seatId], references: [id])
-  payment    Payment?
+  id          Int        @id @default(autoincrement())
+  userId      Int
+  showtimeId  Int
+  seatId      Int
+  price       Float
+  status      String
+  promotionId Int?
+  paymentId   Int?
+  payment     Payment?   @relation(fields: [paymentId], references: [id])
+  promotion   Promotion? @relation(fields: [promotionId], references: [id])
+  seat        Seat       @relation(fields: [seatId], references: [id])
+  showtime    Showtime   @relation(fields: [showtimeId], references: [id])
+  user        User       @relation(fields: [userId], references: [id])
 }
 
-model Payment {
-  id         Int       @id @default(autoincrement())
-  ticketId   Int       @unique
-  amount     Float
-  method     String
-  status     String
-  createdAt  DateTime  @default(now())
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  FAILED
+}
 
-  ticket     Ticket    @relation(fields: [ticketId], references: [id])
+enum PaymentMethod {
+  CREDIT_CARD
+  BANK_TRANSFER
+  E_WALLET
+  CASH
+  ZALOPAY
+  VNPAY
+  MOMO
+}
+
+
+model Payment {
+  id           Int           @id @default(autoincrement())
+  tickets      Ticket[]     
+  amount       Float
+  method       PaymentMethod
+  status       PaymentStatus @default(PENDING)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  paymentDate  DateTime?
+  transactionId String?
+
+  appTransId    String?  // app_trans_id từ ZaloPay
+  orderToken    String?  // order_token từ ZaloPay
+  paymentUrl    String?  // URL để redirect người dùng đến trang thanh toán ZaloPay
+  zaloPayOrderData String? 
+  @@map("payments")
 }
 
 model Review {
-  id         Int       @id @default(autoincrement())
-  userId     Int
-  movieId    Int
-  rating     Int
-  comment    String?
-  createdAt  DateTime  @default(now())
-
-  user       User      @relation(fields: [userId], references: [id])
-  movie      Movie     @relation(fields: [movieId], references: [id])
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  movieId     Int
+  rating      Int
+  comment     String?
+  createdAt   DateTime @default(now())
+  isAnonymous Boolean  @default(false)
+  movie       Movie    @relation(fields: [movieId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
 }
 
 model Promotion {
@@ -146,4 +156,32 @@ model Promotion {
   discount    Float
   validFrom   DateTime
   validUntil  DateTime
+  description String?
+  image       String?
+  isActive    Boolean   @default(true)
+  title       String
+  type        PromoType @default(PERCENTAGE)
+  Ticket      Ticket[]
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum SeatStatus {
+  AVAILABLE
+  BOOKED
+  LOCKED
+}
+
+enum SeatType {
+  STANDARD
+  VIP
+  COUPLE
+}
+
+enum PromoType {
+  PERCENTAGE
+  FIXED
 }

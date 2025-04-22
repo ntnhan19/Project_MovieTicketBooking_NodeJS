@@ -1,4 +1,3 @@
-// frontend/src/api/authApi.js
 import axiosInstance from './axiosInstance';
 
 export const authApi = {
@@ -10,6 +9,7 @@ export const authApi = {
     // Lưu vào localStorage
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem("userId", user.id); // Thêm dòng này để lưu userId
 
     return { token, user };
   },
@@ -24,6 +24,7 @@ export const authApi = {
   logout: () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("userId"); // Thêm dòng này để xóa userId khi đăng xuất
   },
 
   // Lấy thông tin user hiện tại
