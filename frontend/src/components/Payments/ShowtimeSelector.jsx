@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Radio, Space, Typography, Button, Skeleton, Alert } from "antd";
-import { useBooking } from "../../../hooks/useBooking";
-import { movieApi } from "../../../api/movieApi";
-import { showtimeApi } from "../../../api/showtimeApi";
-import { BookingContext } from "../../../context/BookingContext";
+import { useBooking } from "../../hooks/useBooking";
+import { movieApi } from "../../api/movieApi";
+import { showtimeApi } from "../../api/showtimeApi";
+import { BookingContext } from "../../context/BookingContext";
 
 const { Title } = Typography;
 

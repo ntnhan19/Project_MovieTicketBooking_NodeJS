@@ -1,6 +1,5 @@
 //backend/src/App.js
 const express = require('express');
-const prisma = require('../prisma/prisma');
 const cors = require('cors');
 
 const movieRoutes = require('./routes/movieRoutes');
@@ -11,6 +10,8 @@ const cinemaRoutes = require('./routes/cinemaRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const ticketRoutes = require('./routes/ticketRoutes');
 const promotionRoutes = require('./routes/promotionRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+const seatRoutes = require('./routes/seatRoutes');
 const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
 
@@ -34,6 +35,8 @@ app.use('/api/cinemas', cinemaRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/promotions', promotionRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/seats', seatRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 

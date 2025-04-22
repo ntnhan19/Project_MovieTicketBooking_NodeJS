@@ -1,0 +1,245 @@
+/* frontend/src/components/Booking/steps/SeatSelectionPage.css */
+
+.seat-selection-container {
+  padding: 20px;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 50vh;
+}
+
+/* Thông tin suất chiếu */
+.showtime-info {
+  margin-bottom: 20px;
+}
+
+/* Style cho màn hình */
+.cinema-screen {
+  margin: 20px 0 30px;
+  text-align: center;
+}
+
+.screen {
+  background: linear-gradient(to bottom, #ccc, #999);
+  color: #333;
+  padding: 10px;
+  border-radius: 3px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  width: 80%;
+  margin: 0 auto;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+/* Style cho sơ đồ ghế */
+.seating-chart {
+  margin: 30px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.seat-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.row-label {
+  width: 30px;
+  text-align: center;
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.seats-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.seat {
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+/* Mã màu các loại ghế */
+.seat.available {
+  background-color: #e6f7ff;
+  border: 1px solid #91d5ff;
+  color: #1890ff;
+}
+
+.seat.selected {
+  background-color: #52c41a;
+  border: 1px solid #389e0d;
+  color: white;
+  transform: scale(1.05);
+}
+
+.seat.reserved {
+  background-color: #f5f5f5;
+  border: 1px solid #d9d9d9;
+  color: #999;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.seat.locked {
+  background-color: #fff1f0;
+  border: 1px solid #ffccc7;
+  color: #ff4d4f;
+  cursor: not-allowed;
+}
+
+.seat.vip {
+  background-color: #fffbe6;
+  border: 1px solid #ffe58f;
+  color: #ad8b00;
+}
+
+.seat.vip.selected {
+  background-color: #faad14;
+  border: 1px solid #d48806;
+  color: white;
+}
+
+.seat.couple {
+  background-color: #f9f0ff;
+  border: 1px solid #d3adf7;
+  color: #722ed1;
+  width: 60px; /* Ghế đôi rộng hơn */
+}
+
+.seat.couple.selected {
+  background-color: #722ed1;
+  border: 1px solid #531dab;
+  color: white;
+}
+
+/* Mã màu chú thích */
+.seat-legend {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.seat-sample {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+}
+
+.seat-sample.available {
+  background-color: #e6f7ff;
+  border: 1px solid #91d5ff;
+}
+
+.seat-sample.selected {
+  background-color: #52c41a;
+  border: 1px solid #389e0d;
+}
+
+.seat-sample.reserved {
+  background-color: #f5f5f5;
+  border: 1px solid #d9d9d9;
+}
+
+.seat-sample.locked {
+  background-color: #fff1f0;
+  border: 1px solid #ffccc7;
+}
+
+.seat-sample.vip {
+  background-color: #fffbe6;
+  border: 1px solid #ffe58f;
+}
+
+.seat-sample.couple {
+  background-color: #f9f0ff;
+  border: 1px solid #d3adf7;
+}
+
+/* Thông tin vé */
+.ticket-info {
+  height: 100%;
+}
+
+.booking-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.selected-seats-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.total-price {
+  font-size: 18px;
+  font-weight: bold;
+  color: #f5222d;
+}
+
+/* Hiển thị khi không có ghế */
+.no-seats-warning {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+/* Phản hồi trên thiết bị di động */
+@media (max-width: 768px) {
+  .seats-container {
+    gap: 5px;
+  }
+  
+  .seat {
+    width: 28px;
+    height: 28px;
+    font-size: 10px;
+  }
+  
+  .seat.couple {
+    width: 56px;
+  }
+  
+  .screen {
+    width: 95%;
+  }
+}

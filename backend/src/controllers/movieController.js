@@ -1,199 +1,163 @@
 // backend/src/controllers/movieController.js
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-
-const parseGenres = (genres) => {
-  if (!genres) return [];
-  if (typeof genres === "string") genres = JSON.parse(genres);
-  return genres.map((g) => ({ id: g?.id || g }));
-};
+const movieService = require('../services/movieService');
 
 // Lấy tất cả phim
 exports.getAllMovies = async (req, res) => {
   try {
-    const { title, genreId, releaseDate, director } = req.query;
+    const { 
+      title, 
+      genreId, 
+      releaseDate, 
+      director,
+      page = 1,
+      limit = 10,
+      sortBy = 'releaseDate',
+      sortOrder = 'desc' 
+    } = req.query;
 
-    const filters = {};
+    const filter = {
+      title,
+      genreId,
+      releaseDate,
+      director,
+      page,
+      limit,
+      sortBy,
+      sortOrder
+    };
 
-    if (title) {
-      filters.title = {
-        contains: title,
-        mode: "insensitive",
-      };
-    }
+    const result = await movieService.getAllMovies(filter);
 
-    if (director) {
-      filters.director = {
-        contains: director,
-        mode: "insensitive",
-      };
-    }
+    // Thiết lập header cho phân trang
+    res.set("X-Total-Count", result.pagination.total.toString());
+    res.set("X-Page", result.pagination.page.toString());
+    res.set("X-Limit", result.pagination.limit.toString());
+    res.set("X-Total-Pages", result.pagination.totalPages.toString());
+    res.set("Access-Control-Expose-Headers", "X-Total-Count, X-Page, X-Limit, X-Total-Pages");
 
-    if (releaseDate) {
-      filters.releaseDate = new Date(releaseDate);
-    }
-
-    const genreFilter = genreId
-      ? {
-          some: {
-            id: Number(genreId),
-          },
-        }
-      : undefined;
-
-    const movies = await prisma.movie.findMany({
-      where: {
-        ...filters,
-        genres: genreFilter,
-      },
-      include: {
-        genres: true,
-      },
-    });
-
-    // Set header cho React Admin để lấy total count nếu cần phân trang
-    res.set("X-Total-Count", movies.length.toString());
-    res.set("Access-Control-Expose-Headers", "X-Total-Count");
-
-    res.json(movies);
+    res.json(result.data);
   } catch (err) {
-    console.error("Lỗi getAllMovies:", err);
-    res.status(500).json({ error: "Lỗi server" });
+    console.error("Lỗi khi lấy danh sách phim:", err);
+    res.status(500).json({ error: "Lỗi server khi lấy danh sách phim" });
   }
 };
 
-// Lấy 1 phim theo ID
+// Lấy phim theo ID
 exports.getMovieById = async (req, res) => {
   try {
-    const movie = await prisma.movie.findUnique({
-      where: { id: Number(req.params.id) },
-      include: { genres: true },
-    });
-    movie ? res.json(movie) : res.status(404).json({ error: "Không tìm thấy phim" });
+    const movieId = req.params.id;
+    const movie = await movieService.getMovieById(movieId);
+    
+    if (!movie) {
+      return res.status(404).json({ error: "Không tìm thấy phim" });
+    }
+
+    res.json(movie);
   } catch (err) {
-    console.error("Lỗi getMovieById:", err);
-    res.status(500).json({ error: "Lỗi server" });
+    console.error("Lỗi khi lấy thông tin phim:", err);
+    res.status(500).json({ error: "Lỗi server khi lấy thông tin phim" });
   }
 };
 
-//
+// Lấy phim theo rạp chiếu
 exports.getMoviesByCinema = async (req, res) => {
   try {
-    const cinemaId = Number(req.params.cinemaId);
+    const cinemaId = req.params.cinemaId;
+    const { date } = req.query;
     
-    const movies = await prisma.movie.findMany({
-      where: {
-        showtimes: {
-          some: {
-            hall: {
-              cinemaId: cinemaId
-            }
-          }
-        }
-      },
-      include: {
-        genres: true
-      }
-    });
+    const movies = await movieService.getMoviesByCinema(cinemaId, date);
     
     res.json(movies);
   } catch (err) {
-    console.error("Lỗi getMoviesByCinema:", err);
-    res.status(500).json({ error: "Lỗi server" });
+    console.error("Lỗi khi lấy phim theo rạp:", err);
+    res.status(500).json({ error: "Lỗi server khi lấy phim theo rạp" });
   }
 };
 
 // Tạo phim mới
 exports.createMovie = async (req, res) => {
   try {
-    let {
-      title,
-      description,
-      releaseDate,
-      genres = [],
-      poster,
-      duration,
-      director,
-      mainActors
-    } = req.body;
+    const movieData = req.body;
+    
+    // Kiểm tra các trường bắt buộc
+    if (!movieData.title || !movieData.description || !movieData.releaseDate || !movieData.poster) {
+      return res.status(400).json({ error: "Thiếu thông tin bắt buộc" });
+    }
 
-    if (typeof genres === "string") genres = JSON.parse(genres);
-    if (releaseDate) releaseDate = new Date(releaseDate);
+    const newMovie = await movieService.createMovie(movieData);
 
-    const movie = await prisma.movie.create({
-      data: {
-        title,
-        description,
-        releaseDate,
-        poster,
-        duration: Number(duration),
-        director,
-        mainActors,
-        genres: {
-          connect: genres.map((g) => ({ id: g.id || g }))
-        },
-      },
-      include: { genres: true }
-    });
-
-    res.status(201).json(movie);
+    res.status(201).json(newMovie);
   } catch (err) {
-    console.error("Lỗi tạo movie:", err);
-    res.status(500).json({ error: "Lỗi tạo movie" });
+    console.error("Lỗi khi tạo phim:", err);
+    res.status(500).json({ error: "Lỗi khi tạo phim", details: err.message });
   }
 };
 
 // Cập nhật phim
 exports.updateMovie = async (req, res) => {
-  const id = Number(req.params.id);
   try {
-    let {
-      title,
-      description,
-      releaseDate,
-      genres = [],
-      poster,
-      duration,
-      director,
-      mainActors
-    } = req.body;
+    const movieId = req.params.id;
+    const movieData = req.body;
 
-    if (typeof genres === "string") genres = JSON.parse(genres);
-    if (releaseDate) releaseDate = new Date(releaseDate);
+    const updatedMovie = await movieService.updateMovie(movieId, movieData);
 
-    const movie = await prisma.movie.update({
-      where: { id },
-      data: {
-        title,
-        description,
-        releaseDate,
-        poster,
-        duration: Number(duration),
-        director,
-        mainActors,
-        genres: {
-          set: genres.map((g) => ({ id: g.id || g }))
-        },
-      },
-      include: { genres: true }
-    });
+    if (!updatedMovie) {
+      return res.status(404).json({ error: "Không tìm thấy phim" });
+    }
 
-    res.json(movie);
+    res.json(updatedMovie);
   } catch (err) {
-    console.error("Lỗi update movie:", err);
-    res.status(500).json({ error: "Lỗi cập nhật movie" });
+    console.error("Lỗi khi cập nhật phim:", err);
+    res.status(500).json({ error: "Lỗi khi cập nhật phim", details: err.message });
   }
 };
 
-
 // Xóa phim
 exports.deleteMovie = async (req, res) => {
-  const id = Number(req.params.id);
   try {
-    await prisma.movie.delete({ where: { id } });
-    res.json({ message: "Xóa thành công" });
+    const movieId = req.params.id;
+    
+    // Kiểm tra phim có tồn tại và có lịch chiếu hay không
+    const check = await movieService.checkMovieHasShowtimes(movieId);
+    
+    if (!check.exists) {
+      return res.status(404).json({ error: "Không tìm thấy phim" });
+    }
+
+    if (check.hasShowtimes) {
+      return res.status(400).json({ 
+        error: "Không thể xóa phim đang có lịch chiếu",
+        showtimeCount: check.showtimeCount
+      });
+    }
+
+    await movieService.deleteMovie(movieId);
+    
+    res.json({ message: "Xóa phim thành công" });
   } catch (err) {
-    console.error("Lỗi delete movie:", err);
-    res.status(500).json({ error: "Lỗi xóa movie" });
+    console.error("Lỗi khi xóa phim:", err);
+    res.status(500).json({ error: "Lỗi khi xóa phim", details: err.message });
+  }
+};
+
+// Lấy phim sắp chiếu
+exports.getUpcomingMovies = async (req, res) => {
+  try {
+    const movies = await movieService.getUpcomingMovies();
+    res.json(movies);
+  } catch (err) {
+    console.error("Lỗi khi lấy phim sắp chiếu:", err);
+    res.status(500).json({ error: "Lỗi server khi lấy phim sắp chiếu" });
+  }
+};
+
+// Lấy phim đang chiếu
+exports.getNowShowingMovies = async (req, res) => {
+  try {
+    const movies = await movieService.getNowShowingMovies();
+    res.json(movies);
+  } catch (err) {
+    console.error("Lỗi khi lấy phim đang chiếu:", err);
+    res.status(500).json({ error: "Lỗi server khi lấy phim đang chiếu" });
   }
 };

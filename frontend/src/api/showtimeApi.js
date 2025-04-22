@@ -1,13 +1,23 @@
-// frontend/src/api/showtimeApi.js
-import axios from 'axios';
-
-const API_URL = 'http://localhost:3000/api'; // Điều chỉnh URL API server của bạn
+import axiosInstance from "./axiosInstance";
 
 export const showtimeApi = {
-  // Lấy thông tin suất chiếu
+  // Lấy tất cả suất chiếu, có thể lọc theo movieId, cinemaId, date
+  getAllShowtimes: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/showtimes', {
+        params: filters
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching all showtimes:', error);
+      throw error;
+    }
+  },
+
+  // Lấy thông tin suất chiếu theo ID
   getShowtimeById: async (id) => {
     try {
-      const response = await axios.get(`${API_URL}/showtimes/${id}`);
+      const response = await axiosInstance.get(`/showtimes/${id}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching showtime:', error);
@@ -15,21 +25,10 @@ export const showtimeApi = {
     }
   },
   
-  // Lấy danh sách suất chiếu theo phim
-  getShowtimesByMovie: async (movieId) => {
-    try {
-      const response = await axios.get(`${API_URL}/movies/${movieId}/showtimes`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching showtimes by movie:', error);
-      throw error;
-    }
-  },
-  
   // Lấy trạng thái ghế của một suất chiếu
   getSeatsStatus: async (showtimeId) => {
     try {
-      const response = await axios.get(`${API_URL}/showtimes/${showtimeId}/seats`);
+      const response = await axiosInstance.get(`/showtimes/${showtimeId}/seats`);
       return response.data;
     } catch (error) {
       console.error('Error fetching seats status:', error);
@@ -37,16 +36,36 @@ export const showtimeApi = {
     }
   },
   
-  // Đặt giữ ghế tạm thời
-  reserveSeats: async (showtimeId, seats) => {
+  // Lấy danh sách ngày có suất chiếu của phim tại rạp
+  getAvailableDates: async (movieId, cinemaId) => {
     try {
-      const response = await axios.post(`${API_URL}/showtimes/${showtimeId}/reserve`, { seats });
-      return response.data;
+      const response = await axiosInstance.get('/showtimes/available-dates', {
+        params: {
+          movieId,
+          cinemaId
+        }
+      });
+      return response.data.dates; // Response trả về { dates: [...] }
     } catch (error) {
-      console.error('Error reserving seats:', error);
+      console.error('Error fetching available dates:', error);
+      throw error;
+    }
+  },
+  
+  // Lấy các suất chiếu theo phim, rạp và ngày
+  getShowtimesByFilters: async (movieId, cinemaId, date) => {
+    try {
+      const response = await axiosInstance.get('/showtimes/filter', {
+        params: {
+          movieId,
+          cinemaId,
+          date
+        }
+      });
+      return response.data; // Danh sách các suất chiếu với thông tin giờ và phòng
+    } catch (error) {
+      console.error('Error fetching showtimes by filters:', error);
       throw error;
     }
   }
 };
-
-export default showtimeApi;

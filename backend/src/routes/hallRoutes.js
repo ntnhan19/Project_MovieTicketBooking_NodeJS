@@ -1,12 +1,17 @@
-//backend/src/routes/hallRoutes.js
+// backend/src/routes/hallRoutes.js
 const express = require('express');
 const router = express.Router();
 const hallController = require('../controllers/hallController');
+const { authenticate, authorizeRoles } = require('../middlewares/authMiddlewares');
 
-router.get('/', hallController.getAllHalls);  // Get all halls
-router.get('/:id', hallController.getHallById);  // Get hall by ID
-router.post('/', hallController.createHall);  // Create hall
-router.put('/:id', hallController.updateHall);  // Update hall by ID
-router.delete('/:id', hallController.deleteHall);  // Delete hall by ID
+// Routes công khai - không cần đăng nhập
+router.get('/', hallController.getAllHalls);
+router.get('/:id', hallController.getHallById);
+router.get('/cinema/:cinemaId', hallController.getHallsByCinema);
+
+// Routes yêu cầu đăng nhập - chỉ cho phép người dùng đã xác thực
+router.post('/', authenticate, authorizeRoles("ADMIN"), hallController.createHall);
+router.put('/:id', authenticate, authorizeRoles("ADMIN"), hallController.updateHall);
+router.delete('/:id', authenticate, authorizeRoles("ADMIN"), hallController.deleteHall);
 
 module.exports = router;

@@ -1,5 +1,6 @@
 // frontend/src/App.jsx
 import React, { useState, useEffect } from "react";
+import "@ant-design/compatible";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { BookingProvider } from "./context/BookingContext";
 import HomePage from "./pages/HomePage";
@@ -8,9 +9,14 @@ import ShowtimePage from "./pages/ShowtimePage";
 import BookingPage from "./pages/BookingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import UserProfilePage from "./pages/UserProfilePage";
+import BookingHistoryPage from "./pages/BookingHistoryPage";
+import UserSettingsPage from "./pages/UserSettingsPage";
 import PrivateRoute from "./components/common/PrivateRoute";
-import { AuthProvider } from './context/AuthContext';
-import { authApi } from './api/authApi'; 
+import SeatSelectionPage from "./components/Payments/SeatSelectionPage";
+import PaymentPage from "./pages/PaymentPage";
+import { AuthProvider } from "./context/AuthContext";
+import { authApi } from "./api/authApi";
 import "./index.css";
 
 function App() {
@@ -37,14 +43,24 @@ function App() {
               <Route path="/register" element={<RegisterPage />} />
 
               {/* Chuyển hướng từ user/account sang login */}
-              <Route path="/user/account" element={<Navigate to="/login" replace />} />
+              <Route
+                path="/user/account"
+                element={<Navigate to="/login" replace />}
+              />
 
               {/* Protected route cho BookingPage */}
               <Route
                 path="/booking/*"
                 element={
                   <PrivateRoute>
-                    <BookingPage />
+                    <Routes>
+                      <Route path="/" element={<BookingPage />} />
+                      <Route
+                        path="seats/:showtimeId"
+                        element={<SeatSelectionPage />}
+                      />
+                      <Route path="payment" element={<PaymentPage />} />
+                    </Routes>
                   </PrivateRoute>
                 }
               />
@@ -55,7 +71,31 @@ function App() {
                 element={
                   user ? (
                     <PrivateRoute>
-                      {/* Hiển thị trang Profile */}
+                      <UserProfilePage />
+                    </PrivateRoute>
+                  ) : (
+                    <Navigate to="/login" replace />
+                  )
+                }
+              />
+              <Route
+                path="/user/bookings"
+                element={
+                  user ? (
+                    <PrivateRoute>
+                      <BookingHistoryPage />
+                    </PrivateRoute>
+                  ) : (
+                    <Navigate to="/login" replace />
+                  )
+                }
+              />
+              <Route
+                path="/user/settings"
+                element={
+                  user ? (
+                    <PrivateRoute>
+                      <UserSettingsPage />
                     </PrivateRoute>
                   ) : (
                     <Navigate to="/login" replace />
@@ -64,7 +104,10 @@ function App() {
               />
 
               {/* Thêm route redirect cho logout */}
-              <Route path="/logout" element={<Navigate to="/login" replace />} />
+              <Route
+                path="/logout"
+                element={<Navigate to="/login" replace />}
+              />
             </Routes>
           </main>
         </div>
