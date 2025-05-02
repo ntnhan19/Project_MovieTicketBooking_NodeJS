@@ -13,7 +13,9 @@ import {
 } from "antd";
 import { seatApi } from "../../api/seatApi";
 import { showtimeApi } from "../../api/showtimeApi";
-import "./SeatSelectionPage.css";
+import { HomeOutlined, TagOutlined, VideoCameraOutlined } from "@ant-design/icons";
+import AppHeader from "../../components/common/AppHeader";
+import Footer from "../../components/common/Footer";
 
 const { Title, Text } = Typography;
 
@@ -48,45 +50,66 @@ const SeatSelectionPage = () => {
     return sum + basePrice * multiplier;
   }, 0);
 
-
   // Kiểm tra xem người dùng đã đăng nhập chưa
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userId = localStorage.getItem('userId');
+  // Thêm hàm xóa dữ liệu cũ vào useEffect đầu tiên
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  const userId = localStorage.getItem('userId');
+  
+  if (!token || !userId) {
+    message.warning('Vui lòng đăng nhập để đặt vé');
+    navigate('/login');
+  } else {
+    // Kiểm tra nếu người dùng đang bắt đầu quy trình mới
+    const currentPath = window.location.pathname;
+    const isNewBookingProcess = currentPath.includes('/booking/seats') && !currentPath.includes('/booking/payment');
     
-    if (!token || !userId) {
-      message.warning('Vui lòng đăng nhập để đặt vé');
-      navigate('/login');
+    // Nếu đây là phiên đặt vé mới và không phải quay lại từ trang thanh toán
+    if (isNewBookingProcess && !sessionStorage.getItem('returningFromPayment')) {
+      // Xóa dữ liệu ghế cũ
+      localStorage.removeItem('selectedSeats');
+      localStorage.removeItem('showtimeId');
+      console.log('Đã xóa dữ liệu ghế của phiên trước');
     }
-  }, [navigate]);
+  }
+}, [navigate]);
 
-  // Kiểm tra và mở khóa ghế nếu người dùng quay lại từ trang thanh toán
-  useEffect(() => {
-    const checkPreviousSelection = async () => {
-      try {
-        const storedSeats = JSON.parse(localStorage.getItem("selectedSeats") || "[]");
-        const storedShowtimeId = localStorage.getItem("showtimeId");
+// Sửa lại useEffect kiểm tra ghế đã chọn trước đó
+useEffect(() => {
+  const checkPreviousSelection = async () => {
+    try {
+      const storedSeats = JSON.parse(localStorage.getItem("selectedSeats") || "[]");
+      const storedShowtimeId = localStorage.getItem("showtimeId");
+      
+      // Chỉ khôi phục lại ghế đã chọn nếu:
+      // 1. Có ghế được lưu trữ
+      // 2. Đang ở cùng suất chiếu
+      // 3. Người dùng đang quay lại từ trang thanh toán
+      const returningFromPayment = sessionStorage.getItem('returningFromPayment') === 'true';
+      
+      if (storedSeats.length > 0 && storedShowtimeId === showtimeId && returningFromPayment) {
+        console.log("Người dùng quay lại từ trang thanh toán, mở khóa ghế");
+        const seatIds = storedSeats.map(seat => seat.id);
         
-        if (storedSeats.length > 0 && storedShowtimeId === showtimeId) {
-          console.log("Người dùng quay lại từ trang thanh toán, mở khóa ghế");
-          const seatIds = storedSeats.map(seat => seat.id);
-          
-          // Mở khóa ghế
-          await seatApi.unlockSeats(seatIds);
-          console.log("Đã mở khóa ghế từ phiên trước:", seatIds);
-          
-          // Thiết lập lại ghế đã chọn trước đó
-          setSelectedSeats(seatIds);
-        }
-      } catch (error) {
-        console.error("Lỗi khi mở khóa ghế:", error);
+        // Mở khóa ghế
+        await seatApi.unlockSeats(seatIds);
+        console.log("Đã mở khóa ghế từ phiên trước:", seatIds);
+        
+        // Thiết lập lại ghế đã chọn trước đó
+        setSelectedSeats(seatIds);
+        
+        // Xóa trạng thái quay lại sau khi đã xử lý
+        sessionStorage.removeItem('returningFromPayment');
       }
-    };
-
-    if (showtimeId) {
-      checkPreviousSelection();
+    } catch (error) {
+      console.error("Lỗi khi mở khóa ghế:", error);
     }
-  }, [showtimeId]);
+  };
+
+  if (showtimeId) {
+    checkPreviousSelection();
+  }
+}, [showtimeId]);
 
   // Lấy thông tin suất chiếu và danh sách ghế khi component mount
   useEffect(() => {
@@ -124,7 +147,7 @@ const SeatSelectionPage = () => {
         });
       }
     };
-  }, [selectedSeats]); // Thêm selectedSeats vào dependency array
+  }, [selectedSeats]);
 
   // Xử lý chọn ghế
   const handleSeatClick = (seatId) => {
@@ -221,20 +244,6 @@ const SeatSelectionPage = () => {
     }
   };
 
-  // Hàm tính toán giá riêng cho từng ghế
-  // eslint-disable-next-line no-unused-vars
-  const calculateSeatPrice = (seat) => {
-    const priceMultiplier = {
-      STANDARD: 1,
-      VIP: 1.5,
-      COUPLE: 2,
-    };
-
-    const basePrice = showtimeDetails?.price || 0;
-    const multiplier = priceMultiplier[seat.type] || 1;
-    return basePrice * multiplier;
-  };
-
   // Nhóm ghế theo hàng
   const groupSeatsByRow = () => {
     const seatsByRow = {};
@@ -251,92 +260,135 @@ const SeatSelectionPage = () => {
     return seatsByRow;
   };
 
-  // Render mã màu trạng thái ghế
+  // Render chú thích màu ghế 
   const renderSeatLegend = () => (
-    <div className="seat-legend">
-      <div className="legend-item">
-        <div className="seat-sample available"></div>
-        <span>Ghế trống</span>
+    <div className="mt-8 border-t border-gray-200 pt-6">
+      <div className="legend-title w-full text-center mb-4 font-medium text-gray-600">
+        Chú thích
       </div>
-      <div className="legend-item">
-        <div className="seat-sample selected"></div>
-        <span>Ghế đang chọn</span>
-      </div>
-      <div className="legend-item">
-        <div className="seat-sample reserved"></div>
-        <span>Ghế đã đặt</span>
-      </div>
-      <div className="legend-item">
-        <div className="seat-sample locked"></div>
-        <span>Ghế đang khóa</span>
-      </div>
-      <div className="legend-item">
-        <div className="seat-sample vip"></div>
-        <span>Ghế VIP</span>
-      </div>
-      <div className="legend-item">
-        <div className="seat-sample couple"></div>
-        <span>Ghế đôi</span>
+      
+      <div className="flex flex-wrap justify-center">
+        {/* Loại ghế - Bên trái */}
+        <div className="w-1/2 pr-4">
+          <h5 className="text-center font-medium text-gray-600 mb-2">Loại ghế</h5>
+          <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md border-2 border-blue-500"></div>
+              <span className="text-sm text-text-secondary">Ghế thường</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md border-2 border-amber-500"></div>
+              <span className="text-sm text-text-secondary">Ghế VIP</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md border-2 border-purple-600 w-10"></div>
+              <span className="text-sm text-text-secondary">Ghế đôi</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Trạng thái ghế - Bên phải */}
+        <div className="w-1/2 pl-4 border-l border-gray-200">
+          <h5 className="text-center font-medium text-gray-600 mb-2">Trạng thái ghế</h5>
+          <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-primary"></div>
+              <span className="text-sm text-text-secondary">Ghế đang chọn</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-gray-600"></div>
+              <span className="text-sm text-text-secondary">Ghế đã đặt</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-gray-400"></div>
+              <span className="text-sm text-text-secondary">Ghế đang khóa</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 
-  // Render sơ đồ ghế
+  // Render sơ đồ ghế 
   const renderSeats = () => {
     const seatsByRow = groupSeatsByRow();
     const rows = Object.keys(seatsByRow).sort();
 
     if (rows.length === 0) {
-      return <div className="no-seats">Không có thông tin ghế</div>;
+      return <div className="text-center py-8 text-text-secondary">Không có thông tin ghế</div>;
     }
 
-    return rows.map((row) => (
-      <div className="seat-row" key={row}>
-        <div className="row-label">{row}</div>
-        <div className="seats-container">
-          {seatsByRow[row]
-            .sort((a, b) => parseInt(a.column) - parseInt(b.column))
-            .map((seat) => {
-              // Xác định CSS class dựa trên trạng thái và loại ghế
-              let seatClass = "seat";
+    // Xác định số lượng cột lớn nhất
+    const maxColumns = Math.max(...rows.map(row => 
+      seatsByRow[row].reduce((max, seat) => {
+        const width = seat.type === "COUPLE" ? 2 : 1;
+        return Math.max(max, parseInt(seat.column) + width - 1);
+      }, 0)
+    ));
 
-              // Thêm class dựa trên loại ghế
-              if (seat.type === "VIP") {
-                seatClass += " vip";
-              } else if (seat.type === "COUPLE") {
-                seatClass += " couple";
-              }
+    return (
+      <div className="overflow-x-auto pb-4 mt-6">
+        <div className="mx-auto flex flex-col items-center">
+          {rows.map((row) => (
+            <div className="flex items-center mb-2 justify-center w-full" key={row}>
+              <div className="w-6 text-center font-bold text-text-secondary">{row}</div>
+              <div className="flex gap-2 justify-center" style={{ width: `${maxColumns * 40}px` }}>
+                {seatsByRow[row]
+                  .sort((a, b) => parseInt(a.column) - parseInt(b.column))
+                  .map((seat) => {
+                    // Xác định các class cho ghế
+                    let seatClasses = "flex items-center justify-center rounded-md cursor-pointer text-xs font-medium transition-all";
+                    
+                    // Kích thước ghế
+                    if (seat.type === "COUPLE") {
+                      seatClasses += " w-14 h-7"; // Ghế đôi
+                    } else {
+                      seatClasses += " w-7 h-7"; // Ghế thường và VIP
+                    }
+                    
+                    // Xác định style cho ghế dựa trên trạng thái và loại
+                    if (seat.status === "BOOKED") {
+                      // Ghế đã đặt
+                      seatClasses += " bg-gray-600 text-white cursor-not-allowed";
+                    } else if (seat.status === "LOCKED") {
+                      // Ghế đang khóa
+                      seatClasses += " bg-gray-400 text-white cursor-not-allowed";
+                    } else if (selectedSeats.includes(seat.id)) {
+                      // Ghế đang chọn
+                      seatClasses += " bg-primary text-white hover:bg-primary-dark";
+                    } else if (seat.status === "AVAILABLE") {
+                      // Ghế khả dụng - Thay đổi từ nền sang viền màu
+                      if (seat.type === "VIP") {
+                        seatClasses += " bg-white text-text-primary border-2 border-amber-500 hover:bg-amber-100";
+                      } else if (seat.type === "COUPLE") {
+                        seatClasses += " bg-white text-text-primary border-2 border-purple-600 hover:bg-purple-100";
+                      } else {
+                        seatClasses += " bg-white text-text-primary border-2 border-blue-500 hover:bg-blue-100";
+                      }
+                    }
 
-              // Thêm class dựa trên trạng thái ghế
-              if (seat.status === "BOOKED") {
-                seatClass += " reserved";
-              } else if (seat.status === "LOCKED") {
-                seatClass += " locked";
-              } else if (selectedSeats.includes(seat.id)) {
-                seatClass += " selected";
-              } else if (seat.status === "AVAILABLE") {
-                seatClass += " available";
-              }
-
-              return (
-                <div
-                  key={seat.id}
-                  className={seatClass}
-                  onClick={() => handleSeatClick(seat.id)}
-                  title={`${seat.row}${seat.column} - ${seat.type}`}
-                >
-                  {seat.column}
-                </div>
-              );
-            })}
+                    return (
+                      <div
+                        key={seat.id}
+                        className={seatClasses}
+                        onClick={() => handleSeatClick(seat.id)}
+                        title={`${seat.row}${seat.column} - ${seat.type}`}
+                      >
+                        {seat.column}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-    ));
+    );
   };
 
   // Hiển thị thông tin các ghế đã chọn
   const renderSelectedSeatsInfo = () => {
-    if (selectedSeats.length === 0) return <span>Chưa chọn ghế</span>;
+    if (selectedSeats.length === 0) return <span className="text-text-secondary italic">Chưa chọn ghế</span>;
 
     // Hệ số giá theo loại ghế
     const priceMultiplier = {
@@ -349,7 +401,7 @@ const SeatSelectionPage = () => {
     const basePrice = showtimeDetails?.price || 0;
 
     return (
-      <div className="selected-seats-list">
+      <div className="flex flex-wrap gap-2">
         {selectedSeats.map((seatId) => {
           const seat = seats.find((s) => s.id === seatId);
           if (!seat) return null;
@@ -357,17 +409,18 @@ const SeatSelectionPage = () => {
           const multiplier = priceMultiplier[seat.type] || 1;
           const price = basePrice * multiplier;
 
+          // Xác định màu tag dựa trên loại ghế
+          let tagColor;
+          if (seat.type === "VIP") {
+            tagColor = "gold";
+          } else if (seat.type === "COUPLE") {
+            tagColor = "purple";
+          } else {
+            tagColor = "blue";
+          }
+
           return (
-            <Tag
-              key={seatId}
-              color={
-                seat.type === "VIP"
-                  ? "gold"
-                  : seat.type === "COUPLE"
-                  ? "purple"
-                  : "blue"
-              }
-            >
+            <Tag key={seatId} color={tagColor}>
               {seat.row}
               {seat.column} - {price.toLocaleString("vi-VN")}đ
             </Tag>
@@ -377,116 +430,176 @@ const SeatSelectionPage = () => {
     );
   };
 
+  // Breadcrumb cải tiến
+  const BreadcrumbNavigation = () => (
+    <div className="breadcrumb-container mb-6">
+      <div className="flex items-center py-2 px-4 bg-gray-50 rounded-lg shadow-sm">
+        <div className="flex items-center text-primary">
+          <HomeOutlined className="mr-2" />
+          <a href="/" className="text-primary hover:underline font-medium">Trang chủ</a>
+        </div>
+        <div className="mx-2 text-gray-400">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+        <div className="flex items-center text-primary">
+          <VideoCameraOutlined className="mr-2" />
+          <a href="/movies" className="text-primary hover:underline font-medium">Phim</a>
+        </div>
+        <div className="mx-2 text-gray-400">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+        <div className="flex items-center font-medium">
+          <TagOutlined className="mr-2" />
+          <span className="text-gray-700">Đặt vé - Chọn ghế</span>
+        </div>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="loading-container">
-        <Spin size="large" />
-        <Title level={4}>Đang tải thông tin ghế...</Title>
-      </div>
+      <>
+        <AppHeader />
+        <div className="flex flex-col items-center justify-center min-h-screen">
+          <Spin size="large" />
+          <h4 className="mt-4 text-text-primary font-medium">Đang tải thông tin ghế...</h4>
+        </div>
+        <Footer />
+      </>
     );
   }
 
   return (
-    <div className="seat-selection-container">
-      <Row gutter={[24, 24]}>
-        <Col xs={24} lg={16}>
-          <Card className="seat-section">
-            {/* Thông tin phim và suất chiếu */}
-            {showtimeDetails && (
-              <div className="showtime-info">
-                <Title level={3}>{showtimeDetails.movie?.title}</Title>
-                <Text strong>Rạp: {showtimeDetails.hall?.cinema?.name}</Text>
-                <Text strong>Phòng: {showtimeDetails.hall?.name}</Text>
-                <Divider />
-                <Text strong>
-                  Suất chiếu:{" "}
-                  {new Date(showtimeDetails.startTime).toLocaleTimeString(
-                    "vi-VN",
-                    {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }
-                  )}{" "}
-                  -{" "}
-                  {new Date(showtimeDetails.endTime).toLocaleTimeString(
-                    "vi-VN",
-                    {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }
-                  )}
-                </Text>
-                <Divider />
-                <Text strong>
-                  Ngày:{" "}
-                  {new Date(showtimeDetails.startTime).toLocaleDateString(
-                    "vi-VN"
-                  )}
-                </Text>
-              </div>
-            )}
+    <>
+      <AppHeader />
+      <div className="max-w-6xl mx-auto px-4 py-6 pt-24">
+        {/* Breadcrumb cải tiến */}
+        <BreadcrumbNavigation />
 
-            <Divider />
-
-            {/* Màn hình */}
-            <div className="cinema-screen">
-              <div className="screen">Màn hình</div>
-            </div>
-
-            {/* Sơ đồ ghế */}
-            <div className="seating-chart">
-              {seats.length > 0 ? (
-                renderSeats()
-              ) : (
-                <div className="no-seats-warning">
-                  <Text type="warning">
-                    Không có thông tin ghế cho suất chiếu này
-                  </Text>
+        <Row gutter={[24, 24]}>
+          {/* Thông tin phim */}
+          <Col xs={24} lg={8} className="order-1 lg:order-1">
+            <Card className="content-card shadow-md mb-6">
+              {showtimeDetails && showtimeDetails.movie && (
+                <div className="flex flex-col">
+                  <div className="flex items-start">
+                    {/* Poster phim - đã thu nhỏ */}
+                    <div className="w-1/3 mr-4">
+                      <img
+                        src={showtimeDetails.movie.poster || showtimeDetails.movie.posterUrl || showtimeDetails.movie.image || "/fallback.jpg"}
+                        alt={showtimeDetails.movie.title}
+                        className="w-full rounded-md shadow-sm"
+                      />
+                    </div>
+                    
+                    {/* Thông tin phim */}
+                    <div className="w-2/3">
+                      <h3 className="text-lg font-bold text-text-primary mb-2 line-clamp-2">{showtimeDetails.movie.title}</h3>
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="font-medium text-text-primary">Rạp: </span>
+                          <span className="text-text-secondary">{showtimeDetails.hall?.cinema?.name}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-text-primary">Phòng: </span>
+                          <span className="text-text-secondary">{showtimeDetails.hall?.name}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-text-primary">Suất chiếu: </span>
+                          <span className="text-text-secondary">
+                            {new Date(showtimeDetails.startTime).toLocaleDateString("vi-VN")}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-text-primary">Thời gian: </span>
+                          <span className="text-text-secondary">
+                            {new Date(showtimeDetails.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} -{" "}
+                            {new Date(showtimeDetails.endTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
-            </div>
+            </Card>
 
-            {/* Chú thích ghế */}
-            {renderSeatLegend()}
-          </Card>
-        </Col>
+            {/* Thông tin đặt vé */}
+            <Card className="content-card shadow-md">
+              <div className="space-y-4">
+                <h4 className="text-lg font-bold text-text-primary mb-1">Thông tin đặt vé</h4>
+                <Divider className="my-3" />
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium text-text-primary">Ghế đã chọn:</h4>
+                  {renderSelectedSeatsInfo()}
+                </div>
 
-        <Col xs={24} lg={8}>
-          {/* Thông tin đặt vé */}
-          <Card className="ticket-info">
-            <div className="booking-summary">
-              <div className="summary-item">
-                <Text strong>Ghế đã chọn:</Text>
-                {renderSelectedSeatsInfo()}
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-text-primary">Số lượng ghế:</span>
+                  <span className="font-bold">{selectedSeats.length}</span>
+                </div>
+
+                <Divider className="my-3" />
+                
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-text-primary">Tổng tiền:</span>
+                  <span className="text-lg font-bold text-primary">
+                    {totalPrice.toLocaleString("vi-VN")}đ
+                  </span>
+                </div>
+
+                <Button
+                  type="primary"
+                  size="large"
+                  block
+                  onClick={handleContinue}
+                  loading={lockingSeats}
+                  disabled={selectedSeats.length === 0}
+                  className="bg-button-gradient border-none rounded-md font-bold h-12 mt-4 hover:bg-button-gradient-hover hover:shadow-button-hover"
+                >
+                  TIẾP TỤC THANH TOÁN
+                </Button>
+              </div>
+            </Card>
+          </Col>
+
+          {/* Sơ đồ ghế */}
+          <Col xs={24} lg={16} className="order-2 lg:order-2">
+            <Card className="content-card shadow-md">
+              {/* Màn hình - Cải thiện */}
+              <div className="mb-8 relative">
+                <div className="w-3/4 mx-auto h-10 bg-gradient-to-b from-gray-700 to-gray-800 rounded-t-lg flex items-center justify-center text-white text-sm font-medium shadow-md">
+                  MÀN HÌNH
+                </div>
+                <div className="w-3/4 mx-auto h-3 bg-gradient-to-b from-gray-400 to-transparent rounded-b-lg"></div>
               </div>
 
-              <div className="summary-item">
-                <Text strong>Số lượng ghế:</Text>
-                <Text>{selectedSeats.length}</Text>
+              {/* Sơ đồ ghế */}
+              <div className="flex flex-col items-center">
+                {seats.length > 0 ? (
+                  renderSeats()
+                ) : (
+                  <div className="py-8 text-center">
+                    <Text type="warning">
+                      Không có thông tin ghế cho suất chiếu này
+                    </Text>
+                  </div>
+                )}
               </div>
 
-              <div className="summary-item">
-                <Text strong>Tổng tiền:</Text>
-                <Text className="total-price">
-                  {totalPrice.toLocaleString("vi-VN")}đ
-                </Text>
-              </div>
-
-              <Button
-                type="primary"
-                size="large"
-                block
-                onClick={handleContinue}
-                loading={lockingSeats}
-                disabled={selectedSeats.length === 0}
-              >
-                Tiếp tục
-              </Button>
-            </div>
-          </Card>
-        </Col>
-      </Row>
-    </div>
+              {/* Chú thích ghế - Đã cải tiến */}
+              {renderSeatLegend()}
+            </Card>
+          </Col>
+        </Row>
+      </div>
+      <Footer />
+    </>
   );
 };
 

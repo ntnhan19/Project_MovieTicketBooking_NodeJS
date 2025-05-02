@@ -1,9 +1,11 @@
-// frontend/src/controllers/paymentController.js
+// backend/src/controllers/paymentController.js
 const paymentService = require("../services/paymentService");
-const zaloPayService = require("../services/zaloPayService");
+const vnpayService = require("../services/vnpayService");
 const prisma = require("../../prisma/prisma");
 
-// Tạo thanh toán mới (POST /api/payments)
+/**
+ * Tạo thanh toán mới (POST /api/payments)
+ */
 const createPayment = async (req, res) => {
   try {
     const { ticketIds, method } = req.body;
@@ -49,73 +51,35 @@ const createPayment = async (req, res) => {
 
     // Xử lý theo phương thức thanh toán
     switch (method) {
-      case "ZALOPAY":
+      case "VNPAY":
         try {
-          // Chỉ dùng vé đầu tiên để tạo thông tin thanh toán, nhưng payment sẽ liên kết với tất cả vé
-          const zaloPayOrder = await zaloPayService.createZaloPayOrder(
+          // Lấy địa chỉ IP của người dùng
+          const ipAddr =
+            req.headers["x-forwarded-for"] ||
+            req.connection.remoteAddress ||
+            req.socket.remoteAddress ||
+            "127.0.0.1";
+
+          // Tạo đơn hàng VNPay và lấy URL thanh toán
+          const vnpayOrder = await vnpayService.createVNPayOrder(
             payment,
-            tickets[0]
+            tickets[0],
+            ipAddr
           );
+          console.log("VNPay order created:", vnpayOrder);
 
           return res.status(201).json({
             ...payment,
-            paymentUrl: zaloPayOrder.paymentUrl,
-            orderToken: zaloPayOrder.orderToken,
-          });
-        } catch (zaloPayError) {
-          console.error("ZaloPay payment creation error:", zaloPayError);
-          // Cập nhật trạng thái thanh toán thành FAILED nếu có lỗi
-          await paymentService.updatePaymentStatus(payment.id, "FAILED");
-          return res
-            .status(400)
-            .json({
-              message: `Lỗi tạo thanh toán ZaloPay: ${zaloPayError.message}`,
-            });
-        }
-
-      case "VNPAY":
-        try {
-          // Ở đây bạn cần triển khai VNPayService
-          // const vnpayOrder = await vnpayService.createVnpayOrder(payment, tickets);
-          // Tạm thời trả về thông báo chưa triển khai
-          return res.status(200).json({
-            ...payment,
-            message: "Chức năng thanh toán VNPAY đang được phát triển",
+            paymentUrl: vnpayOrder.paymentUrl,
+            orderToken: vnpayOrder.orderToken,
           });
         } catch (error) {
+          console.error("VNPay error:", error);
           await paymentService.updatePaymentStatus(payment.id, "FAILED");
           return res
             .status(400)
             .json({ message: `Lỗi tạo thanh toán VNPAY: ${error.message}` });
         }
-
-      case "MOMO":
-        try {
-          // Tạm thời trả về payment đã tạo với thông báo phương thức đang phát triển
-          return res.status(200).json({
-            ...payment,
-            message: "Chức năng thanh toán MOMO đang được phát triển",
-            // Thêm các thông tin giả định để frontend có thể tiếp tục
-            status: "PENDING",
-            method: "MOMO",
-          });
-
-          // Khi có momoService, bỏ comment phần code dưới
-          /*
-            const momoOrder = await momoService.createMomoOrder(payment, tickets);
-            return res.status(201).json({
-              ...payment,
-              paymentUrl: momoOrder.paymentUrl,
-              orderToken: momoOrder.orderToken
-            });
-            */
-        } catch (error) {
-          await paymentService.updatePaymentStatus(payment.id, "FAILED");
-          return res
-            .status(400)
-            .json({ message: `Lỗi tạo thanh toán MOMO: ${error.message}` });
-        }
-
       default:
         // Với các phương thức thanh toán khác, trả về payment bình thường
         res.status(201).json(payment);
@@ -129,30 +93,59 @@ const createPayment = async (req, res) => {
   }
 };
 
-// Xử lý callback từ ZaloPay (POST /api/payments/zalopay-callback)
-const zaloPayCallback = async (req, res) => {
+/**
+ * Xử lý kết quả thanh toán từ VNPay (GET /api/payments/vnpay-return)
+ */
+const vnpayReturn = async (req, res) => {
   try {
-    const callbackData = req.body;
-    console.log("ZaloPay callback received:", callbackData);
+    const vnpayData = req.query;
+    console.log("VNPay return data:", vnpayData);
 
-    const result = await zaloPayService.processZaloPayCallback(callbackData);
+    // Xử lý dữ liệu trả về qua service
+    const result = await vnpayService.processVNPayReturn(vnpayData);
 
-    // ZaloPay expects these specific response codes
-    res.status(200).json({
-      return_code: result.return_code,
-      return_message: result.return_message,
-    });
+    if (result.success) {
+      return res.redirect(
+        `${process.env.FRONTEND_URL}/payment/result?paymentId=${result.paymentId}&status=success`
+      );
+    } else {
+      return res.redirect(
+        `${process.env.FRONTEND_URL}/payment/result?paymentId=${result.paymentId}&status=failed&code=${result.responseCode}`
+      );
+    }
   } catch (error) {
-    console.error("Error processing ZaloPay callback:", error);
-    res.status(200).json({
-      return_code: 0, // ZaloPay error code
-      return_message: "Internal server error",
-    });
+    console.error("Error processing VNPay return:", error);
+    return res.redirect(
+      `${
+        process.env.FRONTEND_URL
+      }/payment/result?error=true&message=${encodeURIComponent(error.message)}`
+    );
   }
 };
 
-// Kiểm tra trạng thái thanh toán ZaloPay (GET /api/payments/:id/check-status)
-const checkZaloPayStatus = async (req, res) => {
+/**
+ * VNPay IPN (Instant Payment Notification) handler (POST /api/payments/vnpay-ipn)
+ */
+const vnpayIPN = async (req, res) => {
+  try {
+    const ipnData = req.query;
+    console.log("VNPay IPN received:", ipnData);
+
+    // Xử lý IPN qua service
+    const result = await vnpayService.processVNPayIPN(ipnData);
+
+    // VNPay yêu cầu trả về đúng định dạng này
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("Error processing VNPay IPN:", error);
+    return res.status(200).json({ RspCode: "99", Message: "Unknown error" });
+  }
+};
+
+/**
+ * Kiểm tra trạng thái thanh toán VNPay (GET /api/payments/:id/check-vnpay-status)
+ */
+const checkVNPayStatus = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const payment = await prisma.payment.findUnique({
@@ -163,71 +156,45 @@ const checkZaloPayStatus = async (req, res) => {
       return res.status(404).json({ message: "Payment not found" });
     }
 
-    if (!payment.appTransId) {
+    if (!payment.appTransId || payment.method !== "VNPAY") {
       return res
         .status(400)
-        .json({ message: "This payment was not processed by ZaloPay" });
+        .json({ message: "This payment was not processed by VNPay" });
     }
 
-    const statusResult = await zaloPayService.checkPaymentStatus(
-      payment.appTransId
-    );
+    // Lấy địa chỉ IP của người dùng
+    const ipAddr =
+      req.headers["x-forwarded-for"] ||
+      req.connection.remoteAddress ||
+      req.socket.remoteAddress ||
+      "127.0.0.1";
 
-    if (statusResult.return_code === 1) {
-      // Cập nhật trạng thái thanh toán từ ZaloPay nếu khác với trạng thái hiện tại
-      if (statusResult.data.status === 1 && payment.status !== "COMPLETED") {
-        await paymentService.updatePaymentStatus(id, "COMPLETED");
-      } else if (
-        statusResult.data.status !== 1 &&
-        payment.status === "PENDING"
-      ) {
-        await paymentService.updatePaymentStatus(id, "FAILED");
-      }
+    try {
+      // Kiểm tra trạng thái giao dịch
+      const result = await vnpayService.checkTransactionStatus(payment, ipAddr);
+      return res.status(200).json(result);
+    } catch (error) {
+      // Trả về thông tin cơ bản nếu có lỗi
+      return res.status(200).json({
+        status: payment.status,
+        message: `Không thể kiểm tra chi tiết: ${error.message}`,
+        paymentId: payment.id,
+        appTransId: payment.appTransId,
+        error: true,
+      });
     }
-
-    res.status(200).json({
-      paymentId: id,
-      zaloStatus: statusResult.data.status,
-      appTransId: payment.appTransId,
-      status: payment.status,
-      return_message: statusResult.return_message,
-    });
   } catch (error) {
-    console.error("Error checking ZaloPay status:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error checking VNPay status:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 
-// ZaloPay redirect controller (GET /api/payments/zalopay-result)
-const zaloPayRedirect = async (req, res) => {
-  // Xử lý khi người dùng được redirect từ ZaloPay về
-  const { app_trans_id, status } = req.query;
-
-  try {
-    // Tìm payment dựa trên app_trans_id
-    const payment = await prisma.payment.findFirst({
-      where: { appTransId: app_trans_id },
-    });
-
-    if (!payment) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Payment not found" });
-    }
-
-    // Chuyển hướng về trang kết quả thanh toán với thông tin
-    return res.redirect(
-      `${process.env.FRONTEND_URL}/payment/result?paymentId=${payment.id}&status=${status}`
-    );
-  } catch (error) {
-    console.error("Error processing ZaloPay redirect:", error);
-    return res.redirect(
-      `${process.env.FRONTEND_URL}/payment/result?error=true`
-    );
-  }
-};
-
-// Lấy thông tin thanh toán theo ID (GET /api/payments/:id)
+/**
+ * Lấy thông tin thanh toán theo ID (GET /api/payments/:id)
+ */
 const getPaymentById = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -241,7 +208,7 @@ const getPaymentById = async (req, res) => {
 
     // Kiểm tra quyền truy cập (chỉ admin hoặc chủ sở hữu vé mới có thể xem)
     if (userId && req.user.role !== "ADMIN") {
-      const unauthorizedTicket = payment.ticket.find(
+      const unauthorizedTicket = payment.tickets.find(
         (ticket) => ticket.userId !== userId
       );
       if (unauthorizedTicket) {
@@ -314,7 +281,7 @@ const updatePaymentStatus = async (req, res) => {
 
     // Kiểm tra quyền truy cập
     if (userId && req.user.role !== "ADMIN") {
-      const unauthorizedTicket = payment.ticket.find(
+      const unauthorizedTicket = payment.tickets.find(
         (ticket) => ticket.userId !== userId
       );
       if (unauthorizedTicket) {
@@ -379,7 +346,7 @@ const paymentWebhook = async (req, res) => {
 const simulatePaymentSuccess = async (req, res) => {
   try {
     const paymentId = parseInt(req.params.id);
-    const result = await zaloPayService.simulatePaymentSuccess(paymentId);
+    const result = await vnpayService.simulatePaymentSuccess(paymentId);
 
     res.status(200).json({
       success: true,
@@ -398,8 +365,8 @@ module.exports = {
   getPaymentByTicketId,
   updatePaymentStatus,
   paymentWebhook,
-  zaloPayCallback,
-  checkZaloPayStatus,
-  zaloPayRedirect,
   simulatePaymentSuccess,
+  vnpayReturn,
+  vnpayIPN,
+  checkVNPayStatus,
 };

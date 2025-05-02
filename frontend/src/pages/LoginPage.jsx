@@ -1,47 +1,56 @@
-// frontend/src/pages/LoginPage.jsx
 import React, { useState } from "react";
-import { Card, Form, Input, Button, Typography, Divider, message, Space } from "antd";
+import { Form, Input, Button, Typography, Divider, message, Space } from "antd";
 import {
   UserOutlined,
   LockOutlined,
   GoogleOutlined,
   FacebookOutlined,
-  ArrowLeftOutlined
 } from "@ant-design/icons";
-import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
-const { Title, Text } = Typography;
+const { Text, Title } = Typography;
 
-const LoginPage = () => {
+const LoginForm = ({ onRegisterClick, onLoginSuccess }) => {
   const { login } = useAuth();
-  const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const onFinish = async (values) => {
     try {
       setLoading(true);
-      const response = await login(values.email, values.password);
-      const { token, user } = response;
-
-      // Lưu token, role và userId vào localStorage
-      localStorage.setItem("token", token);
-      localStorage.setItem("role", user.role);
-      localStorage.setItem("userId", user.id);
-
-      // Chuyển hướng theo role
-      if (user.role?.toUpperCase() === "ADMIN") {
-        window.location.href = "http://localhost:3001"; // redirect đến trang admin
+      // Gọi hàm login từ context
+      const response = await login({ email: values.email, password: values.password });
+      
+      // Kiểm tra nếu đăng nhập thất bại
+      if (!response || response.success === false) {
+        console.error("Đăng nhập thất bại:", response?.error);
+        return;
+      }
+      
+      console.log("Login response:", response);
+      
+      // Lấy thông tin người dùng
+      const { user } = response;
+      
+      // Kiểm tra role để chuyển hướng
+      if (user && user.role?.toUpperCase() === "ADMIN") {
+        message.success("Đăng nhập thành công! Đang chuyển hướng tới trang quản trị...");
+        // Chuyển hướng tới trang admin (có thể điều chỉnh URL)
+        window.location.href = "http://localhost:3001";
       } else {
-        navigate("/");
-        message.success("Đăng nhập thành công!");
+        // Gọi callback onLoginSuccess nếu có
+        if (onLoginSuccess) {
+          onLoginSuccess();
+        }
+        
+        // Tải lại trang để đảm bảo cập nhật trạng thái
+        window.location.reload();
       }
     } catch (error) {
       console.error("Login error:", error);
-      message.error(
-        "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin đăng nhập."
-      );
+      message.error("Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
     } finally {
       setLoading(false);
     }
@@ -52,105 +61,107 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-wrapper">
-        <Card className="login-card">
-          <div className="login-header">
-            <Button 
-              icon={<ArrowLeftOutlined />} 
-              type="text" 
-              onClick={() => navigate(-1)}
-              className="back-button"
-            />
-            <div className="login-title">
-              <Title level={2}>Chào mừng trở lại</Title>
-              <Text type="secondary">Đăng nhập để tiếp tục</Text>
-            </div>
-          </div>
-
-          <Form 
-            form={form} 
-            name="login" 
-            onFinish={onFinish} 
-            layout="vertical"
-            className="login-form"
-          >
-            <Form.Item
-              name="email"
-              rules={[
-                { required: true, message: "Vui lòng nhập email!" },
-                { type: "email", message: "Email không hợp lệ!" }
-              ]}
-            >
-              <Input 
-                prefix={<UserOutlined className="site-form-item-icon" />} 
-                placeholder="Email" 
-                size="large"
-                className="login-input" 
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="password"
-              rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
-            >
-              <Input.Password
-                prefix={<LockOutlined className="site-form-item-icon" />}
-                placeholder="Mật khẩu"
-                size="large"
-                className="login-input"
-              />
-            </Form.Item>
-
-            <div className="flex justify-end mb-4">
-              <Link to="/forgot-password" className="forgot-password">Quên mật khẩu?</Link>
-            </div>
-
-            <Form.Item>
-              <Button
-                type="primary"
-                htmlType="submit"
-                size="large"
-                block
-                loading={loading}
-                className="login-button"
-              >
-                Đăng nhập
-              </Button>
-            </Form.Item>
-          </Form>
-
-          <Divider className="login-divider">Hoặc</Divider>
-
-          <Space direction="vertical" size="middle" className="social-login">
-            <Button
-              icon={<GoogleOutlined />}
-              size="large"
-              onClick={() => handleSocialLogin("Google")}
-              block
-              className="google-button"
-            >
-              Tiếp tục với Google
-            </Button>
-            <Button
-              icon={<FacebookOutlined />}
-              size="large"
-              onClick={() => handleSocialLogin("Facebook")}
-              block
-              className="facebook-button"
-            >
-              Tiếp tục với Facebook
-            </Button>
-          </Space>
-
-          <div className="login-footer">
-            <Text type="secondary">Chưa có tài khoản? </Text>
-            <Link to="/register" className="register-link">Đăng ký ngay</Link>
-          </div>
-        </Card>
+    <>
+      <div className="text-center mb-6">
+        <Title level={3} className="mb-2 text-text-primary">
+          Chào mừng trở lại
+        </Title>
+        <Text className="text-text-secondary">Đăng nhập để tiếp tục</Text>
       </div>
-    </div>
+
+      <Form
+        form={form}
+        name="login"
+        onFinish={onFinish}
+        layout="vertical"
+        className="mt-4"
+      >
+        <Form.Item
+          name="email"
+          rules={[
+            { required: true, message: "Vui lòng nhập email!" },
+            { type: "email", message: "Email không hợp lệ!" },
+          ]}
+        >
+          <Input
+            prefix={<UserOutlined className="text-gray-400" />}
+            placeholder="Email"
+            size="large"
+            className="rounded-lg h-12 border form-input"
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="password"
+          rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
+        >
+          <Input.Password
+            prefix={<LockOutlined className="text-gray-400" />}
+            placeholder="Mật khẩu"
+            size="large"
+            className="rounded-lg h-12 border form-input"
+          />
+        </Form.Item>
+
+        <div className="flex justify-end mb-4">
+          <a 
+            className="text-primary hover:text-primary-dark transition-all"
+            onClick={() => navigate('/forgot-password')}
+          >
+            Quên mật khẩu?
+          </a>
+        </div>
+
+        <Form.Item>
+          <Button
+            type="primary"
+            htmlType="submit"
+            size="large"
+            block
+            loading={loading}
+            className="h-12 text-base font-medium rounded-lg btn-primary"
+          >
+            Đăng nhập
+          </Button>
+        </Form.Item>
+      </Form>
+
+      <Divider className="my-6">
+        <span className="text-text-secondary">Hoặc</span>
+      </Divider>
+
+      <Space direction="vertical" size="middle" className="w-full mb-6">
+        <Button
+          icon={<GoogleOutlined />}
+          size="large"
+          onClick={() => handleSocialLogin("Google")}
+          block
+          className="h-12 text-base rounded-lg border flex items-center justify-center hover:bg-gray-50 transition-all"
+        >
+          Tiếp tục với Google
+        </Button>
+        <Button
+          icon={<FacebookOutlined />}
+          size="large"
+          onClick={() => handleSocialLogin("Facebook")}
+          block
+          className="h-12 text-base rounded-lg bg-blue-600 text-white border-none flex items-center justify-center hover:bg-blue-700 hover:shadow-sm transition-all"
+        >
+          Tiếp tục với Facebook
+        </Button>
+      </Space>
+
+      <div className="text-center mt-4">
+        <Text className="text-text-secondary">Chưa có tài khoản? </Text>
+        <a
+          onClick={onRegisterClick}
+          className="text-primary font-medium hover:text-primary-dark transition-all cursor-pointer"
+        >
+          Đăng ký ngay
+        </a>
+      </div>
+    </>
   );
 };
 
-export default LoginPage;
+export default LoginForm;

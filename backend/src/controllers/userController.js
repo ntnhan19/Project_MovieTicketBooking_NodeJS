@@ -1,5 +1,9 @@
 // backend/src/controllers/userController.js
 const userService = require('../services/userService');
+const multer = require('multer');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
 
 // Lấy danh sách người dùng
 exports.getUsers = async (req, res) => {
@@ -146,5 +150,186 @@ exports.changePassword = async (req, res) => {
     }
     
     res.status(500).json({ error: 'Có lỗi xảy ra khi thay đổi mật khẩu' });
+  }
+};
+
+// Cấu hình lưu trữ cho multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../../uploads/avatars');
+    // Đảm bảo thư mục tồn tại
+    if (!fs.existsSync(uploadDir)){
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  }
+});
+
+// Cấu hình upload
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // giới hạn 5MB
+  },
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png|gif/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Chỉ chấp nhận file hình ảnh (jpeg, jpg, png, gif)'));
+  }
+}).single('avatar');
+
+// Upload avatar
+exports.uploadAvatar = (req, res) => {
+  upload(req, res, async (err) => {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({ error: `Lỗi multer: ${err.message}` });
+    } else if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'Vui lòng chọn file để upload' });
+    }
+    
+    try {
+      const userId = req.user.id;
+      const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      
+      // Cập nhật URL avatar trong cơ sở dữ liệu
+      const updatedUser = await userService.updateAvatar(userId, avatarUrl);
+      res.json({ 
+        message: 'Upload avatar thành công', 
+        avatar: updatedUser.avatar 
+      });
+    } catch (error) {
+      console.error('Lỗi khi cập nhật avatar:', error);
+      res.status(500).json({ error: 'Có lỗi xảy ra khi cập nhật avatar' });
+    }
+  });
+};
+
+// Gửi yêu cầu quên mật khẩu
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Vui lòng cung cấp email' });
+    }
+    
+    const result = await userService.forgotPassword(email);
+    res.json({ message: 'Đã gửi email hướng dẫn đặt lại mật khẩu' });
+  } catch (error) {
+    console.error('Lỗi khi xử lý yêu cầu quên mật khẩu:', error);
+    
+    if (error.message === 'Email không tồn tại') {
+      return res.status(404).json({ error: error.message });
+    }
+    
+    res.status(500).json({ error: 'Có lỗi xảy ra khi xử lý yêu cầu đặt lại mật khẩu' });
+  }
+};
+
+// Xác thực mã reset mật khẩu
+exports.verifyResetToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    if (!token) {
+      return res.status(400).json({ error: 'Token không hợp lệ' });
+    }
+    
+    const isValid = await userService.verifyResetToken(token);
+    
+    if (isValid) {
+      res.json({ valid: true });
+    } else {
+      res.status(400).json({ valid: false, error: 'Token không hợp lệ hoặc đã hết hạn' });
+    }
+  } catch (error) {
+    console.error('Lỗi khi xác thực token reset mật khẩu:', error);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi xác thực token' });
+  }
+};
+
+// Đặt lại mật khẩu
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Vui lòng cung cấp token và mật khẩu mới' });
+    }
+    
+    await userService.resetPassword(token, newPassword);
+    res.json({ message: 'Đặt lại mật khẩu thành công' });
+  } catch (error) {
+    console.error('Lỗi khi đặt lại mật khẩu:', error);
+    
+    if (error.message === 'Token không hợp lệ hoặc đã hết hạn') {
+      return res.status(400).json({ error: error.message });
+    }
+    
+    res.status(500).json({ error: 'Có lỗi xảy ra khi đặt lại mật khẩu' });
+  }
+};
+
+// Lấy lịch sử đặt vé của người dùng hiện tại
+exports.getMyTickets = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { page = 1, pageSize = 10, status } = req.query;
+    
+    const result = await userService.getUserTickets(userId, { page, pageSize, status });
+    res.json(result);
+  } catch (error) {
+    console.error('Lỗi khi lấy lịch sử đặt vé:', error);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi lấy lịch sử đặt vé' });
+  }
+};
+
+// Lấy lịch sử đánh giá của người dùng hiện tại
+exports.getMyReviews = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { page = 1, pageSize = 10 } = req.query;
+    
+    const result = await userService.getUserReviews(userId, { page, pageSize });
+    res.json(result);
+  } catch (error) {
+    console.error('Lỗi khi lấy lịch sử đánh giá:', error);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi lấy lịch sử đánh giá' });
+  }
+};
+
+// Xác thực email
+exports.verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    if (!token) {
+      return res.status(400).json({ error: 'Token không hợp lệ' });
+    }
+    
+    await userService.verifyEmail(token);
+    res.json({ message: 'Xác thực email thành công' });
+  } catch (error) {
+    console.error('Lỗi khi xác thực email:', error);
+    
+    if (error.message === 'Token không hợp lệ hoặc đã hết hạn' || 
+        error.message === 'Người dùng không tồn tại') {
+      return res.status(400).json({ error: error.message });
+    }
+    
+    res.status(500).json({ error: 'Có lỗi xảy ra khi xác thực email' });
   }
 };

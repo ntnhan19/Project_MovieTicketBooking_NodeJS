@@ -1,6 +1,9 @@
 // backend/src/services/userService.js
 const prisma = require("../../prisma/prisma");
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 
 // Lấy tất cả người dùng với các bộ lọc và phân trang
 exports.getUsers = async (filter) => {
@@ -310,4 +313,242 @@ exports.changePassword = async (userId, data) => {
   });
   
   return { success: true };
+};
+
+// Cấu hình nodemailer
+const transporter = nodemailer.createTransport({
+  host: process.env.MAIL_HOST || 'smtp.gmail.com',
+  port: process.env.MAIL_PORT || 587,
+  secure: process.env.MAIL_SECURE === 'true' || false,
+  auth: {
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS
+  }
+});
+
+// Cập nhật avatar người dùng
+exports.updateAvatar = async (userId, avatarUrl) => {
+  // Kiểm tra người dùng có tồn tại không
+  const user = await prisma.user.findUnique({
+    where: { id: userId }
+  });
+  
+  if (!user) {
+    throw new Error('Người dùng không tồn tại');
+  }
+  
+  // Cập nhật avatar
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: { avatar: avatarUrl }
+  });
+  
+  // Loại bỏ trường password trước khi trả về
+  const { password: _, ...userWithoutPassword } = updatedUser;
+  
+  return userWithoutPassword;
+};
+
+// Gửi yêu cầu quên mật khẩu
+exports.forgotPassword = async (email) => {
+  // Kiểm tra email có tồn tại không
+  const user = await prisma.user.findUnique({
+    where: { email }
+  });
+  
+  if (!user) {
+    throw new Error('Email không tồn tại');
+  }
+  
+  // Tạo token reset mật khẩu
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+  const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 giờ
+  
+  // Lưu token vào cơ sở dữ liệu
+  await prisma.passwordReset.upsert({
+    where: { userId: user.id },
+    update: {
+      token: resetTokenHash,
+      expiresAt: resetTokenExpires
+    },
+    create: {
+      userId: user.id,
+      token: resetTokenHash,
+      expiresAt: resetTokenExpires
+    }
+  });
+  
+  // Gửi email với link reset mật khẩu
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+  
+  // Sử dụng mailService để gửi email
+  const mailService = require('./mailService');
+  await mailService.sendPasswordResetEmail(user, resetUrl);
+  
+  return { success: true };
+};
+
+// Xác thực token reset mật khẩu
+exports.verifyResetToken = async (token) => {
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  
+  const passwordReset = await prisma.passwordReset.findFirst({
+    where: {
+      token: tokenHash,
+      expiresAt: {
+        gt: new Date()
+      }
+    }
+  });
+  
+  return !!passwordReset;
+};
+
+// Đặt lại mật khẩu với token
+exports.resetPassword = async (token, newPassword) => {
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  
+  // Tìm token trong cơ sở dữ liệu
+  const passwordReset = await prisma.passwordReset.findFirst({
+    where: {
+      token: tokenHash,
+      expiresAt: {
+        gt: new Date()
+      }
+    }
+  });
+  
+  if (!passwordReset) {
+    throw new Error('Token không hợp lệ hoặc đã hết hạn');
+  }
+  
+  // Mã hóa mật khẩu mới
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  
+  // Cập nhật mật khẩu
+  await prisma.user.update({
+    where: { id: passwordReset.userId },
+    data: { password: hashedPassword }
+  });
+  
+  // Xóa token sau khi đã sử dụng
+  await prisma.passwordReset.delete({
+    where: { id: passwordReset.id }
+  });
+  
+  return { success: true };
+};
+
+// Lấy lịch sử đặt vé của người dùng
+exports.getUserTickets = async (userId, options) => {
+  const { page = 1, pageSize = 10, status } = options;
+  
+  // Xây dựng điều kiện tìm kiếm
+  const where = { userId };
+  
+  // Lọc theo trạng thái vé (nếu có)
+  if (status) {
+    where.status = status;
+  }
+  
+  // Đếm tổng số vé
+  const totalCount = await prisma.ticket.count({ where });
+  
+  // Tính toán phân trang
+  const skip = (Number(page) - 1) * Number(pageSize);
+  
+  // Lấy danh sách vé
+  const tickets = await prisma.ticket.findMany({
+    where,
+    skip,
+    take: Number(pageSize),
+    orderBy: { showtime: { startTime: 'desc' } },
+    include: {
+      showtime: {
+        include: {
+          movie: true,
+          hall: {
+            include: {
+              cinema: true
+            }
+          }
+        }
+      },
+      seat: true,
+      payment: true
+    }
+  });
+  
+  return {
+    tickets,
+    pagination: {
+      totalCount,
+      page: Number(page),
+      pageSize: Number(pageSize),
+      totalPages: Math.ceil(totalCount / Number(pageSize))
+    }
+  };
+};
+
+// Lấy lịch sử đánh giá của người dùng
+exports.getUserReviews = async (userId, options) => {
+  const { page = 1, pageSize = 10 } = options;
+  
+  // Đếm tổng số đánh giá
+  const totalCount = await prisma.review.count({
+    where: { userId }
+  });
+  
+  // Tính toán phân trang
+  const skip = (Number(page) - 1) * Number(pageSize);
+  
+  // Lấy danh sách đánh giá
+  const reviews = await prisma.review.findMany({
+    where: { userId },
+    skip,
+    take: Number(pageSize),
+    orderBy: { createdAt: 'desc' },
+    include: {
+      movie: true
+    }
+  });
+  
+  return {
+    reviews,
+    pagination: {
+      totalCount,
+      page: Number(page),
+      pageSize: Number(pageSize),
+      totalPages: Math.ceil(totalCount / Number(pageSize))
+    }
+  };
+};
+
+// Xác thực email
+exports.verifyEmail = async (token) => {
+  try {
+    // Giải mã token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.userId;
+    
+    // Kiểm tra người dùng tồn tại
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+    
+    if (!user) {
+      throw new Error('Người dùng không tồn tại');
+    }
+    
+    // Cập nhật trạng thái xác thực email
+    await prisma.user.update({
+      where: { id: userId },
+      data: { emailVerified: true }
+    });
+    
+    return { success: true };
+  } catch (error) {
+    throw new Error('Token không hợp lệ hoặc đã hết hạn');
+  }
 };

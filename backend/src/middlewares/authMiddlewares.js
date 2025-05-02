@@ -7,7 +7,7 @@ const authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
   console.log("[AUTH] authHeader:", authHeader);
   const token = authHeader?.split(" ")[1];
-  
+
   if (!token) {
     console.error("[AUTH] Không có token trong header.");
     return res.status(401).json({ message: "Token không hợp lệ" });
@@ -18,7 +18,10 @@ const authenticate = (req, res, next) => {
     console.log("[AUTH] Token nhận được:", token);
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log("[AUTH] Token decoded:", decoded);
-    req.user = decoded;
+    req.user = {
+      id: decoded.userId,
+      role: decoded.role
+    };
     next();
   } catch (error) {
     console.error("[AUTH] Lỗi verify token:", error);
@@ -43,4 +46,3 @@ module.exports = {
   authenticate,
   authorizeRoles,
 };
-

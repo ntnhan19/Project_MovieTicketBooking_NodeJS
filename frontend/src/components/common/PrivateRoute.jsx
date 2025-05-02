@@ -1,24 +1,29 @@
-// frontend/src/components/PrivateRoute.jsx
+// frontend/src/components/common/PrivateRoute.jsx
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext"; 
+import LoadingSpinner from './LoadingSpinner';
 
-const PrivateRoute = ({ children, requiredRole }) => {
-  const token = localStorage.getItem("token");
-  const user = JSON.parse(localStorage.getItem("user"));
+const PrivateRoute = ({ children, allowedRoles = [] }) => {
+  const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
 
-  // Kiểm tra token và user
-  if (!token || !user) {
-    // Chuyển hướng đến trang đăng nhập với state để sau khi đăng nhập có thể quay lại
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  // Hiển thị loading khi đang kiểm tra trạng thái xác thực
+  if (loading) {
+    return <LoadingSpinner />;
   }
 
-  // Kiểm tra role của người dùng và phân quyền
-  if (requiredRole && user.role !== requiredRole) {
-    // Nếu role không đúng, chuyển hướng đến trang chính hoặc một trang khác
-    return <Navigate to="/" replace />;
+  // Nếu chưa đăng nhập, chuyển hướng đến trang đăng nhập
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
+  // Nếu có kiểm tra role và user không có quyền truy cập
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  // Nếu đã đăng nhập và có quyền truy cập, hiển thị component con
   return children;
 };
 

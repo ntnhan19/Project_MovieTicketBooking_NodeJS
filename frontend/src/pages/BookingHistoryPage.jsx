@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Table } from "antd";
-import AppHeader from "../components/common/AppHeader";
-import "../styles/BookingHistoryPage.css";
 
 const BookingHistoryPage = () => {
   const [user, setUser] = useState(null);
-  const [tickets, setTickets] = useState([]);
+  const [tickets] = useState([]);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
@@ -25,7 +23,6 @@ const BookingHistoryPage = () => {
 
   return (
     <>
-      <AppHeader user={user} setUser={setUser} />
       <div className="history-container">
         <h2 className="page-title">Lịch sử đặt vé</h2>
         <Table

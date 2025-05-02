@@ -1,104 +1,277 @@
 // frontend/src/context/AuthContext.js
-import React, { createContext, useState, useEffect, useContext } from "react";
-import { authApi } from "../api/authApi";
-import { message } from "antd";
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import { authApi } from '../api/authApi';
+import { userApi } from '../api/userApi';
+import { toast } from 'react-toastify';
+import axiosInstance from '../api/axiosInstance';
 
-const AuthContext = createContext(null);
+// Tạo context cho xác thực người dùng
+export const AuthContext = createContext();
+
+// Tạo custom hook useAuth để sử dụng AuthContext
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth phải được sử dụng trong AuthProvider');
+  }
+  return context;
+};
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(() => {
-    const user = localStorage.getItem("user");
-    return user ? JSON.parse(user) : null;
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const [loading, setLoading] = useState(false);
-
+  // Kiểm tra người dùng đã đăng nhập từ localStorage
   useEffect(() => {
-    // Nếu đã có token & user trong localStorage thì giữ lại trạng thái đăng nhập
-    const token = localStorage.getItem("token");
-    const user = localStorage.getItem("user");
+    const initializeAuth = async () => {
+      try {
+        // Kiểm tra nếu có token trong localStorage
+        const token = localStorage.getItem('token');
+        
+        if (token) {
+          // Lấy thông tin người dùng từ API
+          try {
+            const userData = await userApi.getCurrentUser();
+            console.log("Fetched user data:", userData);
+            setUser(userData);
+            setIsAuthenticated(true);
+            
+            // Cập nhật lại localStorage với thông tin mới nhất
+            localStorage.setItem('user', JSON.stringify(userData));
+          } catch (error) {
+            // Nếu API request thất bại, xóa token và đăng xuất
+            console.error("Failed to fetch user data:", error);
+            authApi.logout();
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        console.error("Authentication initialization error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    if (token && user) {
-      setCurrentUser(JSON.parse(user));
-    }
+    initializeAuth();
   }, []);
 
   // Đăng nhập
-  const login = async (email, password) => {
+  const login = async (credentials) => {
     try {
       setLoading(true);
-      const response = await authApi.login({ email, password });
-
-      const { token, user } = response;
-
-      // Lưu token & user vào localStorage
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-
-      setCurrentUser(user);
-      message.success("Đăng nhập thành công!");
-      return { token, user };
+      const response = await authApi.login(credentials);
+      
+      // Lấy dữ liệu người dùng từ response
+      const { user, token } = response;
+      
+      console.log("Login successful, user data:", user);
+      
+      // Kiểm tra xem có thông tin người dùng hay không
+      if (!user) {
+        console.error("Không nhận được thông tin người dùng từ API");
+        return { success: false, error: 'Không nhận được thông tin người dùng' };
+      }
+      
+      // Cập nhật trạng thái toàn cục
+      setUser(user);
+      setIsAuthenticated(true);
+      
+      // Đảm bảo token được lưu trong localStorage
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('userId', user.id);
+      
+      // Thiết lập token trong header cho tất cả các request tiếp theo
+      // (Điều này đã được thực hiện trong authApi.login nhưng thêm vào đây để chắc chắn)
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      // Hiển thị thông báo thành công
+      toast.success('Đăng nhập thành công!');
+      
+      return response;
     } catch (error) {
-      message.error(error.response?.data?.message || "Đăng nhập thất bại!");
-      throw error;
+      console.error("Login error:", error);
+      const errorMessage = error.response?.data?.error || 'Đăng nhập thất bại';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
   };
 
-  // Đăng ký
+  // Các phương thức khác giữ nguyên
   const register = async (userData) => {
     try {
       setLoading(true);
-      const response = await authApi.register(userData);
-      message.success("Đăng ký thành công! Vui lòng đăng nhập.");
-      return response;
+      const result = await authApi.register(userData);
+      toast.success(result.message || 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.');
+      return { success: true, message: result.message };
     } catch (error) {
-      message.error(error.response?.data?.message || "Đăng ký thất bại!");
-      throw error;
+      console.error("Register error:", error);
+      const errorMessage = error.response?.data?.error || 'Đăng ký thất bại';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
   };
 
-  // Đăng xuất
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setCurrentUser(null);
-    message.success("Đã đăng xuất!");
+    authApi.logout();
+    setUser(null);
+    setIsAuthenticated(false);
+    toast.info('Đã đăng xuất');
   };
 
-  // Cập nhật thông tin
+  const resendVerificationEmail = async (email) => {
+    try {
+      setLoading(true);
+      const result = await authApi.resendVerificationEmail(email);
+      toast.success(result.message || 'Đã gửi lại email xác thực');
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Không thể gửi lại email xác thực';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyEmail = async (token) => {
+    try {
+      setLoading(true);
+      const result = await userApi.verifyEmail(token);
+      toast.success(result.message || 'Xác thực email thành công');
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Xác thực email thất bại';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateProfile = async (userId, userData) => {
     try {
       setLoading(true);
-      const response = await authApi.updateProfile(userId, userData);
-      const updatedUser = { ...currentUser, ...userData };
-      setCurrentUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-      message.success("Cập nhật thông tin thành công!");
-      return response;
+      const updatedUser = await userApi.updateUser(userId, userData);
+      setUser(prevUser => ({ ...prevUser, ...updatedUser }));
+      toast.success('Cập nhật thông tin thành công');
+      return { success: true, user: updatedUser };
     } catch (error) {
-      message.error(error.response?.data?.message || "Cập nhật thất bại!");
-      throw error;
+      const errorMessage = error.response?.data?.error || 'Cập nhật thông tin thất bại';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
   };
 
+  const changePassword = async (passwordData) => {
+    try {
+      setLoading(true);
+      const result = await userApi.changePassword(passwordData);
+      toast.success(result.message || 'Thay đổi mật khẩu thành công');
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Thay đổi mật khẩu thất bại';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const uploadAvatar = async (formData) => {
+    try {
+      setLoading(true);
+      const result = await userApi.uploadAvatar(formData);
+      
+      // Cập nhật avatar trong state
+      setUser(prevUser => ({
+        ...prevUser,
+        avatar: result.avatar
+      }));
+      
+      toast.success(result.message || 'Upload avatar thành công');
+      return { success: true, avatar: result.avatar };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Upload avatar thất bại';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const forgotPassword = async (email) => {
+    try {
+      setLoading(true);
+      const result = await userApi.forgotPassword(email);
+      toast.success(result.message || 'Đã gửi email hướng dẫn đặt lại mật khẩu');
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Không thể xử lý yêu cầu quên mật khẩu';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyResetToken = async (token) => {
+    try {
+      setLoading(true);
+      const result = await userApi.verifyResetToken(token);
+      return { success: result.valid };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Token không hợp lệ hoặc đã hết hạn';
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetPassword = async (token, newPassword) => {
+    try {
+      setLoading(true);
+      const result = await userApi.resetPassword(token, newPassword);
+      toast.success(result.message || 'Đặt lại mật khẩu thành công');
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Đặt lại mật khẩu thất bại';
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Value object cung cấp cho context
   const value = {
-    currentUser,
+    user,
+    currentUser: user, // Thêm alias để tương thích với các component khác
+    isAuthenticated,
     loading,
     login,
-    register,
     logout,
+    register,
+    resendVerificationEmail,
+    verifyEmail,
     updateProfile,
+    changePassword,
+    uploadAvatar,
+    forgotPassword,
+    verifyResetToken,
+    resetPassword
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = () => {
-  return useContext(AuthContext);
 };

@@ -98,9 +98,16 @@ export const movieApi = {
   // Lọc phim theo thể loại
   filterMoviesByGenre: async (genreId, page = 1, limit = 10) => {
     try {
+      // Kiểm tra xem genreId có hợp lệ không
+      if (!genreId) {
+        console.error("genreId không hợp lệ:", genreId);
+        return { data: [], pagination: { total: 0, page, limit, totalPages: 0 } };
+      }
+      
       const response = await axiosInstance.get("/movies", {
         params: { genreId, page, limit },
       });
+      
       return {
         data: response.data,
         pagination: {
@@ -111,7 +118,7 @@ export const movieApi = {
         },
       };
     } catch (error) {
-      console.error("Lỗi khi lọc phim theo thể loại:", error);
+      console.error(`Lỗi khi lọc phim theo thể loại ${genreId}:`, error);
       throw error;
     }
   },

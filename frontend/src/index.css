@@ -1,139 +1,264 @@
-/* index.css - File CSS cơ sở */
-body,
-html {
-  background: #012444; 
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  overflow-x: hidden; /* Ngăn không cho scroll ngang */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body,
+  html {
+    @apply bg-light-bg m-0 p-0 w-full h-full font-sans overflow-x-hidden text-text-primary;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply mt-0 font-bold text-text-primary;
+  }
+
+  a {
+    @apply no-underline text-primary transition-colors;
+  }
 }
 
-.app-container {
-  width: 100%;
-  min-height: 100vh;
-  background-color: #012444;
-}
+@layer components {
+  .app-container {
+    @apply w-full min-h-screen bg-light-bg;
+  }
 
-.main-content {
-  max-width: 1200px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 0 20px;
-  box-sizing: border-box;
-}
-
-/* Các quy tắc chung cho toàn bộ ứng dụng */
-a {
-  text-decoration: none;
-}
-
-h1, h2, h3, h4, h5, h6 {
-  margin-top: 0;
-}
-
-/* Antd default override - chỉ đặt các style rất cơ bản */
-.ant-btn-primary {
-  background-color: #0d6efd;
-  border-color: #0d6efd;
-}
-
-.ant-btn-primary:hover {
-  background-color: #0a58ca;
-  border-color: #0a58ca;
-}
-
-/* Header style */
-.header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  background: #001529;
-  transition: all 0.3s ease-in-out;
-}
-
-.header.scrolled {
-  background: rgba(0, 21, 41, 0.9);
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
-}
-
-.header-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 15px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header-container.scrolled {
-  padding: 5px 20px;
-}
-
-.logo {
-  color: white;
-  font-size: 22px;
-  font-weight: bold;
-  font-family: "Pacifico", cursive;
-  transition: font-size 0.3s ease-in-out;
-}
-
-.logo.scrolled {
-  font-size: 20px;
-}
-
-.menu {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  background: transparent;
-  border-bottom: none;
-}
-
-.spacer {
-  height: 70px;
-}
-
-/* Banner styles */
-.banner-wrapper {
-  width: 100%;
-  overflow: hidden;
-  max-height: 639px;
-}
-
-.banner-slide {
-  width: 100%;
-  height: auto;
-}
-
-.banner-image {
-  width: 100%;
-  height: auto;
-  object-fit: cover;
-  max-height: 639px;
-}
-
-/* App header styles */
-.app-header {
-  background-color: #1f2937 !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.ant-menu-item a {
-  color: white !important;
-}
-
-.ant-menu-item-selected a {
-  color: #facc15 !important;
-}
-
-/* Media queries để đảm bảo responsive */
-@media (max-width: 768px) {
   .main-content {
-    padding: 0 15px;
+    @apply max-w-6xl w-full mx-auto px-5 box-border;
+  }
+
+  /* Compat styling cho Ant Design */
+  .ant-btn-primary {
+    @apply bg-primary border-primary;
+  }
+
+  .ant-btn-primary:hover {
+    @apply bg-primary-dark border-primary-dark;
+  }
+
+  /* Popup Animation */
+  .popup-animation {
+    @apply animate-popIn;
+  }
+
+  /* Shadow Text - Dùng cho văn bản trên hình ảnh */
+  .shadow-text {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-light-bg-secondary;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary/50 rounded;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary/80;
+  }
+
+  /* Header và thanh điều hướng cố định */
+  .header-fixed {
+    @apply fixed top-0 left-0 right-0 z-50 shadow-navbar bg-white w-full;
+  }
+
+  /* Banner padding đủ để không bị đè */
+  .banner-with-padding {
+    @apply pt-16 md:pt-20;
+  }
+
+  /* Card style cho các thành phần */
+  .content-card {
+    @apply bg-white rounded-lg shadow-card transition-all hover:shadow-card-hover border border-border-light;
+  }
+
+  /* Button styles */
+  .btn-primary {
+    @apply bg-primary text-white rounded-lg transition-all transform hover:bg-primary-dark hover:shadow-button-hover hover:-translate-y-0.5;
+  }
+
+  .btn-outline {
+    @apply border border-primary text-primary bg-transparent rounded-lg transition-all transform hover:bg-primary hover:text-white hover:shadow-button-hover hover:-translate-y-0.5;
+  }
+
+  /* Form input styles */
+  .form-input {
+    @apply border border-border-light rounded-lg px-4 py-2 transition-all focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary;
+  }
+
+  /* Full width containers */
+  .full-width-container {
+    @apply w-full left-0 right-0;
+  }
+
+  /* Banner style */
+  .banner-container {
+    @apply w-full relative overflow-hidden;
+  }
+
+  /* Carousel full screen */
+  .ant-carousel,
+  .slick-slider,
+  .slick-list,
+  .slick-track,
+  .slick-slide > div {
+    @apply h-full;
+  }
+
+  .slick-slide > div {
+    @apply w-full;
+  }
+
+  .trailer-btn {
+    @apply relative overflow-hidden;
+  }
+
+  .trailer-btn::before {
+    @apply content-[''] absolute top-0 left-0 w-full h-full bg-white opacity-0 transition-opacity;
+    mix-blend-mode: overlay;
+  }
+
+  .trailer-btn:hover::before {
+    @apply opacity-20;
+  }
+
+  /* Animation cho dropdown */
+  .user-dropdown-overlay {
+    animation: slideDownFade 0.2s ease-out;
+  }
+
+  @keyframes slideDownFade {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0px);
+    }
+  }
+
+  /* Styles cho header khi scroll */
+  .header-fixed.h-16 {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Styles cho modal authentication */
+  .auth-modal .ant-modal-content {
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .auth-modal .ant-modal-body {
+    padding: 24px;
+  }
+
+  /* Styles cho menu và dropdown */
+  .ant-menu-horizontal {
+    border-bottom: none;
+    line-height: 56px;
+  }
+
+  .ant-menu-horizontal > .ant-menu-item::after,
+  .ant-menu-horizontal > .ant-menu-submenu::after {
+    border-bottom: 2px solid var(--ant-primary-color);
+  }
+
+  .ant-menu-horizontal > .ant-menu-item-active,
+  .ant-menu-horizontal > .ant-menu-item-open,
+  .ant-menu-horizontal > .ant-menu-item-selected,
+  .ant-menu-horizontal > .ant-menu-submenu-active,
+  .ant-menu-horizontal > .ant-menu-submenu-open,
+  .ant-menu-horizontal > .ant-menu-submenu-selected {
+    color: var(--ant-primary-color);
+    border-bottom-color: var(--ant-primary-color);
+  }
+
+  .ant-menu-horizontal > .ant-menu-item:hover,
+  .ant-menu-horizontal > .ant-menu-submenu:hover {
+    color: var(--ant-primary-color);
+  }
+
+  /* Mobile menu styles */
+  .mobile-menu-drawer .ant-drawer-body {
+    padding: 16px;
+  }
+
+  .mobile-menu-drawer .ant-menu {
+    background-color: transparent;
+  }
+
+  .mobile-menu-drawer .ant-menu-item {
+    padding-left: 12px;
+    margin: 0;
+    height: 48px;
+    line-height: 48px;
+    border-radius: 8px;
+  }
+
+  .mobile-menu-drawer .ant-menu-item:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
+  .mobile-menu-drawer .ant-menu-item-selected {
+    background-color: rgba(231, 26, 15, 0.08);
+    color: #e71a0f;
+  }
+
+  /* Button styling */
+  .btn-primary {
+    background: linear-gradient(90deg, #e71a0f, #ff3b30);
+    border-color: #e71a0f;
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary:hover {
+    background: linear-gradient(90deg, #c41208, #e71a0f);
+    border-color: #c41208;
+    box-shadow: 0 6px 12px rgba(231, 26, 15, 0.3);
+    transform: translateY(-2px);
+  }
+
+  .btn-outline {
+    border-color: #e71a0f;
+    color: #e71a0f;
+    transition: all 0.3s ease;
+  }
+
+  .btn-outline:hover {
+    background-color: rgba(231, 26, 15, 0.08);
+    border-color: #e71a0f;
+    color: #e71a0f;
+    transform: translateY(-2px);
+  }
+
+  /* Avatar styling */
+  .ant-avatar {
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+  }
+
+  .ant-avatar:hover {
+    border-color: #e71a0f;
+  }
+
+  /* Custom backdrop blur */
+  .backdrop-blur-md {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .header-spacer {
+    @apply h-16 md:h-20;
   }
 }

@@ -1,116 +1,118 @@
-// frontend/src/App.jsx
-import React, { useState, useEffect } from "react";
-import "@ant-design/compatible";
+import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { BookingProvider } from "./context/BookingContext";
+import { AuthProvider } from "./context/AuthContext";
+
+// Pages
 import HomePage from "./pages/HomePage";
 import MoviePage from "./pages/MoviePage";
-import ShowtimePage from "./pages/ShowtimePage";
+import MovieDetailPage from "./components/Movies/MovieDetailPage";
 import BookingPage from "./pages/BookingPage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import BookingHistoryPage from "./pages/BookingHistoryPage";
 import UserSettingsPage from "./pages/UserSettingsPage";
+import PromotionPage from "./pages/PromotionPage";
+import PromotionDetails from "./components/Promotions/PromotionDetails";
+import PaymentPage from "./pages/PaymentPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import UnauthorizedPage from "./pages/UnauthorizedPage";
+
+// Components
 import PrivateRoute from "./components/common/PrivateRoute";
 import SeatSelectionPage from "./components/Payments/SeatSelectionPage";
-import PaymentPage from "./pages/PaymentPage";
-import { AuthProvider } from "./context/AuthContext";
-import { authApi } from "./api/authApi";
+import AppHeader from "./components/common/AppHeader";
+import Footer from "./components/common/Footer";
+
+// Styles
 import "./index.css";
-import './styles/auth-styles.css';
+import "./styles/auth-styles.css";
 
 function App() {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    // Lấy thông tin người dùng nếu đã đăng nhập
-    const userData = authApi.getCurrentUser();
-    if (userData) {
-      setUser(userData);
-    }
-  }, []);
-
   return (
     <AuthProvider>
       <BookingProvider>
         <div className="app-container">
-          <main className="main-content">
+          <AppHeader />
+          <main className="main-content-wrapper">
             <Routes>
+              {/* Public Routes */}
               <Route path="/" element={<HomePage />} />
-              <Route path="/movies/:id" element={<MoviePage />} />
-              <Route path="/showtime/:id" element={<ShowtimePage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/movies" element={<MoviePage />} />
+              <Route path="/movies/:id" element={<MovieDetailPage />} />
+              <Route path="/promotions" element={<PromotionPage />} />
+              <Route path="/promotions/:id" element={<PromotionDetails />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+              <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-              {/* Chuyển hướng từ user/account sang login */}
+              {/* Protected Routes */}
               <Route
-                path="/user/account"
-                element={<Navigate to="/login" replace />}
-              />
-
-              {/* Protected route cho BookingPage */}
-              <Route
-                path="/booking/*"
+                path="/booking"
                 element={
                   <PrivateRoute>
-                    <Routes>
-                      <Route path="/" element={<BookingPage />} />
-                      <Route
-                        path="seats/:showtimeId"
-                        element={<SeatSelectionPage />}
-                      />
-                      <Route path="payment" element={<PaymentPage />} />
-                    </Routes>
+                    <BookingPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/booking/seats/:showtimeId"
+                element={
+                  <PrivateRoute>
+                    <SeatSelectionPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/booking/payment"
+                element={
+                  <PrivateRoute>
+                    <PaymentPage />
                   </PrivateRoute>
                 }
               />
 
-              {/* Nếu chưa đăng nhập thì redirect về Login */}
+              {/* User Routes */}
               <Route
                 path="/user/profile"
                 element={
-                  user ? (
-                    <PrivateRoute>
-                      <UserProfilePage />
-                    </PrivateRoute>
-                  ) : (
-                    <Navigate to="/login" replace />
-                  )
+                  <PrivateRoute>
+                    <UserProfilePage />
+                  </PrivateRoute>
                 }
               />
               <Route
                 path="/user/bookings"
                 element={
-                  user ? (
-                    <PrivateRoute>
-                      <BookingHistoryPage />
-                    </PrivateRoute>
-                  ) : (
-                    <Navigate to="/login" replace />
-                  )
+                  <PrivateRoute>
+                    <BookingHistoryPage />
+                  </PrivateRoute>
                 }
               />
               <Route
                 path="/user/settings"
                 element={
-                  user ? (
-                    <PrivateRoute>
-                      <UserSettingsPage />
-                    </PrivateRoute>
-                  ) : (
-                    <Navigate to="/login" replace />
-                  )
+                  <PrivateRoute>
+                    <UserSettingsPage />
+                  </PrivateRoute>
                 }
               />
 
-              {/* Thêm route redirect cho logout */}
+              {/* Admin Routes */}
               <Route
-                path="/logout"
-                element={<Navigate to="/login" replace />}
+                path="/admin/*"
+                element={
+                  <PrivateRoute allowedRoles={["admin"]}>
+                    <Navigate to="http://localhost:3001" replace />
+                  </PrivateRoute>
+                }
               />
+
+              {/* Fallback Route */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
+          <Footer />
         </div>
       </BookingProvider>
     </AuthProvider>
