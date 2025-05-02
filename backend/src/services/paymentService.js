@@ -4,46 +4,64 @@ const prisma = require("../../prisma/prisma");
 const createPayment = async ({ tickets, method }) => {
   // Kiểm tra xem có ticket nào không
   if (!tickets || !Array.isArray(tickets) || tickets.length === 0) {
-    throw new Error('Không có vé để thanh toán');
+    throw new Error("Không có vé để thanh toán");
   }
 
   // Lấy ticket IDs
-  const ticketIds = tickets.map(ticket => ticket.id);
-  
+  const ticketIds = tickets.map((ticket) => ticket.id);
+
   // Kiểm tra xem có payment nào đã tồn tại cho các vé này chưa
   const existingPayment = await prisma.payment.findFirst({
     where: {
-      tickets: {  // Sửa từ ticket thành tickets để khớp với schema Prisma
+      tickets: {
         some: {
-          id: { in: ticketIds }
-        }
-      }
-    }
+          id: { in: ticketIds },
+        },
+      },
+      status: { in: ["PENDING", "COMPLETED"] },
+    },
   });
 
   if (existingPayment) {
-    throw new Error('Payment already exists for one or more tickets');
+    throw new Error("Payment already exists for one or more tickets");
   }
 
   // Kiểm tra method hợp lệ
-  const validMethods = ['CREDIT_CARD', 'BANK_TRANSFER', 'E_WALLET', 'CASH', 'ZALOPAY', 'VNPAY', 'MOMO'];
+  const validMethods = [
+    "VNPAY",
+    "CREDIT_CARD",
+    "BANK_TRANSFER",
+    "E_WALLET",
+    "CASH",
+    "ZALOPAY",
+    "MOMO",
+  ];
   if (!validMethods.includes(method)) {
-    method = 'CREDIT_CARD'; // Mặc định là CREDIT_CARD nếu method không hợp lệ
+    method = "CREDIT_CARD";
   }
 
   // Tính tổng số tiền thanh toán từ tất cả các vé
   let totalAmount = 0;
-  
-  tickets.forEach(ticket => {
+
+  tickets.forEach((ticket) => {
     let amount = ticket.price || 0;
-    
+
+    // Áp dụng khuyến mãi nếu có
+    if (ticket.promotion) {
+      if (ticket.promotion.type === "PERCENTAGE") {
+        amount = amount * (1 - ticket.promotion.discount / 100);
+      } else if (ticket.promotion.type === "FIXED") {
+        amount = Math.max(0, amount - ticket.promotion.discount);
+      }
+    }
+
     // Đảm bảo giá không âm
     amount = Math.max(0, amount);
-    
+
     // Cộng vào tổng số tiền
     totalAmount += amount;
   });
-  
+
   // Làm tròn số tiền đến 2 chữ số thập phân
   totalAmount = Math.round(totalAmount * 100) / 100;
 
@@ -52,33 +70,41 @@ const createPayment = async ({ tickets, method }) => {
     data: {
       amount: totalAmount,
       method,
-      status: 'PENDING',
+      status: "PENDING",
       createdAt: new Date(),
-      tickets: {  // Sửa từ ticket thành tickets
-        connect: ticketIds.map(id => ({ id }))
-      }
+      appTransId:
+        method === "VNPAY"
+          ? `${Date.now()}-${Math.floor(Math.random() * 1000)}`
+          : null,
+      additionalData:
+        method === "VNPAY"
+          ? JSON.stringify({ amount: totalAmount * 100 })
+          : null,
+      tickets: {
+        connect: ticketIds.map((id) => ({ id })),
+      },
     },
     include: {
-      tickets: {  // Sửa từ ticket thành tickets
+      tickets: {
         include: {
           user: {
             select: {
               id: true,
               email: true,
-              name: true
-            }
+              name: true,
+            },
           },
           showtime: {
             include: {
               movie: true,
-              hall: true
-            }
+              hall: true,
+            },
           },
           seat: true,
-          promotion: true
-        }
-      }
-    }
+          promotion: true,
+        },
+      },
+    },
   });
 
   return payment;
@@ -89,14 +115,14 @@ const getPaymentById = async (id) => {
   return await prisma.payment.findUnique({
     where: { id },
     include: {
-      tickets: {  // Sửa từ ticket thành tickets
+      tickets: {
         include: {
           user: {
             select: {
               id: true,
               email: true,
-              name: true
-            }
+              name: true,
+            },
           },
           showtime: {
             include: {
@@ -105,7 +131,7 @@ const getPaymentById = async (id) => {
             },
           },
           seat: true,
-          promotion: true
+          promotion: true,
         },
       },
     },
@@ -116,21 +142,21 @@ const getPaymentById = async (id) => {
 const getPaymentByTicketId = async (ticketId) => {
   return await prisma.payment.findFirst({
     where: {
-      tickets: {  // Sửa từ ticket thành tickets
+      tickets: {
         some: {
-          id: ticketId
-        }
-      }
+          id: ticketId,
+        },
+      },
     },
     include: {
-      tickets: {  // Sửa từ ticket thành tickets
+      tickets: {
         include: {
           user: {
             select: {
               id: true,
               email: true,
-              name: true
-            }
+              name: true,
+            },
           },
           showtime: {
             include: {
@@ -139,7 +165,7 @@ const getPaymentByTicketId = async (ticketId) => {
             },
           },
           seat: true,
-          promotion: true
+          promotion: true,
         },
       },
     },
@@ -148,50 +174,81 @@ const getPaymentByTicketId = async (ticketId) => {
 
 // Cập nhật trạng thái thanh toán
 const updatePaymentStatus = async (id, status) => {
-  const payment = await prisma.payment.update({
+  const payment = await prisma.payment.findUnique({
     where: { id },
-    data: { 
+    include: {
+      tickets: {
+        include: {
+          seat: true,
+        },
+      },
+    },
+  });
+
+  if (!payment) {
+    throw new Error("Payment not found");
+  }
+
+  const updatedPayment = await prisma.payment.update({
+    where: { id },
+    data: {
       status,
       updatedAt: new Date(),
-      ...(status === 'COMPLETED' ? { paymentDate: new Date() } : {})
+      ...(status === "COMPLETED" ? { paymentDate: new Date() } : {}),
     },
     include: {
-      tickets: {  // Sửa từ ticket thành tickets
+      tickets: {
         include: {
-          seat: true
-        }
-      }
-    }
+          seat: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+            },
+          },
+          showtime: {
+            include: {
+              movie: true,
+              hall: true,
+            },
+          },
+          promotion: true,
+        },
+      },
+    },
   });
 
   // Nếu thanh toán thành công, cập nhật trạng thái tất cả các vé thành CONFIRMED
   if (status === "COMPLETED") {
     await prisma.ticket.updateMany({
-      where: { 
+      where: {
         id: {
-          in: payment.tickets.map(ticket => ticket.id)  // Sửa từ ticket thành tickets
-        }
+          in: payment.tickets.map((ticket) => ticket.id),
+        },
       },
       data: { status: "CONFIRMED" },
     });
+
+    // Gửi thông báo hoặc email xác nhận (có thể thêm sau)
   }
 
   // Nếu thanh toán bị hủy hoặc thất bại, cập nhật trạng thái vé thành CANCELLED và mở khóa ghế
   if (status === "CANCELLED" || status === "FAILED") {
-    const ticketIds = payment.tickets.map(ticket => ticket.id);  // Sửa từ ticket thành tickets
-    
+    const ticketIds = payment.tickets.map((ticket) => ticket.id);
+
     // Cập nhật trạng thái các vé
     await prisma.ticket.updateMany({
-      where: { 
+      where: {
         id: {
-          in: ticketIds
-        }
+          in: ticketIds,
+        },
       },
       data: { status: "CANCELLED" },
     });
 
     // Mở khóa tất cả các ghế
-    for (const ticket of payment.tickets) {  // Sửa từ ticket thành tickets
+    for (const ticket of payment.tickets) {
       if (ticket.seat) {
         await prisma.seat.update({
           where: { id: ticket.seat.id },
@@ -201,37 +258,92 @@ const updatePaymentStatus = async (id, status) => {
     }
   }
 
-  return await getPaymentById(id);
+  return updatedPayment;
 };
 
 // Lấy tất cả thanh toán của một người dùng
 const getPaymentsByUserId = async (userId) => {
   return await prisma.payment.findMany({
     where: {
-      tickets: {  // Sửa từ ticket thành tickets
+      tickets: {
         some: {
-          userId: userId
-        }
-      }
+          userId: userId,
+        },
+      },
     },
     include: {
-      tickets: {  // Sửa từ ticket thành tickets
+      tickets: {
         include: {
           showtime: {
             include: {
               movie: true,
-              hall: true
-            }
+              hall: true,
+            },
           },
           seat: true,
-          promotion: true
-        }
-      }
+          promotion: true,
+        },
+      },
     },
     orderBy: {
-      createdAt: 'desc'
-    }
+      createdAt: "desc",
+    },
   });
+};
+
+// Tính toán thống kê thanh toán (cho admin)
+const getPaymentStatistics = async (startDate, endDate) => {
+  const where = {};
+  if (startDate || endDate) {
+    where.createdAt = {};
+    if (startDate) where.createdAt.gte = new Date(startDate);
+    if (endDate) where.createdAt.lte = new Date(endDate);
+  }
+
+  // Tổng số giao dịch
+  const totalTransactions = await prisma.payment.count({ where });
+
+  // Tổng số tiền của các giao dịch hoàn thành
+  const totalAmount = await prisma.payment.aggregate({
+    where: {
+      ...where,
+      status: "COMPLETED",
+    },
+    _sum: {
+      amount: true,
+    },
+  });
+
+  // Thống kê theo phương thức thanh toán
+  const paymentMethodStats = await prisma.payment.groupBy({
+    by: ["method"],
+    where: {
+      ...where,
+      status: "COMPLETED",
+    },
+    _count: {
+      id: true,
+    },
+    _sum: {
+      amount: true,
+    },
+  });
+
+  // Thống kê theo trạng thái thanh toán
+  const paymentStatusStats = await prisma.payment.groupBy({
+    by: ["status"],
+    where,
+    _count: {
+      id: true,
+    },
+  });
+
+  return {
+    totalTransactions,
+    totalCompleted: totalAmount._sum.amount || 0,
+    methodStats: paymentMethodStats,
+    statusStats: paymentStatusStats,
+  };
 };
 
 module.exports = {
@@ -239,5 +351,6 @@ module.exports = {
   getPaymentById,
   getPaymentByTicketId,
   updatePaymentStatus,
-  getPaymentsByUserId
+  getPaymentsByUserId,
+  getPaymentStatistics,
 };

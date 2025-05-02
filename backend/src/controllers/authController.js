@@ -1,95 +1,149 @@
 // backend/src/controllers/authController.js
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
-const prisma = require("../../prisma/prisma");
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const prisma = require('../../prisma/prisma');
+const mailService = require('../services/mailService');
 
-// Tạo JWT token
-const generateToken = (user) => {
-  return jwt.sign(
-    { userId: user.id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: "1d" }
-  );
+// Đăng ký tài khoản có xác thực email
+exports.register = async (req, res) => {
+  try {
+    const { name, email, phone, password } = req.body;
+    
+    // Kiểm tra dữ liệu đầu vào
+    if (!name || !email || !phone || !password) {
+      return res.status(400).json({ error: 'Vui lòng cung cấp đầy đủ thông tin' });
+    }
+    
+    // Kiểm tra email đã tồn tại chưa
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
+    
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email đã được sử dụng' });
+    }
+    
+    // Mã hóa mật khẩu
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Tạo người dùng mới
+    const newUser = await prisma.user.create({
+      data: {
+        name,
+        email,
+        phone,
+        password: hashedPassword,
+        role: 'USER',
+        emailVerified: false
+      }
+    });
+    
+    // Tạo token xác thực email
+    const verificationToken = jwt.sign(
+      { userId: newUser.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    // Gửi email xác thực
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+    await mailService.sendVerificationEmail(newUser, verificationUrl);
+    
+    // Loại bỏ trường password trước khi trả về
+    const { password: _, ...userWithoutPassword } = newUser;
+    
+    res.status(201).json({
+      user: userWithoutPassword,
+      message: 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.'
+    });
+  } catch (error) {
+    console.error('Lỗi khi đăng ký tài khoản:', error);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi đăng ký tài khoản' });
+  }
 };
 
 // Đăng nhập
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
-
   try {
-    console.log('Login request received with email:', email); // Ghi log email nhận được từ frontend
-
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      console.log('User not found with email:', email);  // Ghi log khi không tìm thấy user
-      return res.status(401).json({ message: "Email không tồn tại" });
+    const { email, password } = req.body;
+    
+    // Kiểm tra dữ liệu đầu vào
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Vui lòng cung cấp email và mật khẩu' });
     }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      console.log('Incorrect password for user:', email);  // Ghi log khi mật khẩu sai
-      return res.status(401).json({ message: "Sai mật khẩu" });
+    
+    // Tìm kiếm người dùng theo email
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+    
+    // Kiểm tra người dùng tồn tại và mật khẩu chính xác
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: 'Email hoặc mật khẩu không đúng' });
     }
-
-    const token = generateToken(user);
-
-    console.log('Login successful for user:', user.email);  // Ghi log khi đăng nhập thành công
-
+    
+    // Kiểm tra xác thực email (tùy chọn, có thể bỏ nếu không cần)
+    if (!user.emailVerified) {
+      return res.status(401).json({ 
+        error: 'Tài khoản chưa được xác thực email. Vui lòng kiểm tra email của bạn.'
+      });
+    }
+    
+    // Tạo token JWT
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    // Loại bỏ trường password trước khi trả về
+    const { password: _, ...userWithoutPassword } = user;
+    
     res.json({
       token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: userWithoutPassword
     });
-  } catch (err) {
-    console.error('Login error:', err.message);  // Ghi log khi có lỗi xảy ra
-    res.status(500).json({ message: "Lỗi server", error: err.message });
+  } catch (error) {
+    console.error('Lỗi khi đăng nhập:', error);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi đăng nhập' });
   }
 };
 
-// Đăng ký
-exports.register = async (req, res) => {
-  const { name, email, password, phone } = req.body;
-
+// Gửi lại email xác thực
+exports.resendVerificationEmail = async (req, res) => {
   try {
-    console.log('Register request received with email:', email); // Ghi log email nhận được từ frontend
-
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      console.log('Email already exists:', email);  // Ghi log khi email đã tồn tại
-      return res.status(400).json({ message: "Email đã tồn tại" });
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Vui lòng cung cấp email' });
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        phone,
-        role: "USER",
-      },
+    
+    const user = await prisma.user.findUnique({
+      where: { email }
     });
-
-    const token = generateToken(user);
-
-    console.log('User registered successfully:', user.email);  // Ghi log khi đăng ký thành công
-
-    res.json({
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-    });
-  } catch (err) {
-    console.error('Registration error:', err.message);  // Ghi log khi có lỗi xảy ra
-    res.status(500).json({ message: "Lỗi server", error: err.message });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Email không tồn tại' });
+    }
+    
+    if (user.emailVerified) {
+      return res.status(400).json({ error: 'Tài khoản đã được xác thực' });
+    }
+    
+    // Tạo token xác thực email
+    const verificationToken = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    // Gửi email xác thực
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+    await mailService.sendVerificationEmail(user, verificationUrl);
+    
+    res.json({ message: 'Đã gửi lại email xác thực' });
+  } catch (error) {
+    console.error('Lỗi khi gửi lại email xác thực:', error);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi gửi lại email xác thực' });
   }
 };

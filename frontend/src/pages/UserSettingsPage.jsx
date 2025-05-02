@@ -2,8 +2,6 @@
 import React, { useEffect, useState } from "react";
 import { Form, Input, Button } from "antd";
 import { LockOutlined } from "@ant-design/icons";
-import AppHeader from "../components/common/AppHeader";
-import "../styles/UserSettingsPage.css"; 
 
 const UserSettingsPage = () => {
   const [user, setUser] = useState(null);
@@ -17,7 +15,6 @@ const UserSettingsPage = () => {
 
   return (
     <>
-      <AppHeader user={user} setUser={setUser} />
       <div className="settings-container">
         <h2 className="page-title">Đổi mật khẩu</h2>
         <Form layout="vertical" className="change-password-form">

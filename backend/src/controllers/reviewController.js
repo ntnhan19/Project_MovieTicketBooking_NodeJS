@@ -4,31 +4,24 @@ const reviewService = require('../services/reviewService');
 // Tạo đánh giá phim mới
 const createReview = async (req, res) => {
   try {
-    const { userId, movieId, rating, comment, isAnonymous } = req.body;
-
-    // Kiểm tra dữ liệu đầu vào
-    if (!userId || !movieId || !rating) {
-      return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
-    }
-
-    // Chỉ cho phép người dùng đánh giá với tài khoản của họ hoặc admin
-    if (req.user.role !== 'ADMIN' && req.user.id !== userId) {
-      return res.status(403).json({ message: 'Không có quyền truy cập' });
-    }
-
-    // Kiểm tra xếp hạng hợp lệ (1-5)
-    if (rating < 1 || rating > 5) {
-      return res.status(400).json({ message: 'Xếp hạng phải từ 1 đến 5' });
-    }
-
-    const newReview = await reviewService.createReview({
-      userId,
-      movieId,
-      rating,
-      comment,
+    const { movieId, rating, comment, isAnonymous } = req.body;
+    const userId = req.user.id; // hoặc req.user.userId tùy vào cấu trúc thực tế
+    
+    console.log("Controller before call service - userId:", userId, "movieId:", movieId);
+    
+    // Định nghĩa reviewData một cách rõ ràng
+    const reviewData = {
+      userId: userId,
+      movieId: parseInt(movieId),
+      rating: rating,
+      comment: comment,
       isAnonymous: isAnonymous || false
-    });
-
+    };
+    
+    console.log("reviewData:", reviewData); // Log để xem dữ liệu trước khi gửi
+    
+    const newReview = await reviewService.createReview(reviewData);
+    
     res.status(201).json(newReview);
   } catch (error) {
     console.error('Lỗi khi tạo đánh giá:', error);
@@ -98,7 +91,7 @@ const getReviewsByUser = async (req, res) => {
     const userId = parseInt(req.params.userId);
     
     // Chỉ cho phép người dùng xem đánh giá của họ hoặc admin
-    if (req.user.role !== 'ADMIN' && req.user.id !== userId) {
+    if (req.user.role !== 'ADMIN' && req.user.id !== parseInt(userId)) {
       return res.status(403).json({ message: 'Không có quyền truy cập' });
     }
     
@@ -192,6 +185,28 @@ const getReviewStatsByMovie = async (req, res) => {
   }
 };
 
+const checkReviewEligibility = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const movieId = parseInt(req.params.movieId);
+    
+    // Kiểm tra đã mua vé chưa
+    const hasTicket = await reviewService.checkUserHasTicket(userId, movieId);
+    
+    // Kiểm tra đã đánh giá chưa
+    const hasReviewed = await reviewService.checkUserHasReviewed(userId, movieId);
+    
+    res.status(200).json({
+      canReview: hasTicket && !hasReviewed,
+      hasTicket: hasTicket,
+      hasReviewed: hasReviewed
+    });
+  } catch (error) {
+    console.error('Lỗi khi kiểm tra quyền đánh giá:', error);
+    res.status(500).json({ message: 'Lỗi máy chủ nội bộ' });
+  }
+};
+
 module.exports = {
   createReview,
   getAllReviews,
@@ -200,5 +215,6 @@ module.exports = {
   getReviewsByUser,
   updateReview,
   deleteReview,
-  getReviewStatsByMovie
+  getReviewStatsByMovie,
+  checkReviewEligibility
 };

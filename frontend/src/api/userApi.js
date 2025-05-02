@@ -1,24 +1,121 @@
-// frontend/src/api/userApi.js
 import axiosInstance from './axiosInstance';
 
 export const userApi = {
-  getAllUsers: async () => {
-    const response = await axiosInstance.get("/users");
-    return response.data;
+  // Lấy thông tin người dùng hiện tại
+  getCurrentUser: async () => {
+    try {
+      const res = await axiosInstance.get('/users/me');
+      return res.data;
+    } catch (error) {
+      console.error("Get current user error:", error.response?.data || error.message);
+      throw error;
+    }
   },
 
-  getUserById: async (userId) => {
-    const response = await axiosInstance.get(`/users/${userId}`);
-    return response.data;
+  // Cập nhật thông tin người dùng
+  updateUser: async (userId, userData) => {
+    try {
+      const res = await axiosInstance.put(`/users/${userId}`, userData);
+      
+      // Cập nhật thông tin user trong localStorage
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const updatedUser = { ...currentUser, ...res.data };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      return res.data;
+    } catch (error) {
+      console.error("Update user error:", error.response?.data || error.message);
+      throw error;
+    }
   },
 
-  updateUser: async (userId, data) => {
-    const response = await axiosInstance.put(`/users/${userId}`, data);
-    return response.data;
+  // Thay đổi mật khẩu
+  changePassword: async (passwordData) => {
+    try {
+      const res = await axiosInstance.post('/users/change-password', passwordData);
+      return res.data;
+    } catch (error) {
+      console.error("Change password error:", error.response?.data || error.message);
+      throw error;
+    }
   },
 
-  deleteUser: async (userId) => {
-    const response = await axiosInstance.delete(`/users/${userId}`);
-    return response.data;
+  // Upload avatar
+  uploadAvatar: async (formData) => {
+    try {
+      const res = await axiosInstance.post('/users/upload-avatar', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      // Cập nhật avatar trong localStorage
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      currentUser.avatar = res.data.avatar;
+      localStorage.setItem('user', JSON.stringify(currentUser));
+      
+      return res.data;
+    } catch (error) {
+      console.error("Upload avatar error:", error.response?.data || error.message);
+      throw error;
+    }
   },
-};
+
+  // Lấy lịch sử đặt vé
+  getMyTickets: async (params = {}) => {
+    try {
+      const res = await axiosInstance.get('/users/my-tickets', { params });
+      return res.data;
+    } catch (error) {
+      console.error("Get tickets error:", error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  // Lấy lịch sử đánh giá
+  getMyReviews: async (params = {}) => {
+    try {
+      const res = await axiosInstance.get('/users/my-reviews', { params });
+      return res.data;
+    } catch (error) {
+      console.error("Get reviews error:", error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  // Quên mật khẩu
+  forgotPassword: async (email) => {
+    try {
+      const res = await axiosInstance.post('/users/forgot-password', { email });
+      return res.data;
+    } catch (error) {
+      console.error("Forgot password error:", error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  // Xác thực token reset mật khẩu
+  verifyResetToken: async (token) => {
+    try {
+      const res = await axiosInstance.get(`/users/verify-reset-token/${token}`);
+      return res.data;
+    } catch (error) {
+      console.error("Verify reset token error:", error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  // Đặt lại mật khẩu
+  resetPassword: async (token, newPassword) => {
+    try {
+      const res = await axiosInstance.post('/users/reset-password', { 
+        token, 
+        newPassword 
+      });
+      return res.data;
+    } catch (error) {
+      console.error("Reset password error:", error.response?.data || error.message);
+      throw error;
+    }
+  }
+}

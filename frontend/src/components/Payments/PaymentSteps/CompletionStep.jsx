@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Result, Button, Card, Typography, Row, Col, QRCode, Divider, Tabs, List, Empty, Space } from 'antd';
+import { Result, Button, Typography, Row, Col, Divider, List, Empty, Space } from 'antd';
 import { CheckCircleOutlined, FileTextOutlined, PrinterOutlined } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
-const { TabPane } = Tabs;
 
 const CompletionStep = ({ 
   paymentSuccess, 
@@ -53,18 +52,16 @@ const CompletionStep = ({
     const ticketCode = getTicketCode(ticket);
 
     return (
-      <Card className="ticket-info-card">
+      <div className="ticket-info-card bg-white rounded-lg shadow-card p-4 mb-6 border border-border-light">
         <Row gutter={[24, 24]}>
           <Col xs={24} md={16}>
-            <Card className="movie-info-card">
+            <div className="movie-info-card bg-light-bg-secondary rounded-lg p-4">
               <Row gutter={[16, 16]}>
                 <Col span={24}>
-                  <Title level={5}>{showtimeDetails.movie?.title || 'Phim không xác định'}</Title>
-                  <Text strong>Rạp: {showtimeDetails.hall.cinema.name}</Text>
-                  <br />
-                  <Text strong>Phòng: {showtimeDetails.hall.name}</Text>
-                  <br />
-                  <Text strong>
+                  <Title level={5} className="m-0 mb-2 text-text-primary">{showtimeDetails.movie?.title || 'Phim không xác định'}</Title>
+                  <Text strong className="block mb-1">Rạp: {showtimeDetails.hall.cinema.name}</Text>
+                  <Text strong className="block mb-1">Phòng: {showtimeDetails.hall.name}</Text>
+                  <Text strong className="block mb-1">
                     Suất chiếu:{" "}
                     {new Date(showtimeDetails.startTime).toLocaleTimeString(
                       "vi-VN",
@@ -74,44 +71,41 @@ const CompletionStep = ({
                       }
                     )}
                   </Text>
-                  <br />
-                  <Text strong>
+                  <Text strong className="block mb-1">
                     Ngày:{" "}
                     {new Date(showtimeDetails.startTime).toLocaleDateString(
                       "vi-VN"
                     )}
                   </Text>
-                  <br />
-                  <Text strong>Ghế: {getSeatInfo()}</Text>
+                  <Text strong className="block mb-1">Ghế: {getSeatInfo()}</Text>
                   {ticket.price && (
-                    <>
-                      <br />
-                      <Text strong>Giá: {ticket.price.toLocaleString('vi-VN')}đ</Text>
-                    </>
+                    <Text strong className="block mt-2 text-primary">
+                      Giá: {ticket.price.toLocaleString('vi-VN')}đ
+                    </Text>
                   )}
                 </Col>
               </Row>
-            </Card>
+            </div>
           </Col>
 
-          <Divider type="vertical" style={{ height: '100%' }} />
-
-          <Col xs={24} md={7} className="qr-code-container">
-            <QRCode
-              value={ticketCode}
-              size={200}
-              bordered={false}
-              className="ticket-qr"
-            />
-            <Text className="booking-code" copyable>
+          <Col xs={24} md={7} className="flex flex-col items-center justify-center">
+            <div className="qr-code bg-white p-4 rounded-lg shadow-sm border border-border-light mb-4">
+              <div className="ticket-qr w-48 h-48 mx-auto">
+                {/* QRCode component sẽ được thay bằng một div placeholder */}
+                <div className="bg-gray-100 w-full h-full flex items-center justify-center">
+                  <Text className="text-text-secondary">Mã QR: {ticketCode}</Text>
+                </div>
+              </div>
+            </div>
+            <Text className="booking-code text-center mb-4" copyable>
               {ticketCode}
             </Text>
-            <Space direction="vertical" align="center" style={{ marginTop: 16 }}>
-              <Button icon={<PrinterOutlined />}>In vé</Button>
+            <Space direction="vertical" align="center" className="w-full">
+              <Button icon={<PrinterOutlined />} className="btn-outline w-full">In vé</Button>
             </Space>
           </Col>
         </Row>
-      </Card>
+      </div>
     );
   };
 
@@ -120,19 +114,22 @@ const CompletionStep = ({
     if (tickets.length <= 1) return null;
 
     return (
-      <div className="tickets-list">
-        <Title level={5}>Danh sách vé của bạn</Title>
+      <div className="tickets-list bg-white p-4 rounded-lg shadow-sm border border-border-light">
+        <Title level={5} className="mb-4">Danh sách vé của bạn</Title>
         <List
           size="small"
           bordered
           dataSource={tickets}
           renderItem={(ticket, index) => (
             <List.Item 
-              className={index === activeTicketIndex ? 'active-ticket' : ''}
+              className={`${index === activeTicketIndex ? 'bg-primary-light/10 border-l-4 border-l-primary' : ''} hover:bg-gray-50 transition-colors`}
               onClick={() => setActiveTicketIndex(index)}
               style={{ cursor: 'pointer' }}
             >
-              <FileTextOutlined /> {ticket.seat ? `Vé #${ticket.id} - Ghế ${ticket.seat.row}${ticket.seat.column || ticket.seat.number}` : `Vé #${ticket.id}`}
+              <FileTextOutlined className={index === activeTicketIndex ? 'text-primary' : 'text-text-secondary'} /> 
+              <span className="ml-2">
+                {ticket.seat ? `Vé #${ticket.id} - Ghế ${ticket.seat.row}${ticket.seat.column || ticket.seat.number}` : `Vé #${ticket.id}`}
+              </span>
             </List.Item>
           )}
         />
@@ -152,16 +149,16 @@ const CompletionStep = ({
 
     return (
       <>
-        <Card className="payment-summary">
-          <Row justify="space-between">
+        <div className="payment-summary bg-light-bg-secondary p-4 rounded-lg mb-6">
+          <Row justify="space-between" className="mb-2">
             <Col>
               <Text strong>Tổng thanh toán:</Text>
             </Col>
             <Col>
-              <Text strong>{paymentInfo.totalAmount.toLocaleString('vi-VN')}đ</Text>
+              <Text strong className="text-primary">{paymentInfo.totalAmount.toLocaleString('vi-VN')}đ</Text>
             </Col>
           </Row>
-          <Row justify="space-between">
+          <Row justify="space-between" className="mb-2">
             <Col>
               <Text>Phương thức thanh toán:</Text>
             </Col>
@@ -177,9 +174,9 @@ const CompletionStep = ({
               <Text copyable>{paymentInfo.transactionId}</Text>
             </Col>
           </Row>
-        </Card>
+        </div>
 
-        <Title level={4} className="ticket-title">
+        <Title level={4} className="ticket-title text-center mb-6 text-primary">
           Vui lòng xuất trình mã QR khi đến rạp
         </Title>
 
@@ -200,12 +197,14 @@ const CompletionStep = ({
   };
 
   return (
-    <div className="completion-step">
+    <div className="completion-step animate-fadeIn">
       <Result
-        icon={paymentSuccess ? <CheckCircleOutlined /> : undefined}
+        icon={paymentSuccess ? <CheckCircleOutlined style={{ color: '#e71a0f' }} /> : undefined}
         status={paymentSuccess ? "success" : "error"}
         title={
-          paymentSuccess ? "Thanh toán thành công!" : "Thanh toán thất bại"
+          <span className={`${paymentSuccess ? 'text-primary' : ''}`}>
+            {paymentSuccess ? "Thanh toán thành công!" : "Thanh toán thất bại"}
+          </span>
         }
         subTitle={
           paymentSuccess && ticketData
@@ -213,7 +212,7 @@ const CompletionStep = ({
             : paymentError
         }
         extra={[
-          <Button type="primary" key="home" onClick={onFinish}>
+          <Button type="primary" key="home" onClick={onFinish} className="btn-primary">
             Về trang chủ
           </Button>,
           !paymentSuccess && (
@@ -222,12 +221,13 @@ const CompletionStep = ({
             </Button>
           ),
         ]}
+        className="mb-8"
       />
 
       {paymentSuccess && (
-        <Card className="ticket-card">
+        <div className="ticket-card content-card p-6">
           {renderSuccessContent()}
-        </Card>
+        </div>
       )}
     </div>
   );

@@ -3,60 +3,68 @@ import axiosInstance from './axiosInstance';
 export const authApi = {
   // Đăng nhập
   login: async (credentials) => {
-    const res = await axiosInstance.post("/auth/login", credentials);
-    const { token, user } = res.data;
+    try {
+      const res = await axiosInstance.post("/auth/login", credentials);
+      const { token, user } = res.data;
 
-    // Lưu vào localStorage
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
-    localStorage.setItem("userId", user.id); // Thêm dòng này để lưu userId
+      // Lưu vào localStorage
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("userId", user.id);
 
-    return { token, user };
+      // Đặt token trong header cho các request tiếp theo
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+      return res.data; // Trả về toàn bộ kết quả từ API
+    } catch (error) {
+      console.error("Login error:", error.response?.data || error.message);
+      throw error;
+    }
   },
 
   // Đăng ký
   register: async (userData) => {
-    const res = await axiosInstance.post("/auth/register", userData);
-    return res.data;
+    try {
+      const res = await axiosInstance.post("/auth/register", userData);
+      return res.data;
+    } catch (error) {
+      console.error("Register error:", error.response?.data || error.message);
+      throw error;
+    }
   },
 
   // Đăng xuất
   logout: () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    localStorage.removeItem("userId"); // Thêm dòng này để xóa userId khi đăng xuất
+    localStorage.removeItem("userId");
   },
 
-  // Lấy thông tin user hiện tại
-  getCurrentUser: () => {
+  // Lấy thông tin user hiện tại từ localStorage
+  getCurrentUserFromStorage: () => {
     const userStr = localStorage.getItem("user");
     return userStr ? JSON.parse(userStr) : null;
   },
 
-  // Cập nhật profile
-  updateProfile: async (userId, userData) => {
-    const res = await axiosInstance.put(`/users/${userId}`, userData);
-    return res.data;
+  // Gửi lại email xác thực
+  resendVerificationEmail: async (email) => {
+    try {
+      const res = await axiosInstance.post("/auth/resend-verification", { email });
+      return res.data;
+    } catch (error) {
+      console.error("Resend verification error:", error.response?.data || error.message);
+      throw error;
+    }
   },
-
-  // Đổi mật khẩu
-  changePassword: async (userId, data) => {
-    const res = await axiosInstance.put(`/users/${userId}/password`, data);
-    return res.data;
-  },
-
-  // Gửi email reset password
-  requestPasswordReset: async (email) => {
-    const res = await axiosInstance.post("/auth/reset-password", { email });
-    return res.data;
-  },
-
-  // Reset password với token
-  resetPassword: async (token, newPassword) => {
-    const res = await axiosInstance.post("/auth/reset-password/confirm", {
-      token,
-      newPassword,
-    });
-    return res.data;
-  },
-};
+  
+  // Xác thực email
+  verifyEmail: async (token) => {
+    try {
+      const res = await axiosInstance.get(`/users/verify-email/${token}`);
+      return res.data;
+    } catch (error) {
+      console.error("Verify email error:", error.response?.data || error.message);
+      throw error;
+    }
+  }
+}

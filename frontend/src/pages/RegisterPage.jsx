@@ -1,198 +1,231 @@
-// frontend/src/
-import React, { useState, useEffect } from "react";
-import { Card, Form, Input, Button, Typography, Checkbox, Divider, message, Space } from "antd";
-import { UserOutlined, LockOutlined, MailOutlined, PhoneOutlined, ArrowLeftOutlined } from "@ant-design/icons";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { Form, Input, Button, Typography, Checkbox, message } from "antd";
+import {
+  UserOutlined,
+  LockOutlined,
+  MailOutlined,
+  PhoneOutlined,
+} from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
 
-const { Title, Text } = Typography;
+const { Text, Title } = Typography;
 
-const RegisterPage = () => {
+const RegisterForm = ({ onLoginClick, onRegisterSuccess }) => {
   const { register } = useAuth();
-  const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [isScroll, setIsScroll] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScroll(window.scrollY > 50);
-    };
-    
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  const [showVerificationMsg, setShowVerificationMsg] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
 
   const onFinish = async (values) => {
     if (values.password !== values.confirmPassword) {
       message.error("Mật khẩu không khớp!");
       return;
     }
-  
+
     try {
       setLoading(true);
       const { confirmPassword: _, agreement: __, ...userData } = values;
       await register(userData);
-      message.success("Đăng ký thành công! Vui lòng đăng nhập.");
-      navigate("/login");
+      
+      // Lưu email để hiển thị thông báo
+      setRegisteredEmail(values.email);
+      setShowVerificationMsg(true);
+      
+      // Reset form
+      form.resetFields();
+      
+      // Callback nếu có
+      if (onRegisterSuccess) onRegisterSuccess();
+      
     } catch (error) {
       console.error("Registration error:", error);
-      message.error("Đăng ký thất bại. Vui lòng thử lại sau.");
+      // Thông báo lỗi đã được xử lý trong register function
     } finally {
       setLoading(false);
     }
   };
 
+  const handleResendVerification = async () => {
+    try {
+      const { authApi } = await import("../api/authApi"); // Dynamic import
+      await authApi.resendVerificationEmail(registeredEmail);
+      message.success("Email xác thực đã được gửi lại!");
+    } catch {
+      message.error("Không thể gửi lại email xác thực. Vui lòng thử lại sau.");
+    }
+  };
+
   return (
-    <div className="register-container">
-      <div className="register-wrapper">
-        <Card className="register-card">
-          <div className="register-header">
-            <Button 
-              icon={<ArrowLeftOutlined />} 
-              type="text" 
-              onClick={() => navigate(-1)}
-              className="back-button"
-            />
-            <div className="register-title">
-              <Title level={2}>Tạo tài khoản mới</Title>
-              <Text type="secondary">Tham gia cùng chúng tôi để đặt vé xem phim dễ dàng</Text>
-            </div>
-          </div>
-
-          <Form
-            form={form}
-            name="register_form"
-            onFinish={onFinish}
-            layout="vertical"
-            requiredMark={false}
-            scrollToFirstError
-            className="register-form"
-          >
-            <Form.Item
-              name="fullName"
-              rules={[{ required: true, message: "Vui lòng nhập họ tên!" }]}
-            >
-              <Input 
-                prefix={<UserOutlined className="site-form-item-icon" />} 
-                placeholder="Họ và tên" 
-                size="large" 
-                className="register-input"
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="email"
-              rules={[
-                { required: true, message: "Vui lòng nhập email!" },
-                { type: "email", message: "Email không hợp lệ!" }
-              ]}
-            >
-              <Input 
-                prefix={<MailOutlined className="site-form-item-icon" />} 
-                placeholder="Email" 
-                size="large" 
-                className="register-input"
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="phone"
-              rules={[
-                { required: true, message: "Vui lòng nhập số điện thoại!" },
-                { pattern: new RegExp(/^(0[3|5|7|8|9])+([0-9]{8})$/), message: "Số điện thoại không hợp lệ!" }
-              ]}
-            >
-              <Input 
-                prefix={<PhoneOutlined className="site-form-item-icon" />} 
-                placeholder="Số điện thoại" 
-                size="large" 
-                className="register-input"
-              />
-            </Form.Item>
-
-            <Space size={0} direction="vertical" style={{ width: "100%" }}>
-              <Form.Item
-                name="password"
-                rules={[
-                  { required: true, message: "Vui lòng nhập mật khẩu!" },
-                  { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự!" }
-                ]}
-              >
-                <Input.Password 
-                  prefix={<LockOutlined className="site-form-item-icon" />} 
-                  placeholder="Mật khẩu" 
-                  size="large" 
-                  className="register-input"
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="confirmPassword"
-                rules={[
-                  { required: true, message: "Vui lòng xác nhận mật khẩu!" },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || getFieldValue("password") === value) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(new Error("Mật khẩu không khớp!"));
-                    },
-                  }),
-                ]}
-              >
-                <Input.Password 
-                  prefix={<LockOutlined className="site-form-item-icon" />} 
-                  placeholder="Xác nhận mật khẩu" 
-                  size="large" 
-                  className="register-input"
-                />
-              </Form.Item>
-            </Space>
-
-            <Form.Item
-              name="agreement"
-              valuePropName="checked"
-              rules={[
-                {
-                  validator: (_, value) =>
-                    value
-                      ? Promise.resolve()
-                      : Promise.reject(new Error("Vui lòng đồng ý với điều khoản dịch vụ!")),
-                },
-              ]}
-              className="agreement-checkbox"
-            >
-              <Checkbox>
-                Tôi đã đọc và đồng ý với <Link to="/terms" className="agreement-link">Điều khoản dịch vụ</Link> và{" "}
-                <Link to="/privacy" className="agreement-link">Chính sách bảo mật</Link>
-              </Checkbox>
-            </Form.Item>
-
-            <Form.Item>
-              <Button
-                type="primary"
-                htmlType="submit"
-                size="large"
-                block
-                loading={loading}
-                className="register-button"
-              >
-                Tạo tài khoản
-              </Button>
-            </Form.Item>
-          </Form>
-
-          <Divider className="register-divider">Hoặc</Divider>
-
-          <div className="register-footer">
-            <Text type="secondary">Đã có tài khoản? </Text>
-            <Link to="/login" className="login-link">Đăng nhập ngay</Link>
-          </div>
-        </Card>
+    <>
+      <div className="text-center mb-6">
+        <Title level={3} className="mb-2 text-text-primary">
+          Tạo tài khoản mới
+        </Title>
+        <Text className="text-text-secondary">
+          Tham gia cùng chúng tôi để đặt vé xem phim dễ dàng
+        </Text>
       </div>
-    </div>
+
+      {showVerificationMsg ? (
+        <div className="bg-blue-50 p-4 mb-6 rounded-lg border border-blue-100">
+          <Title level={4} className="text-blue-700 mb-2">
+            Vui lòng xác nhận email của bạn
+          </Title>
+          <Text className="text-blue-600 block mb-3">
+            Chúng tôi đã gửi email xác nhận đến {registeredEmail}. Vui lòng kiểm tra hộp thư của bạn và nhấp vào liên kết xác nhận.
+          </Text>
+          <div className="mt-4">
+            <Button type="primary" onClick={handleResendVerification}>
+              Gửi lại email xác nhận
+            </Button>
+            <Button type="link" onClick={onLoginClick} className="ml-2">
+              Quay lại đăng nhập
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Form
+          form={form}
+          name="register_form"
+          onFinish={onFinish}
+          layout="vertical"
+          requiredMark={false}
+          scrollToFirstError
+          className="mt-4"
+        >
+          <Form.Item
+            name="fullName"
+            rules={[{ required: true, message: "Vui lòng nhập họ tên!" }]}
+          >
+            <Input
+              prefix={<UserOutlined className="text-gray-400" />}
+              placeholder="Họ và tên"
+              size="large"
+              className="rounded-lg h-11 form-input"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="email"
+            rules={[
+              { required: true, message: "Vui lòng nhập email!" },
+              { type: "email", message: "Email không hợp lệ!" },
+            ]}
+          >
+            <Input
+              prefix={<MailOutlined className="text-gray-400" />}
+              placeholder="Email"
+              size="large"
+              className="rounded-lg h-11 form-input"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="phone"
+            rules={[
+              { required: true, message: "Vui lòng nhập số điện thoại!" },
+              {
+                pattern: new RegExp(/^(0[3|5|7|8|9])+([0-9]{8})$/),
+                message: "Số điện thoại không hợp lệ!",
+              },
+            ]}
+          >
+            <Input
+              prefix={<PhoneOutlined className="text-gray-400" />}
+              placeholder="Số điện thoại"
+              size="large"
+              className="rounded-lg h-11 form-input"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="password"
+            rules={[
+              { required: true, message: "Vui lòng nhập mật khẩu!" },
+              { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự!" },
+            ]}
+          >
+            <Input.Password
+              prefix={<LockOutlined className="text-gray-400" />}
+              placeholder="Mật khẩu"
+              size="large"
+              className="rounded-lg h-11 form-input"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="confirmPassword"
+            rules={[
+              { required: true, message: "Vui lòng xác nhận mật khẩu!" },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue("password") === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error("Mật khẩu không khớp!"));
+                },
+              }),
+            ]}
+          >
+            <Input.Password
+              prefix={<LockOutlined className="text-gray-400" />}
+              placeholder="Xác nhận mật khẩu"
+              size="large"
+              className="rounded-lg h-11 form-input"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="agreement"
+            valuePropName="checked"
+            rules={[
+              {
+                validator: (_, value) =>
+                  value
+                    ? Promise.resolve()
+                    : Promise.reject(
+                        new Error("Vui lòng đồng ý với điều khoản dịch vụ!")
+                      ),
+              },
+            ]}
+            className="mb-6"
+          >
+            <Checkbox>
+              Tôi đã đọc và đồng ý với{" "}
+              <a className="text-primary">Điều khoản dịch vụ</a> và{" "}
+              <a className="text-primary">Chính sách bảo mật</a>
+            </Checkbox>
+          </Form.Item>
+
+          <Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              size="large"
+              block
+              loading={loading}
+              className="h-12 text-base font-medium rounded-lg btn-primary"
+            >
+              Tạo tài khoản
+            </Button>
+          </Form.Item>
+        </Form>
+      )}
+
+      {!showVerificationMsg && (
+        <div className="text-center mt-6">
+          <Text className="text-text-secondary">Đã có tài khoản? </Text>
+          <a
+            onClick={onLoginClick}
+            className="text-primary font-medium hover:text-primary-dark transition-all cursor-pointer"
+          >
+            Đăng nhập ngay
+          </a>
+        </div>
+      )}
+    </>
   );
 };
 
-export default RegisterPage;
+export default RegisterForm;

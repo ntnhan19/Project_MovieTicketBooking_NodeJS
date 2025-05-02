@@ -339,7 +339,6 @@ exports.getMoviesByCinema = async (cinemaId, date) => {
   }
 };
 
-// Các hàm khác giữ nguyên...
 // Tạo phim mới
 exports.createMovie = async (movieData) => {
   let {
@@ -471,14 +470,11 @@ exports.deleteMovie = async (id) => {
 // Lấy danh sách phim sắp chiếu
 exports.getUpcomingMovies = async () => {
   const today = new Date();
-  const nextMonth = new Date();
-  nextMonth.setMonth(today.getMonth() + 1);
 
   return await prisma.movie.findMany({
     where: {
       releaseDate: {
-        gte: today,
-        lt: nextMonth,
+        gt: today,
       },
     },
     include: {

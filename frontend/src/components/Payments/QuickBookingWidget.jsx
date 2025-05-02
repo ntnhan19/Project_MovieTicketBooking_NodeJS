@@ -1,12 +1,10 @@
-// frontend/src/components/Booking/QuickBookingWidget.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, Select, DatePicker, Button, Spin, message } from "antd";
+import { Select, DatePicker, Button, Spin, message } from "antd";
 import { cinemaApi } from "../../api/cinemaApi";
 import { movieApi } from "../../api/movieApi";
 import { showtimeApi } from "../../api/showtimeApi";
 import moment from "moment";
-import "./QuickBookingWidget.css";
 
 const { Option } = Select;
 
@@ -57,25 +55,15 @@ const QuickBookingWidget = () => {
     const fetchMovies = async () => {
       setLoadingMovies(true);
       try {
-        // Chuyển đổi trực tiếp thành chuỗi ngày YYYY-MM-DD
         const dateString = selectedDate.format("YYYY-MM-DD");
-
-        console.log("Fetching movies for cinema and date:", {
-          cinemaId: selectedCinema,
-          date: dateString,
-        });
-
         const data = await movieApi.getMoviesByCinema(
           selectedCinema,
           dateString
         );
 
-        console.log("Movies data received:", data);
-
         if (data && data.length > 0) {
           setMovies(data);
         } else {
-          console.log("No movies found for this cinema and date");
           setMovies([]);
           message.info("Không có phim nào chiếu tại rạp này vào ngày đã chọn");
         }
@@ -91,7 +79,7 @@ const QuickBookingWidget = () => {
     fetchMovies();
   }, [selectedCinema, selectedDate]);
 
-  // 3. Load danh sách suất chiếu khi chọn ngày, phim và rạp - ĐIỀU CHỈNH PHẦN NÀY
+  // 3. Load danh sách suất chiếu khi chọn ngày, phim và rạp
   useEffect(() => {
     if (!selectedCinema || !selectedMovie || !selectedDate) {
       setShowtimes([]);
@@ -102,23 +90,12 @@ const QuickBookingWidget = () => {
     const fetchShowtimes = async () => {
       setLoadingShowtimes(true);
       try {
-        // Sử dụng đúng format ngày YYYY-MM-DD theo API backend
         const dateString = selectedDate.format("YYYY-MM-DD");
-
-        console.log("Fetching showtimes with params:", {
-          movieId: selectedMovie,
-          cinemaId: selectedCinema,
-          date: dateString,
-        });
-
-        // Điều chỉnh thứ tự tham số theo API backend
         const data = await showtimeApi.getShowtimesByFilters(
-          selectedMovie, // movieId
-          selectedCinema, // cinemaId
-          dateString // date string YYYY-MM-DD
+          selectedMovie,
+          selectedCinema,
+          dateString
         );
-
-        console.log("Showtimes received:", data);
 
         if (data && data.length > 0) {
           setShowtimes(data);
@@ -140,19 +117,13 @@ const QuickBookingWidget = () => {
 
   // Xử lý khi chọn rạp
   const handleCinemaChange = (value) => {
-    console.log("Cinema selected:", value);
     setSelectedCinema(value);
     setSelectedMovie(null);
     setSelectedShowtime(null);
-    // Không reset selectedDate để người dùng không phải chọn lại ngày
   };
 
   // Xử lý khi chọn ngày
   const handleDateChange = (date) => {
-    console.log(
-      "Date selected formatted:",
-      date ? date.format("YYYY-MM-DD") : null
-    );
     setSelectedDate(date);
     setSelectedMovie(null);
     setSelectedShowtime(null);
@@ -160,14 +131,12 @@ const QuickBookingWidget = () => {
 
   // Xử lý khi chọn phim
   const handleMovieChange = (value) => {
-    console.log("Movie selected:", value);
     setSelectedMovie(value);
     setSelectedShowtime(null);
   };
 
   // Xử lý khi chọn suất chiếu
   const handleShowtimeChange = (value) => {
-    console.log("Showtime selected:", value);
     setSelectedShowtime(value);
   };
 
@@ -207,13 +176,11 @@ const QuickBookingWidget = () => {
     return false;
   };
 
-  // Format thời gian suất chiếu - Điều chỉnh theo cấu trúc dữ liệu từ API
+  // Format thời gian suất chiếu
   const formatShowtime = (showtime) => {
-    // Kiểm tra nếu API trả về đã có trường time định dạng HH:MM
     if (showtime.time) {
       return `${showtime.time} - ${showtime.hallName} (${showtime.availableSeats} chỗ trống)`;
     }
-    // Nếu API trả về startTime dạng ISO string
     return (
       moment(showtime.startTime).format("HH:mm") +
       ` - ${showtime.hallName || showtime.hall?.name}`
@@ -221,18 +188,27 @@ const QuickBookingWidget = () => {
   };
 
   return (
-    <Card title="Đặt vé nhanh" className="quick-booking-widget">
-      <div className="booking-steps">
+    <div className="bg-light-bg-secondary rounded-lg shadow-card p-4 md:p-6 animate-fadeIn">
+      <h3 className="text-lg md:text-xl font-bold text-center mb-6 text-primary">ĐẶT VÉ NHANH</h3>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Bước 1: Chọn rạp */}
-        <div className="booking-step">
-          <label>Chọn rạp:</label>
+        <div className="flex flex-col">
+          <div className="flex items-center mb-2">
+            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold mr-2">1</div>
+            <label className="text-text-primary font-medium">Rạp phim</label>
+          </div>
           <Select
             placeholder="Chọn rạp chiếu"
-            style={{ width: "100%" }}
+            className="w-full"
             value={selectedCinema}
             onChange={handleCinemaChange}
             loading={loadingCinemas}
             disabled={loadingCinemas}
+            popupClassName="bg-light-bg"
+            size="large"
+            style={{ borderRadius: '8px' }}
+            notFoundContent={loadingCinemas ? <Spin size="small" /> : "Không có dữ liệu"}
           >
             {cinemas &&
               cinemas.length > 0 &&
@@ -245,29 +221,41 @@ const QuickBookingWidget = () => {
         </div>
 
         {/* Bước 2: Chọn ngày */}
-        <div className="booking-step">
-          <label>Chọn ngày:</label>
+        <div className="flex flex-col">
+          <div className="flex items-center mb-2">
+            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold mr-2">2</div>
+            <label className="text-text-primary font-medium">Ngày chiếu</label>
+          </div>
           <DatePicker
-            style={{ width: "100%" }}
+            className="w-full"
             value={selectedDate}
             onChange={handleDateChange}
             format="DD/MM/YYYY"
             disabledDate={disabledDate}
             disabled={!selectedCinema}
-            placeholder="Chọn ngày chiếu"
+            placeholder="Chọn ngày"
+            size="large"
+            style={{ borderRadius: '8px', height: '40px' }}
           />
         </div>
 
         {/* Bước 3: Chọn phim */}
-        <div className="booking-step">
-          <label>Chọn phim:</label>
+        <div className="flex flex-col">
+          <div className="flex items-center mb-2">
+            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold mr-2">3</div>
+            <label className="text-text-primary font-medium">Phim</label>
+          </div>
           <Select
             placeholder="Chọn phim"
-            style={{ width: "100%" }}
+            className="w-full"
             value={selectedMovie}
             onChange={handleMovieChange}
             loading={loadingMovies}
             disabled={!selectedDate || loadingMovies}
+            popupClassName="bg-light-bg"
+            size="large"
+            style={{ borderRadius: '8px' }}
+            notFoundContent={loadingMovies ? <Spin size="small" /> : "Không có phim"}
           >
             {movies &&
               movies.length > 0 &&
@@ -280,15 +268,22 @@ const QuickBookingWidget = () => {
         </div>
 
         {/* Bước 4: Chọn suất chiếu */}
-        <div className="booking-step">
-          <label>Chọn suất chiếu:</label>
+        <div className="flex flex-col">
+          <div className="flex items-center mb-2">
+            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold mr-2">4</div>
+            <label className="text-text-primary font-medium">Suất chiếu</label>
+          </div>
           <Select
             placeholder="Chọn suất chiếu"
-            style={{ width: "100%" }}
+            className="w-full"
             value={selectedShowtime}
             onChange={handleShowtimeChange}
             loading={loadingShowtimes}
             disabled={!selectedMovie || loadingShowtimes}
+            popupClassName="bg-light-bg"
+            size="large"
+            style={{ borderRadius: '8px' }}
+            notFoundContent={loadingShowtimes ? <Spin size="small" /> : "Không có suất chiếu"}
           >
             {showtimes &&
               showtimes.length > 0 &&
@@ -299,21 +294,25 @@ const QuickBookingWidget = () => {
               ))}
           </Select>
         </div>
-
-        {/* Nút đặt vé */}
-        <div className="booking-step booking-submit">
-          <Button
-            type="primary"
-            size="large"
-            onClick={handleBooking}
-            disabled={!selectedShowtime}
-            block
-          >
-            Đặt vé ngay
-          </Button>
-        </div>
       </div>
-    </Card>
+
+      {/* Nút đặt vé */}
+      <div className="mt-6">
+        <Button
+          type="primary"
+          size="large"
+          onClick={handleBooking}
+          disabled={!selectedShowtime}
+          className={`w-full h-12 flex items-center justify-center rounded-lg font-bold text-base uppercase transition-all ${
+            !selectedShowtime 
+              ? 'bg-gray-400 opacity-70' 
+              : 'bg-gradient-to-r from-primary to-primary-light hover:from-primary-dark hover:to-primary shadow-button hover:shadow-button-hover transform hover:-translate-y-0.5'
+          }`}
+        >
+          Mua vé ngay
+        </Button>
+      </div>
+    </div>
   );
 };
 

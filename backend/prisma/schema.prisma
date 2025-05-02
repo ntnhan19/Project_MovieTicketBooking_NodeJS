@@ -17,6 +17,7 @@ model User {
   updatedAt DateTime @updatedAt
   role      Role     @default(USER)
   avatar    String?
+  emailVerified  Boolean       @default(false)
   reviews   Review[]
   tickets   Ticket[]
 }
@@ -131,10 +132,10 @@ model Payment {
   paymentDate  DateTime?
   transactionId String?
 
-  appTransId    String?  // app_trans_id từ ZaloPay
-  orderToken    String?  // order_token từ ZaloPay
-  paymentUrl    String?  // URL để redirect người dùng đến trang thanh toán ZaloPay
-  zaloPayOrderData String? 
+  // Dữ liệu cho VNPay
+  appTransId    String?       // Mã đơn hàng gửi đến VNPay (vnp_TxnRef)
+  additionalData String?      // Dữ liệu bổ sung dạng JSON
+
   @@map("payments")
 }
 

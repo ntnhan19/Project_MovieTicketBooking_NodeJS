@@ -3,38 +3,51 @@ const prisma = require("../../prisma/prisma");
 
 // Tạo đánh giá phim mới
 const createReview = async (reviewData) => {
-  // Kiểm tra xem người dùng có tồn tại không
+  const { userId, movieId, rating, comment, isAnonymous } = reviewData;
+  
+  console.log("Service processing - userId:", userId, "movieId:", movieId, "Full data:", reviewData);
+  
+  if (!userId) {
+    throw new Error("Không có thông tin userId");
+  }
+  
+  // Check user tồn tại
   const user = await prisma.user.findUnique({
-    where: { id: reviewData.userId },
+    where: { id: userId },
   });
-
+  
   if (!user) {
     throw new Error("Không tìm thấy người dùng");
   }
 
-  // Kiểm tra xem phim có tồn tại không
+  // Check movie tồn tại
   const movie = await prisma.movie.findUnique({
-    where: { id: reviewData.movieId },
+    where: { id: parseInt(movieId) }, // Đảm bảo parse thành số nguyên
   });
-
   if (!movie) {
     throw new Error("Không tìm thấy phim");
   }
 
-  // Kiểm tra xem người dùng đã đánh giá phim này chưa
+  // Check user đã review chưa
   const existingReview = await prisma.review.findFirst({
     where: {
-      userId: reviewData.userId,
-      movieId: reviewData.movieId,
+      userId,
+      movieId,
     },
   });
-
   if (existingReview) {
     throw new Error("Người dùng đã đánh giá phim này");
   }
 
-  return await prisma.review.create({
-    data: reviewData,
+  // Tạo review mới
+  const newReview = await prisma.review.create({
+    data: {
+      userId,
+      movieId,
+      rating,
+      comment: comment || null, // nếu comment rỗng thì set null
+      isAnonymous: isAnonymous || false, // default false
+    },
     include: {
       user: {
         select: {
@@ -45,6 +58,8 @@ const createReview = async (reviewData) => {
       },
     },
   });
+
+  return newReview;
 };
 
 // Lấy tất cả đánh giá với phân trang
@@ -313,6 +328,37 @@ const getReviewStatsByMovie = async (movieId) => {
   };
 };
 
+const checkUserHasTicket = async (userId, movieId) => {
+  const ticket = await prisma.ticket.findFirst({
+    where: {
+      userId: userId,
+      showtime: {
+        movieId: movieId,
+      },
+      status: {
+        in: ["PENDING", "CONFIRMED"],
+      },
+      payment: {
+        status: "COMPLETED",
+      },
+    },
+  });
+
+  return ticket !== null;
+};
+
+// Kiểm tra người dùng đã đánh giá phim chưa
+const checkUserHasReviewed = async (userId, movieId) => {
+  const review = await prisma.review.findFirst({
+    where: {
+      userId: userId,
+      movieId: movieId,
+    },
+  });
+
+  return review !== null;
+};
+
 module.exports = {
   createReview,
   getAllReviews,
@@ -322,4 +368,6 @@ module.exports = {
   updateReview,
   deleteReview,
   getReviewStatsByMovie,
+  checkUserHasTicket,
+  checkUserHasReviewed,
 };

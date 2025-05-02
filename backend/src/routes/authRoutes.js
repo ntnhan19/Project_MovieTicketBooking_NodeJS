@@ -1,12 +1,17 @@
 // backend/src/routes/authRoutes.js
 const express = require("express");
 const router = express.Router();
-const { login, register } = require("../controllers/authController");
+const authController = require("../controllers/authController");
 const { authenticate, authorizeRoles } = require("../middlewares/authMiddlewares");
 
-// Đăng ký & Đăng nhập
-router.post("/register", register);
-router.post("/login", login);
+// Đăng ký
+router.post('/register', authController.register);
+
+// Đăng nhập
+router.post('/login', authController.login);
+
+// Gửi lại email xác thực
+router.post('/resend-verification', authController.resendVerificationEmail);
 
 // Test route: chỉ dành cho admin/user
 router.get("/admin-only", authenticate, authorizeRoles("ADMIN"), (req, res) => {
