@@ -1,3 +1,4 @@
+// frontend/src/api/userApi.js
 import axiosInstance from './axiosInstance';
 
 export const userApi = {
@@ -115,6 +116,17 @@ export const userApi = {
       return res.data;
     } catch (error) {
       console.error("Reset password error:", error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  // Xác thực email (thêm vào để đảm bảo nhất quán với authApi)
+  verifyEmail: async (token) => {
+    try {
+      const res = await axiosInstance.get(`/auth/verify-email/${token}`);
+      return res.data;
+    } catch (error) {
+      console.error("Verify email error:", error.response?.data || error.message);
       throw error;
     }
   }

@@ -1,115 +1,128 @@
 // admin/src/services/dataProvider.js
-import { fetchUtils } from "react-admin";
+import { checkAuth } from "./httpClient";
+import movieService from "./movieService";
+import genreService from "./genreService";
+import showtimeService from "./showtimeService";
+import promotionService from "./promotionService";
+import concessionCategoryService from "./concessionCategoryService";
+import concessionItemService from "./concessionItemService";
+import concessionComboService from "./concessionComboService";
+import concessionOrderService from "./concessionOrderService";
+import ticketService from "./ticketService";
+import { httpClient, apiUrl } from "./httpClient";
+import {
+  processApiResponse,
+  processManyResponse,
+  removeIdField,
+  buildFormData,
+} from "./utils";
 
-// URL cơ sở của API
-const apiUrl = 'http://localhost:3000/api';  // Cập nhật lại URL API backend (3000)
+// Hàm kiểm tra loại resource và chuyển hướng đến service tương ứng
+const routeToService = (resource, method, params) => {
+  // Thực hiện kiểm tra xác thực trước mỗi request
+  checkAuth();
 
-// Hàm lấy token từ localStorage
-const getToken = () => {
-  return localStorage.getItem("token");
-};
-
-// HTTP client tùy chỉnh với khả năng đính kèm token
-const httpClient = (url, options = {}) => {
-  if (!options.headers) {
-    options.headers = new Headers({ Accept: "application/json" });
+  switch (resource) {
+    case "movies":
+      return movieService[method](params);
+    case "genres":
+      return genreService[method](params);
+    case "showtimes":
+      return showtimeService[method](params);
+    case "promotions":
+      return promotionService[method](params);
+    // Thêm các service concession mới
+    case "concession-categories":
+      return concessionCategoryService[method](params);
+    case "concession-items":
+      return concessionItemService[method](params);
+    case "concession-combos":
+      return concessionComboService[method](params);
+    case "concession-orders":
+      return concessionOrderService[method](params);
+    case "tickets":
+      return ticketService[method](params);
+    default:
+      // Xử lý các resource khác bằng phương pháp mặc định
+      return null;
   }
-
-  const token = getToken();
-  if (token) {
-    options.headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  return fetchUtils.fetchJson(url, options);
 };
 
-// Kiểm tra xem giá trị có phải là file không
-const isFile = (value) => value instanceof File;
-
-// Chuyển đổi dữ liệu sang FormData nếu cần
-const buildFormData = (data) => {
-  const formData = new FormData();
-  Object.entries(data).forEach(([key, value]) => {
-    if (key === "genres") {
-      formData.append("genres", JSON.stringify(value.map((g) => g.id || g)));
-    } else {
-      formData.append(key, value);
-    }
-  });
-  return formData;
-};
-
-// DataProvider chuẩn React Admin
-const dataProvider = {
+// Xử lý mặc định cho các resource không có service riêng
+const defaultServiceHandler = {
   getList: async (resource, { pagination, sort, filter }) => {
     const { page, perPage } = pagination;
     const { field, order } = sort;
-
     const query = {
-      _sort: field,
-      _order: order,
-      _start: (page - 1) * perPage,
-      _limit: perPage,
+      page,
+      limit: perPage,
       ...filter,
     };
+
+    if (field && order) {
+      query._sort = field;
+      query._order = order;
+    }
 
     const url = `${apiUrl}/${resource}?${new URLSearchParams(query)}`;
     const { json, headers } = await httpClient(url);
 
-    return {
-      data: json,
-      total: parseInt(headers.get("x-total-count")) || json.length,
-    };
+    return processApiResponse(json, headers);
   },
 
-  getOne: async (resource, { id }) => {
+  getOne: async (resource, id) => {
     const { json } = await httpClient(`${apiUrl}/${resource}/${id}`);
 
-    if (json.genres && Array.isArray(json.genres)) {
-      json.genres = json.genres.map((g) => g.id);
-    }
+    // Xử lý trường hợp API trả về cấu trúc { data: {...} }
+    const data = json.data || json;
 
-    return { data: json };
+    return { data };
   },
 
-  getMany: async (resource, { ids }) => {
+  getMany: async (resource, ids) => {
     const query = ids.map((id) => `id=${id}`).join("&");
     const { json } = await httpClient(`${apiUrl}/${resource}?${query}`);
-    return { data: json };
+
+    const resultData = processManyResponse(json);
+
+    return { data: resultData };
   },
 
-  getManyReference: async (resource, { target, id, pagination, sort, filter }) => {
+  getManyReference: async (
+    resource,
+    { target, id, pagination, sort, filter }
+  ) => {
     const { page, perPage } = pagination;
     const { field, order } = sort;
-
     const query = {
       ...filter,
       [target]: id,
-      _sort: field,
-      _order: order,
-      _start: (page - 1) * perPage,
-      _limit: perPage,
+      page,
+      limit: perPage,
     };
+
+    if (field && order) {
+      query._sort = field;
+      query._order = order;
+    }
 
     const url = `${apiUrl}/${resource}?${new URLSearchParams(query)}`;
     const { json, headers } = await httpClient(url);
 
-    return {
-      data: json,
-      total: parseInt(headers.get("x-total-count")) || json.length,
-    };
+    return processApiResponse(json, headers);
   },
 
-  create: async (resource, { data }) => {
-    const body =
-      isFile(data.poster) || data.useFormData
-        ? buildFormData(data)
-        : JSON.stringify({
-            ...data,
-            genres: data.genres?.map((g) => g.id || g),
-          });
+  create: async (resource, data) => {
+    let cleanedData = removeIdField(data);
 
-    const token = getToken();
+    const body = data.useFormData
+      ? buildFormData(cleanedData)
+      : JSON.stringify(cleanedData);
+
+    const token = localStorage.getItem("auth")
+      ? JSON.parse(localStorage.getItem("auth")).token
+      : null;
+
     const headers =
       body instanceof FormData
         ? { Authorization: `Bearer ${token}` }
@@ -118,26 +131,43 @@ const dataProvider = {
             "Content-Type": "application/json",
           };
 
-    const response = await fetch(`${apiUrl}/${resource}`, {
-      method: "POST",
-      body,
-      headers,
-    });
+    try {
+      const response = await fetch(`${apiUrl}/${resource}`, {
+        method: "POST",
+        body,
+        headers,
+      });
 
-    const json = await response.json();
-    return { data: { ...data, id: json.id || json._id } };
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch((e) => ({ error: "Không thể parse response JSON" }));
+        console.error("Lỗi từ server:", errorData);
+        throw new Error(
+          errorData.error ||
+            `Có lỗi xảy ra khi tạo ${resource} (status: ${response.status})`
+        );
+      }
+
+      const json = await response.json();
+      return { data: { ...cleanedData, id: json.id || json._id } };
+    } catch (error) {
+      console.error(`Lỗi chi tiết khi tạo ${resource}:`, error);
+      throw error;
+    }
   },
 
-  update: async (resource, { id, data }) => {
-    const body =
-      isFile(data.poster) || data.useFormData
-        ? buildFormData(data)
-        : JSON.stringify({
-            ...data,
-            genres: data.genres?.map((g) => g.id || g),
-          });
+  update: async (resource, id, data) => {
+    const { id: dataId, _id, ...dataWithoutId } = data;
 
-    const token = getToken();
+    const body = data.useFormData
+      ? buildFormData(dataWithoutId)
+      : JSON.stringify(dataWithoutId);
+
+    const token = localStorage.getItem("auth")
+      ? JSON.parse(localStorage.getItem("auth")).token
+      : null;
+
     const headers =
       body instanceof FormData
         ? { Authorization: `Bearer ${token}` }
@@ -146,36 +176,46 @@ const dataProvider = {
             "Content-Type": "application/json",
           };
 
-    const response = await fetch(`${apiUrl}/${resource}/${id}`, {
-      method: "PUT",
-      body,
-      headers,
-    });
-
-    const json = await response.json();
-    return { data: json };
-  },
-
-  updateMany: async (resource, { ids, data }) => {
-    const promises = ids.map((id) =>
-      httpClient(`${apiUrl}/${resource}/${id}`, {
+    try {
+      const response = await fetch(`${apiUrl}/${resource}/${id}`, {
         method: "PUT",
-        body: JSON.stringify(data),
-      })
-    );
+        body,
+        headers,
+      });
 
-    await Promise.all(promises);
-    return { data: ids };
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch((e) => ({ error: "Không thể parse response JSON" }));
+        console.error("Lỗi từ server:", errorData);
+        throw new Error(
+          errorData.error ||
+            `Có lỗi xảy ra khi cập nhật ${resource} (status: ${response.status})`
+        );
+      }
+
+      const json = await response.json();
+      return {
+        data: {
+          ...dataWithoutId,
+          ...json,
+          id: json.id || json._id || id,
+        },
+      };
+    } catch (error) {
+      console.error(`Lỗi chi tiết khi cập nhật ${resource}:`, error);
+      throw error;
+    }
   },
 
-  delete: async (resource, { id }) => {
+  delete: async (resource, id) => {
     const { json } = await httpClient(`${apiUrl}/${resource}/${id}`, {
       method: "DELETE",
     });
     return { data: json };
   },
 
-  deleteMany: async (resource, { ids }) => {
+  deleteMany: async (resource, ids) => {
     const promises = ids.map((id) =>
       httpClient(`${apiUrl}/${resource}/${id}`, {
         method: "DELETE",
@@ -184,6 +224,73 @@ const dataProvider = {
 
     await Promise.all(promises);
     return { data: ids };
+  },
+};
+
+// DataProvider chuẩn React Admin
+const dataProvider = {
+  getList: async (resource, params) => {
+    const serviceResult = routeToService(resource, "getList", params);
+    if (serviceResult) return serviceResult;
+    return defaultServiceHandler.getList(resource, params);
+  },
+
+  getOne: async (resource, { id }) => {
+    const serviceResult = routeToService(resource, "getOne", id);
+    if (serviceResult) return serviceResult;
+    return defaultServiceHandler.getOne(resource, id);
+  },
+
+  getMany: async (resource, { ids }) => {
+    const serviceResult = routeToService(resource, "getMany", ids);
+    if (serviceResult) return serviceResult;
+    return defaultServiceHandler.getMany(resource, ids);
+  },
+
+  getManyReference: async (resource, params) => {
+    const serviceResult = routeToService(resource, "getManyReference", params);
+    if (serviceResult) return serviceResult;
+    return defaultServiceHandler.getManyReference(resource, params);
+  },
+
+  create: async (resource, { data }) => {
+    const serviceResult = routeToService(resource, "create", data);
+    if (serviceResult) return serviceResult;
+    return defaultServiceHandler.create(resource, data);
+  },
+
+  update: async (resource, { id, data }) => {
+    const serviceResult = routeToService(resource, "update", { id, data });
+    if (serviceResult) return serviceResult;
+    return defaultServiceHandler.update(resource, id, data);
+  },
+
+  updateMany: async (resource, { ids, data }) => {
+    const promises = ids.map((id) => {
+      const serviceResult = routeToService(resource, "update", { id, data });
+      if (serviceResult) return serviceResult;
+      return defaultServiceHandler.update(resource, id, data);
+    });
+
+    await Promise.all(promises);
+    return { data: ids };
+  },
+
+  delete: async (resource, { id }) => {
+    const serviceResult = routeToService(resource, "delete", id);
+    if (serviceResult) return serviceResult;
+    return defaultServiceHandler.delete(resource, id);
+  },
+
+  deleteMany: async (resource, { ids }) => {
+    const serviceResult = routeToService(resource, "deleteMany", ids);
+    if (serviceResult) return serviceResult;
+    return defaultServiceHandler.deleteMany(resource, ids);
+  },
+
+  // Một số phương thức đặc biệt cho concession order
+  updateOrderStatus: async (id, status) => {
+    return concessionOrderService.updateStatus(id, status);
   },
 };
 

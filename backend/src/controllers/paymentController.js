@@ -106,11 +106,11 @@ const vnpayReturn = async (req, res) => {
 
     if (result.success) {
       return res.redirect(
-        `${process.env.FRONTEND_URL}/payment/result?paymentId=${result.paymentId}&status=success`
+        `${process.env.FRONTEND_URL}/booking/payment?paymentId=${result.paymentId}&status=success`
       );
     } else {
       return res.redirect(
-        `${process.env.FRONTEND_URL}/payment/result?paymentId=${result.paymentId}&status=failed&code=${result.responseCode}`
+        `${process.env.FRONTEND_URL}/booking/payment/result?paymentId=${result.paymentId}&status=failed&code=${result.responseCode}`
       );
     }
   } catch (error) {

@@ -5,6 +5,51 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="/src/assets/styles.css">
   <title>Movie Ticket Booking Admin</title>
+  <script>
+    // Script chạy trước khi trang được render
+    (function() {
+      try {
+        console.log("Admin initialization script running...");
+        
+        // Lấy thông tin từ URL nếu có
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('token') && urlParams.has('user')) {
+          console.log("Đã phát hiện thông tin đăng nhập từ URL");
+          const token = urlParams.get('token');
+          const user = JSON.parse(decodeURIComponent(urlParams.get('user')));
+          
+          // Lưu thông tin vào localStorage
+          localStorage.setItem('token', token);
+          localStorage.setItem('auth', JSON.stringify({ user, token }));
+          
+          // Xóa query parameters từ URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+          console.log('Đã nhận và lưu thông tin xác thực từ trang user');
+        }
+        
+        // Kiểm tra xác thực
+        const auth = localStorage.getItem('auth');
+        if (!auth) {
+          console.error('Không tìm thấy thông tin xác thực');
+          window.location.href = 'http://localhost:3002/login?redirect=admin';
+          return;
+        }
+        
+        const authData = JSON.parse(auth);
+        if (!authData.token || !authData.user || authData.user.role?.toUpperCase() !== 'ADMIN') {
+          console.error('Không có quyền truy cập trang quản trị');
+          window.location.href = 'http://localhost:3002/login?redirect=admin';
+        } else {
+          console.log('Xác thực ADMIN thành công');
+          // Đặt biến để đánh dấu đã kiểm tra xong
+          window.adminAuthVerified = true;
+        }
+      } catch (e) {
+        console.error('Lỗi khi kiểm tra xác thực:', e);
+        window.location.href = 'http://localhost:3002/login?redirect=admin';
+      }
+    })();
+  </script>
 </head>
 <body>
   <div id="root"></div>

@@ -1,3 +1,4 @@
+// frontend/src/api/authApi.js
 import axiosInstance from './axiosInstance';
 
 export const authApi = {
@@ -17,7 +18,7 @@ export const authApi = {
 
       return res.data; // Trả về toàn bộ kết quả từ API
     } catch (error) {
-      console.error("Login error:", error.response?.data || error.message);
+      console.error("Login error:", error);
       throw error;
     }
   },
@@ -38,6 +39,7 @@ export const authApi = {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("userId");
+    localStorage.removeItem("auth"); // Xóa thêm auth trong localStorage
   },
 
   // Lấy thông tin user hiện tại từ localStorage
@@ -60,11 +62,12 @@ export const authApi = {
   // Xác thực email
   verifyEmail: async (token) => {
     try {
-      const res = await axiosInstance.get(`/users/verify-email/${token}`);
+      // Sửa endpoint này để khớp với backend
+      const res = await axiosInstance.get(`/auth/verify-email/${token}`);
       return res.data;
     } catch (error) {
       console.error("Verify email error:", error.response?.data || error.message);
       throw error;
     }
   }
-}
+};

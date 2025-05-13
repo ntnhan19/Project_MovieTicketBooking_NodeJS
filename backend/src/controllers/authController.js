@@ -147,3 +147,54 @@ exports.resendVerificationEmail = async (req, res) => {
     res.status(500).json({ error: 'Có lỗi xảy ra khi gửi lại email xác thực' });
   }
 };
+
+// Xác thực email 
+exports.verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    if (!token) {
+      return res.status(400).json({ error: 'Token xác thực không được cung cấp' });
+    }
+    
+    // Xác thực token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      return res.status(401).json({ error: 'Token không hợp lệ hoặc đã hết hạn' });
+    }
+    
+    const { userId } = decoded;
+    
+    // Tìm kiếm người dùng
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Không tìm thấy người dùng' });
+    }
+    
+    if (user.emailVerified) {
+      return res.status(200).json({ message: 'Email đã được xác thực trước đó' });
+    }
+    
+    // Cập nhật trạng thái xác thực email
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { emailVerified: true }
+    });
+    
+    // Loại bỏ trường password trước khi trả về
+    const { password: _, ...userWithoutPassword } = updatedUser;
+    
+    res.status(200).json({
+      user: userWithoutPassword,
+      message: 'Xác thực email thành công'
+    });
+  } catch (error) {
+    console.error('Lỗi khi xác thực email:', error);
+    res.status(500).json({ error: 'Có lỗi xảy ra khi xác thực email' });
+  }
+};

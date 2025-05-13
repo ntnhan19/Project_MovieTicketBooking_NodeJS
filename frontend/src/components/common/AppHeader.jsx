@@ -11,7 +11,8 @@ import {
   MenuOutlined,
   IdcardOutlined,
   BellOutlined,
-  SearchOutlined
+  SearchOutlined,
+  CoffeeOutlined
 } from "@ant-design/icons";
 import { useAuth } from "../../context/AuthContext";
 import LoginForm from "../../pages/LoginPage";
@@ -25,7 +26,7 @@ const AppHeader = () => {
   const [scrolled, setScrolled] = useState(false);
   const [loginVisible, setLoginVisible] = useState(false);
   const [registerVisible, setRegisterVisible] = useState(false);
-  const [setMobileMenuVisible] = useState(false);
+  const [mobileMenuVisible, setMobileMenuVisible] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
   
   console.log("AppHeader render - currentUser:", currentUser);
@@ -95,6 +96,7 @@ const AppHeader = () => {
     if (path === '/') return 'home';
     if (path.startsWith('/movies')) return 'movies';
     if (path.startsWith('/promotions')) return 'promotions';
+    if (path.startsWith('/concessions')) return 'concessions';
     if (path.startsWith('/admin')) return 'admin';
     
     return '';
@@ -117,6 +119,11 @@ const AppHeader = () => {
       icon: <GiftOutlined />, 
       label: <Link to="/promotions">Khuyến Mãi</Link> 
     },
+    { 
+      key: "concessions", 
+      icon: <CoffeeOutlined />, 
+      label: <Link to="/concessions">Bắp Nước</Link> 
+    },
     currentUser?.role === "admin" && { 
       key: "admin", 
       icon: <SettingOutlined />, 
@@ -134,12 +141,7 @@ const AppHeader = () => {
     {
       key: "bookings",
       icon: <IdcardOutlined />,
-      label: <Link to="/user/bookings">Lịch sử đặt vé</Link>
-    },
-    {
-      key: "settings",
-      icon: <SettingOutlined />,
-      label: <Link to="/user/settings">Cài đặt tài khoản</Link>
+      label: <Link to="/user/profile">Lịch sử đặt vé</Link>
     },
     {
       key: "logout",
@@ -282,8 +284,64 @@ const AppHeader = () => {
         </div>
       </Header>
 
-      {/* Các phần còn lại giữ nguyên */}
-      {/* ... */}
+      {/* Menu mobile */}
+      <Modal
+        open={mobileMenuVisible}
+        onCancel={() => setMobileMenuVisible(false)}
+        footer={null}
+        closable={false}
+        width="100%"
+        style={{ top: 0, margin: 0, padding: 0, maxWidth: '100%', height: '100%' }}
+        bodyStyle={{ padding: 0, height: '100vh' }}
+      >
+        <div className="mobile-menu p-5">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center">
+              <div className="text-3xl mr-2">🎬</div>
+              <div className="text-primary font-logo font-bold text-xl">DHL Cinema</div>
+            </div>
+            <Button 
+              icon={<span className="text-xl">×</span>} 
+              onClick={() => setMobileMenuVisible(false)}
+              className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-gray-100"
+            />
+          </div>
+          
+          <Menu 
+            mode="vertical" 
+            selectedKeys={[activeKey]} 
+            className="border-none"
+            style={{ fontWeight: 500 }}
+            items={menuItems}
+          />
+          
+          {!isUserAuthenticated && (
+            <div className="mt-8 flex flex-col gap-3">
+              <Button 
+                onClick={() => {
+                  showLoginModal();
+                  setMobileMenuVisible(false);
+                }} 
+                block
+                className="h-10"
+              >
+                Đăng nhập
+              </Button>
+              <Button 
+                type="primary" 
+                onClick={() => {
+                  showRegisterModal();
+                  setMobileMenuVisible(false);
+                }} 
+                block
+                className="h-10"
+              >
+                Đăng ký
+              </Button>
+            </div>
+          )}
+        </div>
+      </Modal>
       
       {/* Modal Đăng Nhập */}
       <Modal

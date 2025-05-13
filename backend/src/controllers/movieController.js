@@ -84,7 +84,11 @@ exports.createMovie = async (req, res) => {
       return res.status(400).json({ error: "Thiếu thông tin bắt buộc" });
     }
 
-    const newMovie = await movieService.createMovie(movieData);
+    // Đảm bảo loại bỏ id nếu có
+    const { id, ...movieDataWithoutId } = movieData;
+    console.log("Dữ liệu phim trước khi gửi đến service:", movieDataWithoutId);
+
+    const newMovie = await movieService.createMovie(movieDataWithoutId);
 
     res.status(201).json(newMovie);
   } catch (err) {

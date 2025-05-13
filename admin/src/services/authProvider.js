@@ -1,43 +1,72 @@
 // admin/src/services/authProvider.js
-const API_URL = "http://localhost:3000/api/auth/login";  // Cập nhật lại URL API backend (3000)
-
 const authProvider = {
-  login: async ({ username, password }) => {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
+  login: ({ username, password }) => {
+    // Vì người dùng đã đăng nhập từ frontend nên không cần đăng nhập lại
+    // Chỉ cần kiểm tra lại thông tin xác thực
+    try {
+      const auth = localStorage.getItem("auth");
+      if (!auth) {
+        console.error("Không tìm thấy thông tin xác thực");
+        return Promise.reject("Không tìm thấy thông tin xác thực");
+      }
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Đăng nhập thất bại");
+      const authData = JSON.parse(auth);
+      if (
+        !authData.token ||
+        !authData.user ||
+        authData.user.role?.toUpperCase() !== "ADMIN"
+      ) {
+        console.error("Không có quyền truy cập trang quản trị");
+        return Promise.reject("Không có quyền truy cập trang quản trị");
+      }
+
+      console.log("Đăng nhập thành công với quyền ADMIN");
+      return Promise.resolve();
+    } catch (e) {
+      console.error("Lỗi khi đăng nhập:", e);
+      return Promise.reject("Lỗi khi đăng nhập");
     }
-
-    const { token, user } = await response.json();
-
-    const authData = {
-      token,
-      role: user.role,
-      username: user.username,
-      id: user.id,
-    };
-
-    // Lưu cả auth object và token riêng để axios dùng
-    localStorage.setItem("auth", JSON.stringify(authData));
-    localStorage.setItem("token", token); // Đảm bảo axios đọc được
-
-    return Promise.resolve();
   },
 
   logout: () => {
     localStorage.removeItem("auth");
     localStorage.removeItem("token");
+    window.location.href = "http://localhost:3002/login";
     return Promise.resolve();
   },
 
   checkAuth: () => {
-    return localStorage.getItem("auth") ? Promise.resolve() : Promise.reject();
+    try {
+      console.log("authProvider.checkAuth được gọi");
+      const auth = localStorage.getItem("auth");
+
+      if (!auth) {
+        console.error("Không tìm thấy dữ liệu auth trong localStorage");
+        return Promise.reject("Không tìm thấy dữ liệu auth");
+      }
+
+      const authData = JSON.parse(auth);
+      console.log("Auth data sau khi parse:", {
+        hasToken: !!authData.token,
+        hasUser: !!authData.user,
+        role: authData.user?.role,
+      });
+
+      if (
+        !authData.token ||
+        !authData.user ||
+        authData.user.role?.toUpperCase() !== "ADMIN"
+      ) {
+        console.error("Dữ liệu auth không hợp lệ hoặc không có quyền admin");
+        return Promise.reject("Không có quyền truy cập");
+      }
+
+      console.log("Xác thực ADMIN thành công trong authProvider");
+      return Promise.resolve();
+    } catch (e) {
+      console.error("Lỗi trong checkAuth:", e);
+      return Promise.reject("Lỗi xác thực");
+    }
   },
 
   checkError: (error) => {
@@ -45,6 +74,7 @@ const authProvider = {
     if (status === 401 || status === 403) {
       localStorage.removeItem("auth");
       localStorage.removeItem("token");
+      window.location.href = "http://localhost:3002/login?redirect=admin";
       return Promise.reject();
     }
     return Promise.resolve();
@@ -52,16 +82,30 @@ const authProvider = {
 
   getPermissions: () => {
     const auth = JSON.parse(localStorage.getItem("auth") || "{}");
-    return Promise.resolve(auth.role || "user");
+    return Promise.resolve(auth.user?.role || "");
   },
 
   getIdentity: () => {
-    const auth = JSON.parse(localStorage.getItem("auth") || "{}");
-    return Promise.resolve({
-      id: auth.id,
-      fullName: auth.username,
-      role: auth.role,
-    });
+    try {
+      const auth = JSON.parse(localStorage.getItem("auth") || "{}");
+      if (!auth.user) {
+        console.error("Không tìm thấy thông tin người dùng");
+        return Promise.reject("Không tìm thấy thông tin người dùng");
+      }
+
+      return Promise.resolve({
+        id: auth.user.id,
+        fullName:
+          auth.user.username ||
+          auth.user.name ||
+          auth.user.fullName ||
+          auth.user.email,
+        avatar: auth.user.avatar || "https://via.placeholder.com/50",
+      });
+    } catch (e) {
+      console.error("Lỗi khi lấy thông tin người dùng:", e);
+      return Promise.reject("Lỗi khi lấy thông tin người dùng");
+    }
   },
 };
 

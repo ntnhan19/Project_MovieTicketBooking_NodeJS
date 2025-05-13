@@ -1,0 +1,380 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ======================= */
+/* RESET & BASE STYLES     */
+/* ======================= */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body:not([data-theme="dark"]) {
+  background-color: #f4f5f7;
+  color: #333;
+}
+
+/* ======================= */
+/* DASHBOARD LAYOUT        */
+/* ======================= */
+.dashboard-container {
+  padding: 20px;
+}
+
+.page-header {
+  margin-bottom: 20px;
+  padding: 1rem 1.5rem;
+  background-color: #1e293b;
+  color: #fff;
+  border-radius: 8px;
+  text-align: center;
+}
+
+/* ======================= */
+/* MATERIAL UI OVERRIDES   */
+/* ======================= */
+/* Buttons - Ưu tiên class styles của Tailwind */
+.MuiButton-contained.bg-primary {
+  background-color: #e71a0f !important;
+}
+
+.MuiButton-contained.bg-primary:hover {
+  background-color: #c41208 !important;
+}
+
+/* Inputs */
+.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #e71a0f !important;
+}
+
+.MuiInputLabel-root.Mui-focused {
+  color: #e71a0f !important;
+}
+
+/* Tables */
+.MuiTableHead-root .MuiTableCell-head {
+  font-weight: 600;
+  background-color: #f9fafb;
+}
+
+.MuiTableBody-root .MuiTableRow-root:hover {
+  background-color: rgba(231, 26, 15, 0.04);
+}
+
+/* Custom Components */
+.dialog-title {
+  background-color: #e71a0f;
+  color: white;
+  padding: 16px;
+}
+
+/* ======================= */
+/* STATS CARDS             */
+/* ======================= */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.stats-card {
+  @apply bg-white rounded-lg p-5 shadow-card transition-all duration-300;
+}
+
+.stats-card:hover {
+  @apply shadow-card-hover transform -translate-y-1;
+}
+
+.stats-card-title {
+  @apply text-text-secondary font-medium text-sm mb-1;
+}
+
+.stats-card-value {
+  @apply text-text-primary text-2xl font-bold;
+}
+
+/* ======================= */
+/* MOVIE STATUS COLORS     */
+/* ======================= */
+.status-active {
+  @apply text-emerald-500 font-semibold;
+}
+
+.status-inactive,
+.status-archived {
+  @apply text-red-500 font-semibold;
+}
+
+.status-coming-soon {
+  @apply text-amber-500 font-semibold;
+}
+
+/* ======================= */
+/* RESPONSIVE ADJUSTMENTS  */
+/* ======================= */
+@media (max-width: 768px) {
+  .RaLayout-appBar .MuiToolbar-root {
+    padding: 0 16px;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ======================= */
+/* ADMIN SIDEBAR & HEADER  */
+/* ======================= */
+.RaSidebar-fixed {
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  background-color: #fff;
+}
+
+.RaSidebar-fixed .MuiPaper-root {
+  background-color: transparent;
+}
+
+.RaLayout-appBar {
+  background-color: #e71a0f !important;
+  color: white;
+}
+
+/* Active Menu Item */
+.RaMenuItemLink-active {
+  background-color: rgba(231, 26, 15, 0.1) !important;
+  border-left: 3px solid #e71a0f;
+}
+
+.RaMenuItemLink-active .MuiListItemText-primary,
+.RaMenuItemLink-active .MuiListItemIcon-root {
+  color: #e71a0f !important;
+  font-weight: 600;
+}
+
+/* Tất cả menu items */
+.RaMenuItemLink-root .MuiListItemText-primary {
+  font-size: 0.9rem;
+}
+
+/* Menu Icon */
+.RaMenu-icon {
+  color: #666 !important;
+}
+
+/* ======================= */
+/* DARK MODE STYLES        */
+/* ======================= */
+body[data-theme="dark"],
+.admin-page[data-theme="dark"] {
+  background-color: #121212;
+  color: #fff;
+}
+
+/* General Text Contrast */
+[data-theme="dark"] .MuiTableCell-root,
+[data-theme="dark"] .MuiTypography-root,
+[data-theme="dark"] .MuiInputBase-input,
+[data-theme="dark"] .MuiButtonBase-root,
+[data-theme="dark"] .MuiListItemText-primary,
+[data-theme="dark"] .MuiMenuItem-root {
+  color: #fff !important;
+}
+
+/* Table Contrast */
+[data-theme="dark"] .MuiTableCell-head {
+  background-color: #1e293b !important;
+  color: #90caf9 !important;
+  font-weight: bold;
+}
+
+[data-theme="dark"] .MuiTableRow-root {
+  background-color: #1e1e1e;
+}
+
+/* Status Colors */
+[data-theme="dark"] .status-active {
+  color: #69f0ae !important;
+}
+
+[data-theme="dark"] .status-coming-soon {
+  color: #ffab40 !important;
+}
+
+[data-theme="dark"] .status-inactive,
+[data-theme="dark"] .status-archived {
+  color: #ff5252 !important;
+}
+
+/* Buttons, Inputs, Cards */
+[data-theme="dark"] .MuiButton-contained {
+  background-color: #e71a0f !important;
+  color: #fff !important;
+}
+
+[data-theme="dark"] .MuiPaper-root,
+[data-theme="dark"] .stats-card {
+  background-color: #1e1e1e;
+  color: #fff;
+}
+
+[data-theme="dark"] .MuiInputBase-root {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Điều chỉnh CSS cho các input trong form */
+.dark input, 
+.dark textarea, 
+.dark select {
+  color: #fff !important;
+  background-color: #1e1e1e !important;
+}
+
+.dark input[type="date"] {
+  color-scheme: dark;
+}
+
+/* Điều chỉnh màu của checkbox trong dark mode */
+.dark input[type="checkbox"] {
+  background-color: #1e1e1e;
+  border-color: #333;
+}
+
+.dark input[type="checkbox"]:checked {
+  background-color: #e71a0f;
+  border-color: #e71a0f;
+}
+
+/* Đảm bảo các placeholder có màu phù hợp */
+.dark input::placeholder, 
+.dark textarea::placeholder {
+  color: #666 !important;
+}
+
+/* Đảm bảo rằng các đường viền của form nhìn rõ ràng */
+.dark .border-border-dark {
+  border-color: #333333;
+}
+
+/* Đảm bảo các nút nhấn có đủ độ tương phản */
+.dark button {
+  color: #fff;
+}
+
+/* Đảm bảo rằng các thông báo lỗi có màu sắc phù hợp */
+.dark .text-red-600 {
+  color: #ff5252;
+}
+
+/* Đảm bảo rằng các input date có màu sắc phù hợp */
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+/* Đảm bảo rằng các dropdown có màu sắc phù hợp */
+.dark select option {
+  background-color: #1e1e1e;
+  color: #fff;
+}
+
+/* Khi focus vào input trong dark mode */
+.dark input:focus, 
+.dark textarea:focus, 
+.dark select:focus {
+  border-color: #e71a0f !important;
+  box-shadow: 0 0 0 2px rgba(231, 26, 15, 0.2);
+}
+
+/* Đảm bảo hiển thị nhất quán cho input datetime-local */
+input[type="datetime-local"] {
+  /* Giữ padding đồng nhất */
+  padding: 0.5rem 0.75rem;
+  /* Giữ màu chữ tương thích với theme */
+  color: inherit;
+  /* Hiển thị icon calendar rõ ràng trong light mode */
+  appearance: textfield;
+  -webkit-appearance: textfield;
+}
+
+/* Hiển thị calendar icon trong light mode */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 0.8;
+  cursor: pointer;
+}
+
+/* Điều chỉnh màu cho icon calendar trong dark mode */
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.7;
+}
+
+/* Đảm bảo input[type=datetime-local] có color-scheme phù hợp trong Dark mode */
+.dark input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+/* Đảm bảo kích thước bằng nhau trong tất cả các trình duyệt */
+@supports (-moz-appearance:none) {
+  input[type="datetime-local"] {
+    min-height: 2.5rem;
+  }
+}
+
+/* Nút submit với màu đỏ đúng theo brand */
+button[type="submit"]:not(:disabled) {
+  background-color: var(--primary-color, #e71a0f);
+}
+
+button[type="submit"]:not(:disabled):hover {
+  background-color: var(--primary-color-dark, #c41208);
+}
+
+/* Define CSS variables for primary colors */
+:root {
+  --primary-color: #e71a0f;
+  --primary-color-dark: #c41208;
+}
+
+/* Cấu hình focus ring cho các input */
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 2px rgba(231, 26, 15, 0.2);
+}
+
+/* Đảm bảo màu primary cho các nút và outline */
+.focus\:ring-blue-500:focus {
+  --tw-ring-color: var(--primary-color);
+}
+
+.focus\:border-blue-500:focus {
+  border-color: var(--primary-color);
+}
+
+.focus\:ring-primary:focus {
+  --tw-ring-color: var(--primary-color);
+}
+
+.bg-blue-600 {
+  background-color: var(--primary-color);
+}
+
+.hover\:bg-blue-700:hover {
+  background-color: var(--primary-color-dark);
+}
+
+.bg-primary {
+  background-color: var(--primary-color);
+}
+
+.hover\:bg-primary-dark:hover {
+  background-color: var(--primary-color-dark);
+}

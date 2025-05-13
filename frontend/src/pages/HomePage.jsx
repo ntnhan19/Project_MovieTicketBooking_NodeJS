@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Spin, Empty, Button, Carousel } from "antd";
+import { useNavigate } from "react-router-dom";
+import { Spin, Empty, Button, Carousel, message } from "antd";
 import {
   RightOutlined,
   LeftOutlined,
@@ -10,7 +11,8 @@ import useMovies from "../hooks/useMovies";
 import { movieApi } from "../api/movieApi";
 import MovieList from "../components/Movies/MovieList";
 import QuickBookingWidget from "../components/Payments/QuickBookingWidget";
-import PromotionsPage from './PromotionPage';
+import PromotionsPage from "./PromotionPage";
+import { useAuth } from "../context/AuthContext";
 
 const DEFAULT_MOVIE_IMAGE =
   "https://cdn.galaxycine.vn/media/2024/2/5/banner-homepage-2048x682_1707120352514.jpg";
@@ -25,6 +27,8 @@ const HomePage = () => {
   const { nowShowing, comingSoon, loading } = useMovies();
   const [loadingHeroBanner, setLoadingHeroBanner] = useState(true);
   const [bannerMovies, setBannerMovies] = useState([]);
+  const { isAuthenticated, openAuthModal } = useAuth();
+  const navigate = useNavigate();
 
   const moviesToShow = activeTab === "nowShowing" ? nowShowing : comingSoon;
 
@@ -130,8 +134,16 @@ const HomePage = () => {
 
   // Xử lý sự kiện khi người dùng nhấn nút đặt vé cho phim trong banner
   const handleBookTicket = (movieId) => {
-    console.log(`Booking ticket for movie: ${movieId}`);
-    // Có thể chuyển hướng đến trang đặt vé với movieId
+    // Kiểm tra xem người dùng đã đăng nhập chưa
+    if (!isAuthenticated) {
+      // Nếu chưa đăng nhập, mở modal đăng nhập với đường dẫn chuyển hướng sau khi đăng nhập
+      openAuthModal("1", `/movies/${movieId}`);
+      message.warning("Vui lòng đăng nhập để đặt vé");
+      return;
+    }
+
+    // Nếu đã đăng nhập, chuyển hướng đến trang chọn ghế
+    navigate(`/movies/${movieId}`);
     // history.push(`/booking/${movieId}`);
   };
 

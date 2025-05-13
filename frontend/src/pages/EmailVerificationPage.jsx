@@ -1,7 +1,8 @@
+// frontend/src/pages/EmailVerificationPage.jsx
 import React, { useState, useEffect } from "react";
 import { Result, Button, Spin, Alert } from "antd";
 import { useParams, useNavigate } from "react-router-dom";
-import { userApi } from "../api/userApi";
+import { authApi } from "../api/authApi";
 
 const EmailVerificationPage = () => {
   const [verifying, setVerifying] = useState(true);
@@ -13,12 +14,22 @@ const EmailVerificationPage = () => {
   useEffect(() => {
     const verifyEmail = async () => {
       try {
-        await userApi.verifyEmail(token);
+        if (!token) {
+          throw new Error("Token không hợp lệ");
+        }
+        
+        console.log("Đang xác thực email với token:", token);
+        const result = await authApi.verifyEmail(token);
+        console.log("Kết quả xác thực:", result);
+        
         setSuccess(true);
+        
+        // Nếu muốn hiển thị thông báo thành công
+        // message.success(result.message || "Xác thực email thành công!");
       } catch (error) {
         console.error("Lỗi xác thực email:", error);
         setErrorMessage(
-          error.response?.data?.message ||
+          error.response?.data?.error ||
             "Có lỗi xảy ra khi xác thực email của bạn."
         );
         setSuccess(false);

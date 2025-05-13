@@ -15,6 +15,7 @@ import {
   Empty,
   notification,
   Card,
+  message,
 } from "antd";
 import {
   PlayCircleOutlined,
@@ -33,6 +34,7 @@ import { cinemaApi } from "../../api/cinemaApi";
 import { genreApi } from "../../api/genreApi";
 import MovieList from "./MovieList";
 import MovieReviews from "../../components/Movies/MovieReviews";
+import { useAuth } from "../../context/AuthContext";
 
 const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
@@ -40,6 +42,7 @@ const { Option } = Select;
 const MovieDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated, openAuthModal } = useAuth(); 
 
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -280,20 +283,17 @@ const MovieDetailPage = () => {
 
   // Handler khi chọn suất chiếu để đặt vé
   const handleSelectShowtime = (showtimeId) => {
-    // Kiểm tra xem người dùng đã đăng nhập chưa
-    const token = localStorage.getItem("token");
-    const userId = localStorage.getItem("userId");
 
-    if (!token || !userId) {
-      notification.warning({
-        message: "Chưa đăng nhập",
-        description: "Vui lòng đăng nhập để đặt vé",
-      });
-      navigate("/login");
+
+    // Kiểm tra xem người dùng đã đăng nhập chưa
+    if (!isAuthenticated) {
+      // Nếu chưa đăng nhập, mở modal đăng nhập với đường dẫn chuyển hướng sau khi đăng nhập
+      openAuthModal('1', `/booking/seats/${showtimeId}`);
+      message.warning("Vui lòng đăng nhập để đặt vé");
       return;
     }
 
-    // Chuyển hướng đến trang chọn ghế
+    // Nếu đã đăng nhập, chuyển hướng đến trang chọn ghế
     navigate(`/booking/seats/${showtimeId}`);
   };
 

@@ -5,11 +5,14 @@ import { cinemaApi } from "../../api/cinemaApi";
 import { movieApi } from "../../api/movieApi";
 import { showtimeApi } from "../../api/showtimeApi";
 import moment from "moment";
+import { useAuth } from "../../context/AuthContext"; 
 
 const { Option } = Select;
 
 const QuickBookingWidget = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, openAuthModal } = useAuth(); 
+  
   // State cho các lựa chọn
   const [cinemas, setCinemas] = useState([]);
   const [movies, setMovies] = useState([]);
@@ -148,16 +151,14 @@ const QuickBookingWidget = () => {
     }
 
     // Kiểm tra xem người dùng đã đăng nhập chưa
-    const token = localStorage.getItem("token");
-    const userId = localStorage.getItem("userId");
-
-    if (!token || !userId) {
+    if (!isAuthenticated) {
+      // Nếu chưa đăng nhập, mở modal đăng nhập với đường dẫn chuyển hướng sau khi đăng nhập
+      openAuthModal('1', `/booking/seats/${selectedShowtime}`);
       message.warning("Vui lòng đăng nhập để đặt vé");
-      navigate("/login");
       return;
     }
 
-    // Chuyển hướng đến trang chọn ghế
+    // Nếu đã đăng nhập, chuyển hướng đến trang chọn ghế
     navigate(`/booking/seats/${selectedShowtime}`);
   };
 

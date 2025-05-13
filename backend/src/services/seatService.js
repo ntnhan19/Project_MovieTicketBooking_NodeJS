@@ -58,6 +58,30 @@ const lockMultipleSeats = async (seatIds, userId) => {
   return { message: 'Seats locked successfully', seatIds };
 };
 
+// Mở khóa một ghế nếu nó đang bị khóa
+const unlockSeatIfLocked = async (seatId) => {
+  const seat = await prisma.seat.findUnique({
+    where: { id: seatId }
+  });
+
+  if (!seat) {
+    throw new Error('Seat not found');
+  }
+
+  if (seat.status === 'LOCKED') {
+    return await prisma.seat.update({
+      where: { id: seatId },
+      data: {
+        status: 'AVAILABLE',
+        // lockedBy: null,
+        // lockedAt: null
+      }
+    });
+  }
+
+  return seat; // Trả về seat hiện tại nếu không cần unlock
+};
+
 // Mở khóa nhiều ghế
 const unlockMultipleSeats = async (seatIds) => {
   // Truy vấn tất cả ghế được yêu cầu
@@ -97,7 +121,6 @@ const unlockMultipleSeats = async (seatIds) => {
     seatIds: lockedSeatIds 
   };
 };
-
 
 // Lấy thông tin chi tiết của ghế
 const getSeatById = async (id) => {
@@ -177,6 +200,7 @@ module.exports = {
   updateSeat,
   lockMultipleSeats,
   unlockMultipleSeats,
+  unlockSeatIfLocked,
   getSeatById,
   getSeatLayoutByHall,
   generateSeats

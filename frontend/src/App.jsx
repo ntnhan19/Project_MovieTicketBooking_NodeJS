@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { BookingProvider } from "./context/BookingContext";
@@ -9,20 +10,21 @@ import MoviePage from "./pages/MoviePage";
 import MovieDetailPage from "./components/Movies/MovieDetailPage";
 import BookingPage from "./pages/BookingPage";
 import UserProfilePage from "./pages/UserProfilePage";
-import BookingHistoryPage from "./pages/BookingHistoryPage";
-import UserSettingsPage from "./pages/UserSettingsPage";
 import PromotionPage from "./pages/PromotionPage";
 import PromotionDetails from "./components/Promotions/PromotionDetails";
 import PaymentPage from "./pages/PaymentPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
+import EmailVerificationPage from "./pages/EmailVerificationPage"; 
+import ConcessionPage from "./pages/ConcessionPage";
 
 // Components
 import PrivateRoute from "./components/common/PrivateRoute";
 import SeatSelectionPage from "./components/Payments/SeatSelectionPage";
 import AppHeader from "./components/common/AppHeader";
 import Footer from "./components/common/Footer";
+import AuthModal from "./components/common/AuthModal";
 
 // Styles
 import "./index.css";
@@ -34,7 +36,7 @@ function App() {
       <BookingProvider>
         <div className="app-container">
           <AppHeader />
-          <main className="main-content-wrapper">
+          <main className="main-content-wrapper pt-16">
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<HomePage />} />
@@ -42,9 +44,13 @@ function App() {
               <Route path="/movies/:id" element={<MovieDetailPage />} />
               <Route path="/promotions" element={<PromotionPage />} />
               <Route path="/promotions/:id" element={<PromotionDetails />} />
+              <Route path="/concessions" element={<ConcessionPage />} />
+              <Route path="/concessions/:id" element={<ConcessionPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
+              {/* Thêm route cho xác thực email */}
+              <Route path="/verify-email/:token" element={<EmailVerificationPage />} />
 
               {/* Protected Routes */}
               <Route
@@ -81,22 +87,6 @@ function App() {
                   </PrivateRoute>
                 }
               />
-              <Route
-                path="/user/bookings"
-                element={
-                  <PrivateRoute>
-                    <BookingHistoryPage />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/user/settings"
-                element={
-                  <PrivateRoute>
-                    <UserSettingsPage />
-                  </PrivateRoute>
-                }
-              />
 
               {/* Admin Routes */}
               <Route
@@ -113,6 +103,8 @@ function App() {
             </Routes>
           </main>
           <Footer />
+          {/* Thêm AuthModal vào đây */}
+          <AuthModal />
         </div>
       </BookingProvider>
     </AuthProvider>

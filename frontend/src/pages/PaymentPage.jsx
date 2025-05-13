@@ -26,11 +26,8 @@ import { ticketApi } from "../api/ticketApi";
 import { showtimeApi } from "../api/showtimeApi";
 import { seatApi } from "../api/seatApi";
 import VNPayPayment from "../components/Payments/VNPayPayment";
-import ConfirmationStep from "../components/Payments/PaymentSteps/ConfirmationStep";
 import PaymentMethodStep from "../components/Payments/PaymentSteps/PaymentMethodStep";
 import CompletionStep from "../components/Payments/PaymentSteps/CompletionStep";
-import AppHeader from "../components/common/AppHeader";
-import Footer from "../components/common/Footer";
 
 const { Step } = Steps;
 const { Title, Text } = Typography;
@@ -71,32 +68,32 @@ const PaymentPage = () => {
         // Lấy tất cả query params để xử lý
         const queryParams = window.location.search;
         setLoading(true);
-        
+
         try {
           // Sử dụng phương thức handleVNPayResult mới từ paymentApi
           const paymentResult = await paymentApi.handleVNPayResult(queryParams);
-          
+
           // Lấy lại thông tin ticket từ localStorage
           const storedTicketData = localStorage.getItem("vnpay_ticket_data");
-          
+
           if (storedTicketData) {
             setTicketData(JSON.parse(storedTicketData));
           }
-          
+
           if (paymentResult.success) {
             // Nếu thanh toán thành công, lấy thông tin payment từ kết quả
             setPaymentData(paymentResult.payment);
             setPaymentSuccess(true);
             setCurrentStep(2); // Chuyển thẳng đến bước hoàn tất
             message.success("Thanh toán thành công!");
-            
+
             // Xóa dữ liệu thanh toán tạm thời
             clearPaymentLocalStorage();
           } else {
             // Nếu thanh toán thất bại
             setPaymentError(paymentResult.message);
             setPaymentSuccess(false);
-            setCurrentStep(1.6); // Chuyển đến bước xử lý VNPay
+            setCurrentStep(1); // Chuyển đến bước xử lý VNPay
           }
         } catch (error) {
           console.error("Lỗi khi xử lý kết quả từ VNPay:", error);
@@ -116,9 +113,13 @@ const PaymentPage = () => {
       setLoading(true);
       try {
         // Lấy dữ liệu từ localStorage
-        const storedSeats = JSON.parse(localStorage.getItem("selectedSeats") || "[]");
+        const storedSeats = JSON.parse(
+          localStorage.getItem("selectedSeats") || "[]"
+        );
         const storedShowtimeId = localStorage.getItem("showtimeId");
-        const storedTotalPrice = parseFloat(localStorage.getItem("totalPrice") || "0");
+        const storedTotalPrice = parseFloat(
+          localStorage.getItem("totalPrice") || "0"
+        );
 
         if (!storedSeats.length || !storedShowtimeId) {
           message.error("Không tìm thấy thông tin đặt vé");
@@ -145,11 +146,13 @@ const PaymentPage = () => {
         if (storedSeats.length > 0 && typeof storedSeats[0] === "object") {
           setSeatDetails(storedSeats);
         } else {
-          const seatsResponse = await seatApi.getSeatsByShowtime(storedShowtimeId);
-          const seatIds = storedSeats.map((seat) => 
+          const seatsResponse = await seatApi.getSeatsByShowtime(
+            storedShowtimeId
+          );
+          const seatIds = storedSeats.map((seat) =>
             typeof seat === "object" ? seat.id : seat
           );
-          const selectedSeatsDetails = seatsResponse.filter((seat) => 
+          const selectedSeatsDetails = seatsResponse.filter((seat) =>
             seatIds.includes(seat.id)
           );
           setSeatDetails(selectedSeatsDetails);
@@ -217,19 +220,10 @@ const PaymentPage = () => {
     setPaymentMethod(e.target.value);
   };
 
-  // Xử lý nút tiếp tục
-  const handleNext = () => {
-    setCurrentStep(currentStep + 1);
-  };
-
   // Xử lý nút quay lại
   const handlePrevious = () => {
-    if (currentStep === 0) {
-      // Quay lại trang chọn ghế
-      navigate(`/booking/seats/${showtimeId}`);
-    } else {
-      setCurrentStep(currentStep - 1);
-    }
+    // Quay lại trang chọn ghế
+    navigate(`/booking/seats/${showtimeId}`);
   };
 
   // Xử lý xác nhận thanh toán
@@ -241,7 +235,7 @@ const PaymentPage = () => {
 
     setIsPaymentProcessing(true);
     setPaymentError(null);
-    
+
     try {
       // Lấy userId từ localStorage
       const storedUserId = localStorage.getItem("userId");
@@ -263,7 +257,9 @@ const PaymentPage = () => {
       }
 
       if (!userId || isNaN(userId)) {
-        throw new Error("Thông tin người dùng không hợp lệ. Vui lòng đăng nhập lại.");
+        throw new Error(
+          "Thông tin người dùng không hợp lệ. Vui lòng đăng nhập lại."
+        );
       }
 
       // Đảm bảo chuyển đổi seats thành mảng các số nguyên
@@ -278,7 +274,11 @@ const PaymentPage = () => {
         seats: seatIds,
       });
 
-      if (ticketResponse && ticketResponse.tickets && ticketResponse.tickets.length > 0) {
+      if (
+        ticketResponse &&
+        ticketResponse.tickets &&
+        ticketResponse.tickets.length > 0
+      ) {
         const successTickets = ticketResponse.tickets.filter(
           (ticket) => !ticket.error
         );
@@ -300,30 +300,32 @@ const PaymentPage = () => {
         // Chuẩn bị dữ liệu thanh toán
         const paymentData = {
           ticketIds: ticketIds,
-          method: "VNPAY", // Chuyển thành chữ HOA để phù hợp với validation trong API
+          method: "VNPAY",
         };
-        
+
         // Gọi API thanh toán
         const paymentResponse = await paymentApi.processPayment(paymentData);
-        
+
         // Lưu thông tin thanh toán
         setPaymentData(paymentResponse);
-        
+
         if (paymentResponse.paymentUrl) {
           // Lưu dữ liệu vào localStorage để sử dụng sau khi quay lại từ VNPay
-          localStorage.setItem("vnpay_payment_data", JSON.stringify(paymentResponse));
-          localStorage.setItem("vnpay_ticket_data", JSON.stringify({
-            tickets: successTickets,
-            firstTicket: successTickets[0],
-            totalAmount: ticketResponse.totalAmount || totalPrice,
-          }));
-          
-          // Không cần lưu lại các thông tin này vì paymentApi đã tự động lưu trong processPayment
-          // localStorage.setItem("lastPaymentId", paymentResponse.id);
-          // localStorage.setItem("lastPaymentMethod", "VNPAY");
-          
+          localStorage.setItem(
+            "vnpay_payment_data",
+            JSON.stringify(paymentResponse)
+          );
+          localStorage.setItem(
+            "vnpay_ticket_data",
+            JSON.stringify({
+              tickets: successTickets,
+              firstTicket: successTickets[0],
+              totalAmount: ticketResponse.totalAmount || totalPrice,
+            })
+          );
+
           // Chuyển sang giao diện VNPay
-          setCurrentStep(1.6);
+          setCurrentStep(1.5);
         } else {
           throw new Error("Không nhận được URL thanh toán từ VNPay");
         }
@@ -333,7 +335,7 @@ const PaymentPage = () => {
     } catch (error) {
       console.error("Lỗi xử lý thanh toán:", error);
       setPaymentSuccess(false);
-      
+
       // Xử lý các loại lỗi cụ thể
       if (error.response?.status === 401 || error.response?.status === 403) {
         setPaymentError("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
@@ -345,17 +347,19 @@ const PaymentPage = () => {
         );
         message.error(error.response?.data?.message || "Dữ liệu không hợp lệ");
       } else if (error.response?.status === 500) {
-        setPaymentError(
-          "Hệ thống đang gặp sự cố. Vui lòng thử lại sau."
-        );
+        setPaymentError("Hệ thống đang gặp sự cố. Vui lòng thử lại sau.");
         message.error("Lỗi hệ thống");
       } else {
         setPaymentError(
           error.response?.data?.message ||
-          error.message ||
-          "Thanh toán thất bại. Vui lòng thử lại sau."
+            error.message ||
+            "Thanh toán thất bại. Vui lòng thử lại sau."
         );
-        message.error(error.response?.data?.message || error.message || "Thanh toán thất bại");
+        message.error(
+          error.response?.data?.message ||
+            error.message ||
+            "Thanh toán thất bại"
+        );
       }
     } finally {
       setIsPaymentProcessing(false);
@@ -368,32 +372,35 @@ const PaymentPage = () => {
       if (paymentResult) {
         console.log("Kết quả thanh toán VNPay:", paymentResult);
       }
-  
+
       setPaymentSuccess(true);
       setCurrentStep(2); // Chuyển sang bước hoàn tất
-  
+
       // Xóa dữ liệu đặt vé khỏi localStorage sau khi thanh toán thành công
       clearPaymentLocalStorage();
-  
+
       message.success("Thanh toán thành công!");
     } else {
       // Sử dụng định dạng lỗi mới từ API
-      const errorMessage = paymentResult?.message || "Thanh toán không thành công hoặc đã bị hủy.";
+      const errorMessage =
+        paymentResult?.message || "Thanh toán không thành công hoặc đã bị hủy.";
       const responseCode = paymentResult?.responseCode;
-      
+
       setPaymentSuccess(false);
       setPaymentError(errorMessage);
       setCurrentStep(1); // Quay lại bước chọn phương thức thanh toán
-      
+
       // Hiển thị thông báo lỗi chi tiết hơn nếu có mã phản hồi
       if (responseCode) {
-        message.error(`Thanh toán thất bại (Mã: ${responseCode}): ${errorMessage}`);
+        message.error(
+          `Thanh toán thất bại (Mã: ${responseCode}): ${errorMessage}`
+        );
       } else {
         message.error(errorMessage);
       }
     }
   };
-  
+
   // Thêm hàm utility để xóa dữ liệu localStorage liên quan đến thanh toán
   const clearPaymentLocalStorage = () => {
     localStorage.removeItem("selectedSeats");
@@ -507,7 +514,7 @@ const PaymentPage = () => {
     else if (percentRemaining <= 70) statusColor = "warning";
 
     return (
-      <div className="countdown-container p-4 bg-white rounded-lg shadow-sm">
+      <div className="countdown-container p-4 bg-white rounded-lg shadow-sm mb-6 border border-border-light">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center">
             <ClockCircleOutlined className="text-primary mr-2" />
@@ -569,14 +576,6 @@ const PaymentPage = () => {
   // Render tương ứng với bước hiện tại
   const renderCurrentStep = () => {
     switch (currentStep) {
-      case 0:
-        return (
-          <ConfirmationStep
-            showtimeDetails={showtimeDetails}
-            seatDetails={seatDetails}
-            totalPrice={totalPrice}
-          />
-        );
       case 1:
         return (
           <PaymentMethodStep
@@ -587,7 +586,7 @@ const PaymentPage = () => {
             isProcessing={isPaymentProcessing}
           />
         );
-      case 1.6: // Bước xử lý VNPay
+      case 1.5: // Bước xử lý VNPay
         return (
           <VNPayPayment
             payment={paymentData}
@@ -610,190 +609,264 @@ const PaymentPage = () => {
         );
       default:
         return (
-          <ConfirmationStep
-            showtimeDetails={showtimeDetails}
-            seatDetails={seatDetails}
-            totalPrice={totalPrice}
+          <PaymentMethodStep
+            paymentMethod={paymentMethod}
+            onPaymentMethodChange={handlePaymentMethodChange}
+            onPaymentConfirm={handlePaymentConfirm}
+            paymentError={paymentError}
+            isProcessing={isPaymentProcessing}
           />
         );
     }
   };
 
-  // Render nút điều hướng
-  const renderNavigationButtons = () => {
-    if (currentStep === 2 || currentStep === 1.6)
-      return null; // Không hiển thị nút điều hướng ở bước hoàn tất và VNPay
-
-    return (
-      <div className="flex justify-between items-center mt-6">
-        <Button
-          type="default"
-          onClick={handlePrevious}
-          className="bg-white border border-gray-300 hover:bg-gray-50 text-text-primary font-medium px-5 py-2 h-auto rounded-md shadow-sm"
-        >
-          {currentStep === 0 ? "Quay lại chọn ghế" : "Quay lại"}
-        </Button>
-
-        {currentStep === 0 && (
-          <Button
-            type="primary"
-            onClick={handleNext}
-            className="bg-primary hover:bg-primary-dark text-white font-medium px-6 py-2 h-auto rounded-md shadow-button hover:shadow-button-hover"
-          >
-            Tiếp tục
-          </Button>
-        )}
-      </div>
-    );
-  };
-
   return (
-    <>
-      <AppHeader />
-      <div className="max-w-6xl mx-auto px-4 py-6 pt-24">
-        {/* Breadcrumb navigation */}
-        <BreadcrumbNavigation />
+    <div className="container mx-auto px-4 py-6 pt-24 max-w-full">
+      {/* Breadcrumb navigation */}
+      <BreadcrumbNavigation />
 
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <Spin size="large" />
-            <Text className="text-text-secondary mt-4">
-              Đang tải thông tin...
-            </Text>
-          </div>
-        ) : (
-          <Row gutter={[24, 24]}>
-            {/* Phần chính: nội dung các bước thanh toán */}
-            <Col xs={24} lg={16} className="order-2 lg:order-1">
-              <Card className="content-card shadow-md">
-                <Steps
-                  current={currentStep === 1.6 ? 1 : currentStep}
-                  className="mb-8"
-                  items={[
-                    {
-                      title: "Xác nhận thông tin",
-                      status: currentStep >= 0 ? "finish" : "wait",
-                    },
-                    {
-                      title: "Thanh toán",
-                      status: currentStep >= 1 ? "finish" : "wait",
-                    },
-                    {
-                      title: "Hoàn tất",
-                      status: currentStep >= 2 ? "finish" : "wait",
-                    },
-                  ]}
-                />
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-16">
+          <Spin size="large" />
+          <Text className="text-text-secondary mt-4">
+            Đang tải thông tin...
+          </Text>
+        </div>
+      ) : (
+        <Row gutter={[24, 24]}>
+          {/* Thông tin phim - Cột bên trái (nhỏ hơn) */}
+          <Col xs={24} md={8} lg={6} className="order-1">
+            {/* Bộ đếm thời gian */}
+            {currentStep < 2 && timeRemaining > 0 && renderCountdown()}
 
-                <div className="step-content">{renderCurrentStep()}</div>
+            {/* Thông tin phim */}
+            <Card className="content-card shadow-md mb-6 border border-border-light">
+              {showtimeDetails && showtimeDetails.movie && (
+                <div className="flex flex-col">
+                  <div className="flex items-start">
+                    {/* Poster phim */}
+                    <div className="w-1/3 mr-4">
+                      <img
+                        src={
+                          showtimeDetails.movie.poster ||
+                          showtimeDetails.movie.posterUrl ||
+                          showtimeDetails.movie.image ||
+                          "/fallback.jpg"
+                        }
+                        alt={showtimeDetails.movie.title}
+                        className="w-full rounded-lg shadow-sm object-cover"
+                        style={{ aspectRatio: "2/3" }}
+                      />
+                    </div>
 
-                {renderNavigationButtons()}
-              </Card>
-            </Col>
-
-            {/* Phần bên phải: thông tin phim và đếm ngược */}
-            <Col xs={24} lg={8} className="order-1 lg:order-2">
-              {/* Bộ đếm thời gian */}
-              {currentStep < 2 && timeRemaining > 0 && renderCountdown()}
-
-              {/* Thông tin phim */}
-              <Card className="content-card shadow-md mt-4">
-                {showtimeDetails && showtimeDetails.movie && (
-                  <div className="flex flex-col">
-                    <div className="flex items-start">
-                      {/* Poster phim */}
-                      <div className="w-1/3 mr-4">
-                        <img
-                          src={
-                            showtimeDetails.movie.poster ||
-                            showtimeDetails.movie.posterUrl ||
-                            showtimeDetails.movie.image ||
-                            "/fallback.jpg"
-                          }
-                          alt={showtimeDetails.movie.title}
-                          className="w-full rounded-md shadow-sm"
-                        />
-                      </div>
-
-                      {/* Thông tin phim */}
-                      <div className="w-2/3">
-                        <h3 className="text-lg font-bold text-text-primary mb-2 line-clamp-2">
-                          {showtimeDetails.movie.title}
-                        </h3>
-                        <div className="space-y-2 text-sm">
-                          <div>
-                            <span className="font-medium text-text-primary">
-                              Rạp:{" "}
-                            </span>
-                            <span className="text-text-secondary">
-                              {showtimeDetails.hall?.cinema?.name}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-text-primary">
-                              Phòng:{" "}
-                            </span>
-                            <span className="text-text-secondary">
-                              {showtimeDetails.hall?.name}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-text-primary">
-                              Suất chiếu:{" "}
-                            </span>
-                            <span className="text-text-secondary">
-                              {new Date(
-                                showtimeDetails.startTime
-                              ).toLocaleDateString("vi-VN")}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-text-primary">
-                              Thời gian:{" "}
-                            </span>
-                            <span className="text-text-secondary">
-                              {new Date(
-                                showtimeDetails.startTime
-                              ).toLocaleTimeString("vi-VN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </div>
+                    {/* Thông tin phim */}
+                    <div className="w-2/3">
+                      <h3 className="text-lg font-bold text-text-primary mb-3 line-clamp-2">
+                        {showtimeDetails.movie.title}
+                      </h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-start">
+                          <span className="font-medium text-text-primary w-20">
+                            Rạp:{" "}
+                          </span>
+                          <span className="text-text-secondary flex-1">
+                            {showtimeDetails.hall?.cinema?.name}
+                          </span>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="font-medium text-text-primary w-20">
+                            Phòng:{" "}
+                          </span>
+                          <span className="text-text-secondary flex-1">
+                            {showtimeDetails.hall?.name}
+                          </span>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="font-medium text-text-primary w-20">
+                            Suất chiếu:{" "}
+                          </span>
+                          <span className="text-text-secondary flex-1">
+                            {new Date(
+                              showtimeDetails.startTime
+                            ).toLocaleDateString("vi-VN")}
+                          </span>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="font-medium text-text-primary w-20">
+                            Thời gian:{" "}
+                          </span>
+                          <span className="text-text-secondary flex-1">
+                            {new Date(
+                              showtimeDetails.startTime
+                            ).toLocaleTimeString("vi-VN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}{" "}
+                            -{" "}
+                            {new Date(
+                              showtimeDetails.endTime
+                            ).toLocaleTimeString("vi-VN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
                         </div>
                       </div>
                     </div>
-
-                    <Divider className="my-4" />
-
-                    {/* Thông tin ghế */}
-                    <div>
-                      <h4 className="font-medium text-text-primary mb-2">
-                        Ghế đã chọn:
-                      </h4>
-                      {renderSelectedSeatsInfo()}
-                    </div>
-
-                    <Divider className="my-4" />
-
-                    {/* Thông tin giá */}
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-text-primary">
-                        Tổng tiền:
-                      </span>
-                      <span className="text-xl font-bold text-primary">
-                        {totalPrice.toLocaleString("vi-VN")}đ
-                      </span>
-                    </div>
                   </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Thông tin đặt vé */}
+            <Card className="content-card shadow-md border border-border-light">
+              <div className="space-y-4">
+                <h4 className="text-lg font-bold text-text-primary mb-1">
+                  Thông tin đặt vé
+                </h4>
+                <Divider className="my-3" />
+
+                <div className="space-y-3">
+                  <h4 className="font-medium text-text-primary">
+                    Ghế đã chọn:
+                  </h4>
+                  {renderSelectedSeatsInfo()}
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-light-bg-secondary rounded-lg">
+                  <span className="font-medium text-text-primary">
+                    Số lượng ghế:
+                  </span>
+                  <span className="font-bold text-primary">
+                    {selectedSeats.length}
+                  </span>
+                </div>
+
+                <Divider className="my-4" />
+
+                <div className="flex justify-between items-center bg-primary bg-opacity-5 p-4 rounded-lg">
+                  <span className="font-medium text-text-primary">
+                    Tổng tiền:
+                  </span>
+                  <span className="text-lg font-bold text-primary">
+                    {totalPrice.toLocaleString("vi-VN")}đ
+                  </span>
+                </div>
+
+                {currentStep < 2 && currentStep !== 1.5 && (
+                  <Button
+                    type="default"
+                    size="large"
+                    block
+                    onClick={handlePrevious}
+                    className="bg-white border border-gray-300 hover:bg-gray-50 text-text-primary font-medium rounded-lg mt-4"
+                  >
+                    QUAY LẠI CHỌN GHẾ
+                  </Button>
                 )}
-              </Card>
-            </Col>
-          </Row>
-        )}
-      </div>
-      <Footer />
-    </>
+              </div>
+            </Card>
+          </Col>
+
+          {/* Phần chính: nội dung các bước thanh toán */}
+          <Col xs={24} md={16} lg={18} className="order-2">
+            <Card className="content-card shadow-md border border-border-light">
+              <Steps
+                current={currentStep === 1.5 ? 1 : currentStep}
+                className="mb-8"
+                // Tiếp tục từ phần:
+                // <Steps
+                //   current={currentStep === 1.5 ? 1 : currentStep}
+                //   className="mb-8"
+
+                items={[
+                  {
+                    title: "Phương thức thanh toán",
+                    icon: <CreditCardOutlined />,
+                  },
+                  {
+                    title: "Hoàn tất",
+                    icon: <TagOutlined />,
+                  },
+                ]}
+              />
+
+              {/* Nội dung chính của bước hiện tại */}
+              <div className="step-content p-4">{renderCurrentStep()}</div>
+            </Card>
+          </Col>
+        </Row>
+      )}
+
+      {/* Hiển thị kết quả khi quay lại từ VNPay */}
+      {searchParams.get("vnp_ResponseCode") && (
+        <Modal
+          title={
+            paymentSuccess
+              ? "Thanh toán thành công"
+              : "Thanh toán không thành công"
+          }
+          open={true}
+          footer={null}
+          closable={false}
+        >
+          <div className="text-center py-4">
+            {paymentSuccess ? (
+              <>
+                <CheckCircleOutlined
+                  style={{ fontSize: "48px", color: "#52c41a" }}
+                />
+                <Title level={4} className="mt-4">
+                  Thanh toán của bạn đã được xử lý thành công!
+                </Title>
+                <Text>Cảm ơn bạn đã đặt vé. Chúc bạn xem phim vui vẻ!</Text>
+
+                <Button
+                  type="primary"
+                  size="large"
+                  className="mt-4"
+                  onClick={() => navigate("/")}
+                >
+                  Về trang chủ
+                </Button>
+              </>
+            ) : (
+              <>
+                <CloseCircleOutlined
+                  style={{ fontSize: "48px", color: "#f5222d" }}
+                />
+                <Title level={4} className="mt-4">
+                  Thanh toán không thành công
+                </Title>
+                <Text className="text-danger">
+                  {paymentError ||
+                    "Đã có lỗi xảy ra trong quá trình thanh toán."}
+                </Text>
+
+                <div className="flex justify-center gap-4 mt-4">
+                  <Button
+                    type="default"
+                    onClick={() => {
+                      setCurrentStep(1);
+                      window.history.replaceState(
+                        {},
+                        "",
+                        window.location.pathname
+                      );
+                    }}
+                  >
+                    Thử lại
+                  </Button>
+                  <Button type="primary" onClick={() => navigate("/")}>
+                    Về trang chủ
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
+    </div>
   );
 };
 

@@ -2,64 +2,102 @@ import React from 'react';
 import {
   Edit,
   SimpleForm,
-  SelectInput,
+  TextInput,
   ReferenceInput,
-  TextField,
-  DateField,
+  SelectInput,
   NumberInput,
+  DateInput,
   required,
-  useNotify,
-  useRedirect,
   useRecordContext,
-  FormDataConsumer
 } from 'react-admin';
+import { Box, Typography, Grid } from '@mui/material';
 
 const TicketTitle = () => {
   const record = useRecordContext();
-  return record ? <span>Edit Ticket #{record.id}</span> : null;
+  return record ? <span>Vé #{record.id}</span> : null;
 };
 
+const statusChoices = [
+  { id: 'PENDING', name: 'Chờ xử lý' },
+  { id: 'CONFIRMED', name: 'Đã xác nhận' },
+  { id: 'COMPLETED', name: 'Hoàn thành' },
+  { id: 'CANCELLED', name: 'Đã hủy' },
+];
+
 const TicketEdit = () => {
-  const notify = useNotify();
-  const redirect = useRedirect();
-  
-  const onSuccess = () => {
-    notify('Ticket updated successfully');
-    redirect('show', 'tickets');
-  };
-  
   return (
-    <Edit title={<TicketTitle />} mutationOptions={{ onSuccess }}>
+    <Edit title={<TicketTitle />}>
       <SimpleForm>
-        <TextField source="id" disabled />
-        <ReferenceInput source="userId" reference="users" disabled>
-          <TextField source="name" />
-        </ReferenceInput>
-        <ReferenceInput source="showtimeId" reference="showtimes" disabled>
-          <TextField source="movie.title" />
-        </ReferenceInput>
-        <TextField source="seat.row" label="Row" disabled />
-        <TextField source="seat.column" label="Seat" disabled />
-        <NumberInput source="price" validate={required()} />
-        <SelectInput 
-          source="status" 
-          choices={[
-            { id: 'PENDING', name: 'Pending' },
-            { id: 'CONFIRMED', name: 'Confirmed' },
-            { id: 'COMPLETED', name: 'Completed' },
-            { id: 'CANCELLED', name: 'Cancelled' }
-          ]} 
-          validate={required()}
-        />
-        <FormDataConsumer>
-          {({ formData }) => (
-            formData.status === 'CANCELLED' ? (
-              <div style={{ color: 'red', marginTop: 10 }}>
-                Warning: When changing status to CANCELLED, the seat will be released for booking again.
-              </div>
-            ) : null
-          )}
-        </FormDataConsumer>
+        <Typography variant="h6" gutterBottom>
+          Chỉnh sửa thông tin vé
+        </Typography>
+        
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <Box flex={1}>
+              <ReferenceInput source="userId" reference="users">
+                <SelectInput 
+                  label="Khách hàng" 
+                  validate={required()} 
+                  optionText="name" 
+                  fullWidth
+                />
+              </ReferenceInput>
+            </Box>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Box flex={1}>
+              <ReferenceInput source="showtimeId" reference="showtimes">
+                <SelectInput 
+                  label="Suất chiếu" 
+                  validate={required()} 
+                  optionText={record => 
+                    record ? `${record.movie?.title} (${new Date(record.startTime).toLocaleString()})` : ''
+                  } 
+                  fullWidth
+                />
+              </ReferenceInput>
+            </Box>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Box flex={1}>
+              <ReferenceInput source="seatId" reference="seats">
+                <SelectInput 
+                  label="Ghế" 
+                  validate={required()} 
+                  optionText={record => record ? `${record.row}${record.column}` : ''} 
+                  fullWidth
+                />
+              </ReferenceInput>
+            </Box>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Box flex={1}>
+              <NumberInput 
+                source="price" 
+                label="Giá vé"
+                validate={required()}
+                min={0}
+                fullWidth
+              />
+            </Box>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Box flex={1}>
+              <SelectInput
+                source="status"
+                label="Trạng thái"
+                validate={required()}
+                choices={statusChoices}
+                fullWidth
+              />
+            </Box>
+          </Grid>
+        </Grid>
       </SimpleForm>
     </Edit>
   );

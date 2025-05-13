@@ -13,9 +13,11 @@ import {
 } from "antd";
 import { seatApi } from "../../api/seatApi";
 import { showtimeApi } from "../../api/showtimeApi";
-import { HomeOutlined, TagOutlined, VideoCameraOutlined } from "@ant-design/icons";
-import AppHeader from "../../components/common/AppHeader";
-import Footer from "../../components/common/Footer";
+import {
+  HomeOutlined,
+  TagOutlined,
+  VideoCameraOutlined,
+} from "@ant-design/icons";
 
 const { Title, Text } = Typography;
 
@@ -52,64 +54,76 @@ const SeatSelectionPage = () => {
 
   // Kiểm tra xem người dùng đã đăng nhập chưa
   // Thêm hàm xóa dữ liệu cũ vào useEffect đầu tiên
-useEffect(() => {
-  const token = localStorage.getItem('token');
-  const userId = localStorage.getItem('userId');
-  
-  if (!token || !userId) {
-    message.warning('Vui lòng đăng nhập để đặt vé');
-    navigate('/login');
-  } else {
-    // Kiểm tra nếu người dùng đang bắt đầu quy trình mới
-    const currentPath = window.location.pathname;
-    const isNewBookingProcess = currentPath.includes('/booking/seats') && !currentPath.includes('/booking/payment');
-    
-    // Nếu đây là phiên đặt vé mới và không phải quay lại từ trang thanh toán
-    if (isNewBookingProcess && !sessionStorage.getItem('returningFromPayment')) {
-      // Xóa dữ liệu ghế cũ
-      localStorage.removeItem('selectedSeats');
-      localStorage.removeItem('showtimeId');
-      console.log('Đã xóa dữ liệu ghế của phiên trước');
-    }
-  }
-}, [navigate]);
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const userId = localStorage.getItem("userId");
 
-// Sửa lại useEffect kiểm tra ghế đã chọn trước đó
-useEffect(() => {
-  const checkPreviousSelection = async () => {
-    try {
-      const storedSeats = JSON.parse(localStorage.getItem("selectedSeats") || "[]");
-      const storedShowtimeId = localStorage.getItem("showtimeId");
-      
-      // Chỉ khôi phục lại ghế đã chọn nếu:
-      // 1. Có ghế được lưu trữ
-      // 2. Đang ở cùng suất chiếu
-      // 3. Người dùng đang quay lại từ trang thanh toán
-      const returningFromPayment = sessionStorage.getItem('returningFromPayment') === 'true';
-      
-      if (storedSeats.length > 0 && storedShowtimeId === showtimeId && returningFromPayment) {
-        console.log("Người dùng quay lại từ trang thanh toán, mở khóa ghế");
-        const seatIds = storedSeats.map(seat => seat.id);
-        
-        // Mở khóa ghế
-        await seatApi.unlockSeats(seatIds);
-        console.log("Đã mở khóa ghế từ phiên trước:", seatIds);
-        
-        // Thiết lập lại ghế đã chọn trước đó
-        setSelectedSeats(seatIds);
-        
-        // Xóa trạng thái quay lại sau khi đã xử lý
-        sessionStorage.removeItem('returningFromPayment');
+    if (!token || !userId) {
+      message.warning("Vui lòng đăng nhập để đặt vé");
+      navigate("/login");
+    } else {
+      // Kiểm tra nếu người dùng đang bắt đầu quy trình mới
+      const currentPath = window.location.pathname;
+      const isNewBookingProcess =
+        currentPath.includes("/booking/seats") &&
+        !currentPath.includes("/booking/payment");
+
+      // Nếu đây là phiên đặt vé mới và không phải quay lại từ trang thanh toán
+      if (
+        isNewBookingProcess &&
+        !sessionStorage.getItem("returningFromPayment")
+      ) {
+        // Xóa dữ liệu ghế cũ
+        localStorage.removeItem("selectedSeats");
+        localStorage.removeItem("showtimeId");
+        console.log("Đã xóa dữ liệu ghế của phiên trước");
       }
-    } catch (error) {
-      console.error("Lỗi khi mở khóa ghế:", error);
     }
-  };
+  }, [navigate]);
 
-  if (showtimeId) {
-    checkPreviousSelection();
-  }
-}, [showtimeId]);
+  // Sửa lại useEffect kiểm tra ghế đã chọn trước đó
+  useEffect(() => {
+    const checkPreviousSelection = async () => {
+      try {
+        const storedSeats = JSON.parse(
+          localStorage.getItem("selectedSeats") || "[]"
+        );
+        const storedShowtimeId = localStorage.getItem("showtimeId");
+
+        // Chỉ khôi phục lại ghế đã chọn nếu:
+        // 1. Có ghế được lưu trữ
+        // 2. Đang ở cùng suất chiếu
+        // 3. Người dùng đang quay lại từ trang thanh toán
+        const returningFromPayment =
+          sessionStorage.getItem("returningFromPayment") === "true";
+
+        if (
+          storedSeats.length > 0 &&
+          storedShowtimeId === showtimeId &&
+          returningFromPayment
+        ) {
+          console.log("Người dùng quay lại từ trang thanh toán, mở khóa ghế");
+          const seatIds = storedSeats.map((seat) => seat.id);
+
+          // Mở khóa ghế
+          await seatApi.unlockSeats(seatIds);
+          console.log("Đã mở khóa ghế từ phiên trước:", seatIds);
+
+          // Thiết lập lại ghế đã chọn trước đó
+          setSelectedSeats(seatIds);
+
+          // Xóa trạng thái quay lại sau khi đã xử lý
+          sessionStorage.removeItem("returningFromPayment");
+        }
+      } catch (error) {
+        console.error("Lỗi khi mở khóa ghế:", error);
+      }
+    };
+
+    if (showtimeId) {
+      checkPreviousSelection();
+    }
+  }, [showtimeId]);
 
   // Lấy thông tin suất chiếu và danh sách ghế khi component mount
   useEffect(() => {
@@ -119,7 +133,7 @@ useEffect(() => {
         // Lấy thông tin chi tiết suất chiếu
         const showtimeData = await showtimeApi.getShowtimeById(showtimeId);
         setShowtimeDetails(showtimeData);
-  
+
         // Lấy danh sách ghế
         const seatsData = await seatApi.getSeatsByShowtime(showtimeId);
         console.log("Seats data fetched:", seatsData);
@@ -131,7 +145,7 @@ useEffect(() => {
         setLoading(false);
       }
     };
-  
+
     if (showtimeId) {
       fetchData();
     }
@@ -260,48 +274,58 @@ useEffect(() => {
     return seatsByRow;
   };
 
-  // Render chú thích màu ghế 
+  // Render chú thích màu ghế - Đã cải tiến với màu sắc rõ ràng hơn
   const renderSeatLegend = () => (
-    <div className="mt-8 border-t border-gray-200 pt-6">
-      <div className="legend-title w-full text-center mb-4 font-medium text-gray-600">
-        Chú thích
+    <div className="mt-8 pt-6 border-t border-gray-200">
+      <div className="text-center mb-6">
+        <h4 className="text-lg font-medium text-text-primary">Chú thích</h4>
       </div>
-      
-      <div className="flex flex-wrap justify-center">
-        {/* Loại ghế - Bên trái */}
-        <div className="w-1/2 pr-4">
-          <h5 className="text-center font-medium text-gray-600 mb-2">Loại ghế</h5>
-          <div className="flex flex-wrap justify-center gap-4">
+
+      <div className="flex flex-wrap md:flex-nowrap justify-center gap-4 md:gap-8">
+        {/* Loại ghế */}
+        <div className="w-full md:w-1/2 p-4 bg-light-bg-secondary rounded-lg">
+          <h5 className="text-center font-medium text-text-primary mb-4 pb-2 border-b border-gray-200">
+            Loại ghế
+          </h5>
+          <div className="flex flex-wrap justify-center gap-6">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md border-2 border-blue-500"></div>
+              <div className="w-8 h-8 flex items-center justify-center rounded-md bg-blue-100 border-2 border-blue-500">
+                <span className="text-xs text-blue-700 font-bold">A1</span>
+              </div>
               <span className="text-sm text-text-secondary">Ghế thường</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md border-2 border-amber-500"></div>
+              <div className="w-8 h-8 flex items-center justify-center rounded-md bg-amber-100 border-2 border-amber-500">
+                <span className="text-xs text-amber-700 font-bold">B2</span>
+              </div>
               <span className="text-sm text-text-secondary">Ghế VIP</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md border-2 border-purple-600 w-10"></div>
+              <div className="w-16 h-8 flex items-center justify-center rounded-md bg-purple-100 border-2 border-purple-600">
+                <span className="text-xs text-purple-700 font-bold">C3</span>
+              </div>
               <span className="text-sm text-text-secondary">Ghế đôi</span>
             </div>
           </div>
         </div>
-        
-        {/* Trạng thái ghế - Bên phải */}
-        <div className="w-1/2 pl-4 border-l border-gray-200">
-          <h5 className="text-center font-medium text-gray-600 mb-2">Trạng thái ghế</h5>
-          <div className="flex flex-wrap justify-center gap-4">
+
+        {/* Trạng thái ghế */}
+        <div className="w-full md:w-1/2 p-4 bg-light-bg-secondary rounded-lg">
+          <h5 className="text-center font-medium text-text-primary mb-4 pb-2 border-b border-gray-200">
+            Trạng thái ghế
+          </h5>
+          <div className="flex flex-wrap justify-center gap-6">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-primary"></div>
-              <span className="text-sm text-text-secondary">Ghế đang chọn</span>
+              <div className="w-8 h-8 flex items-center justify-center rounded-md bg-primary text-white font-bold">
+                <span className="text-xs">A1</span>
+              </div>
+              <span className="text-sm text-text-secondary">Đang chọn</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-gray-600"></div>
-              <span className="text-sm text-text-secondary">Ghế đã đặt</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-gray-400"></div>
-              <span className="text-sm text-text-secondary">Ghế đang khóa</span>
+              <div className="w-8 h-8 flex items-center justify-center rounded-md bg-gray-600 text-white font-bold">
+                <span className="text-xs">B2</span>
+              </div>
+              <span className="text-sm text-text-secondary">Đã đặt</span>
             </div>
           </div>
         </div>
@@ -309,61 +333,82 @@ useEffect(() => {
     </div>
   );
 
-  // Render sơ đồ ghế 
+  // Render sơ đồ ghế - Đã cải tiến với màu sắc rõ ràng hơn
   const renderSeats = () => {
     const seatsByRow = groupSeatsByRow();
     const rows = Object.keys(seatsByRow).sort();
 
     if (rows.length === 0) {
-      return <div className="text-center py-8 text-text-secondary">Không có thông tin ghế</div>;
+      return (
+        <div className="text-center py-8 text-text-secondary">
+          Không có thông tin ghế
+        </div>
+      );
     }
 
     // Xác định số lượng cột lớn nhất
-    const maxColumns = Math.max(...rows.map(row => 
-      seatsByRow[row].reduce((max, seat) => {
-        const width = seat.type === "COUPLE" ? 2 : 1;
-        return Math.max(max, parseInt(seat.column) + width - 1);
-      }, 0)
-    ));
+    const maxColumns = Math.max(
+      ...rows.map((row) =>
+        seatsByRow[row].reduce((max, seat) => {
+          const width = seat.type === "COUPLE" ? 2 : 1;
+          return Math.max(max, parseInt(seat.column) + width - 1);
+        }, 0)
+      )
+    );
 
     return (
-      <div className="overflow-x-auto pb-4 mt-6">
+      <div className="overflow-x-auto pb-6 mt-6">
         <div className="mx-auto flex flex-col items-center">
           {rows.map((row) => (
-            <div className="flex items-center mb-2 justify-center w-full" key={row}>
-              <div className="w-6 text-center font-bold text-text-secondary">{row}</div>
-              <div className="flex gap-2 justify-center" style={{ width: `${maxColumns * 40}px` }}>
+            <div
+              className="flex items-center mb-3 justify-center w-full"
+              key={row}
+            >
+              <div className="w-8 h-8 flex items-center justify-center rounded-full bg-light-bg-secondary text-text-primary font-bold mr-2">
+                {row}
+              </div>
+              <div
+                className="flex gap-2 justify-center"
+                style={{ width: `${maxColumns * 40}px` }}
+              >
                 {seatsByRow[row]
                   .sort((a, b) => parseInt(a.column) - parseInt(b.column))
                   .map((seat) => {
                     // Xác định các class cho ghế
-                    let seatClasses = "flex items-center justify-center rounded-md cursor-pointer text-xs font-medium transition-all";
-                    
+                    let seatClasses =
+                      "flex items-center justify-center rounded-md text-xs font-bold transition-all shadow-sm cursor-pointer";
+
                     // Kích thước ghế
                     if (seat.type === "COUPLE") {
-                      seatClasses += " w-14 h-7"; // Ghế đôi
+                      seatClasses += " w-16 h-8"; // Ghế đôi - đã tăng kích thước
                     } else {
-                      seatClasses += " w-7 h-7"; // Ghế thường và VIP
+                      seatClasses += " w-8 h-8"; // Ghế thường và VIP - đã tăng kích thước
                     }
-                    
+
                     // Xác định style cho ghế dựa trên trạng thái và loại
                     if (seat.status === "BOOKED") {
                       // Ghế đã đặt
-                      seatClasses += " bg-gray-600 text-white cursor-not-allowed";
+                      seatClasses +=
+                        " bg-gray-600 text-white cursor-not-allowed";
                     } else if (seat.status === "LOCKED") {
-                      // Ghế đang khóa
-                      seatClasses += " bg-gray-400 text-white cursor-not-allowed";
+                      // Bỏ qua ghế đang khóa và xử lý như ghế đã đặt
+                      seatClasses +=
+                        " bg-gray-600 text-white cursor-not-allowed";
                     } else if (selectedSeats.includes(seat.id)) {
                       // Ghế đang chọn
-                      seatClasses += " bg-primary text-white hover:bg-primary-dark";
+                      seatClasses +=
+                        " bg-primary text-white hover:bg-primary-dark";
                     } else if (seat.status === "AVAILABLE") {
-                      // Ghế khả dụng - Thay đổi từ nền sang viền màu
+                      // Ghế khả dụng - Thêm màu nền nhạt để dễ phân biệt
                       if (seat.type === "VIP") {
-                        seatClasses += " bg-white text-text-primary border-2 border-amber-500 hover:bg-amber-100";
+                        seatClasses +=
+                          " bg-amber-100 text-amber-700 border-2 border-amber-500 hover:bg-amber-200";
                       } else if (seat.type === "COUPLE") {
-                        seatClasses += " bg-white text-text-primary border-2 border-purple-600 hover:bg-purple-100";
+                        seatClasses +=
+                          " bg-purple-100 text-purple-700 border-2 border-purple-600 hover:bg-purple-200";
                       } else {
-                        seatClasses += " bg-white text-text-primary border-2 border-blue-500 hover:bg-blue-100";
+                        seatClasses +=
+                          " bg-blue-100 text-blue-700 border-2 border-blue-500 hover:bg-blue-200";
                       }
                     }
 
@@ -386,9 +431,14 @@ useEffect(() => {
     );
   };
 
-  // Hiển thị thông tin các ghế đã chọn
+  // Hiển thị thông tin các ghế đã chọn - Đã cải tiến với màu sắc phù hợp
   const renderSelectedSeatsInfo = () => {
-    if (selectedSeats.length === 0) return <span className="text-text-secondary italic">Chưa chọn ghế</span>;
+    if (selectedSeats.length === 0)
+      return (
+        <div className="flex items-center justify-center h-12 bg-light-bg-secondary rounded-lg">
+          <span className="text-text-secondary italic">Chưa chọn ghế</span>
+        </div>
+      );
 
     // Hệ số giá theo loại ghế
     const priceMultiplier = {
@@ -411,16 +461,26 @@ useEffect(() => {
 
           // Xác định màu tag dựa trên loại ghế
           let tagColor;
+          let tagBgClass = "";
+
           if (seat.type === "VIP") {
             tagColor = "gold";
+            tagBgClass = "bg-amber-100 border border-amber-500 text-amber-700";
           } else if (seat.type === "COUPLE") {
             tagColor = "purple";
+            tagBgClass =
+              "bg-purple-100 border border-purple-600 text-purple-700";
           } else {
             tagColor = "blue";
+            tagBgClass = "bg-blue-100 border border-blue-500 text-blue-700";
           }
 
           return (
-            <Tag key={seatId} color={tagColor}>
+            <Tag
+              key={seatId}
+              color={tagColor}
+              className={`px-3 py-1.5 rounded-lg font-medium ${tagBgClass}`}
+            >
               {seat.row}
               {seat.column} - {price.toLocaleString("vi-VN")}đ
             </Tag>
@@ -433,22 +493,51 @@ useEffect(() => {
   // Breadcrumb cải tiến
   const BreadcrumbNavigation = () => (
     <div className="breadcrumb-container mb-6">
-      <div className="flex items-center py-2 px-4 bg-gray-50 rounded-lg shadow-sm">
+      <div className="flex items-center py-3 px-4 bg-light-bg-secondary rounded-lg shadow-sm">
         <div className="flex items-center text-primary">
           <HomeOutlined className="mr-2" />
-          <a href="/" className="text-primary hover:underline font-medium">Trang chủ</a>
+          <a href="/" className="text-primary hover:underline font-medium">
+            Trang chủ
+          </a>
         </div>
         <div className="mx-2 text-gray-400">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="feather feather-chevron-right"
+          >
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </div>
         <div className="flex items-center text-primary">
           <VideoCameraOutlined className="mr-2" />
-          <a href="/movies" className="text-primary hover:underline font-medium">Phim</a>
+          <a
+            href="/movies"
+            className="text-primary hover:underline font-medium"
+          >
+            Phim
+          </a>
         </div>
         <div className="mx-2 text-gray-400">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="feather feather-chevron-right"
+          >
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </div>
@@ -460,65 +549,109 @@ useEffect(() => {
     </div>
   );
 
+  // Render màn hình cinema - Đã cải tiến
+  const renderScreen = () => (
+    <div className="mb-10 relative">
+      <div className="w-full mx-auto h-16 bg-gradient-to-r from-gray-700 via-gray-800 to-gray-700 rounded-t-lg flex items-center justify-center text-white font-medium shadow-lg">
+        MÀN HÌNH
+      </div>
+      <div className="w-full mx-auto h-4 bg-gradient-to-b from-gray-500 to-transparent"></div>
+      <div className="mt-3 w-full mx-auto flex justify-center">
+        <div className="w-1/2 h-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
-      <>
-        <AppHeader />
-        <div className="flex flex-col items-center justify-center min-h-screen">
-          <Spin size="large" />
-          <h4 className="mt-4 text-text-primary font-medium">Đang tải thông tin ghế...</h4>
-        </div>
-        <Footer />
-      </>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-light-bg">
+        <Spin size="large" />
+        <h4 className="mt-6 text-text-primary font-medium">
+          Đang tải thông tin ghế...
+        </h4>
+      </div>
     );
   }
 
   return (
-    <>
-      <AppHeader />
-      <div className="max-w-6xl mx-auto px-4 py-6 pt-24">
+    <div className="bg-light-bg min-h-screen">
+      {/* Sử dụng container-fluid thay vì max-w-6xl để mở rộng toàn màn hình */}
+      <div className="w-full mx-auto px-4 py-6 pt-24">
         {/* Breadcrumb cải tiến */}
         <BreadcrumbNavigation />
 
         <Row gutter={[24, 24]}>
-          {/* Thông tin phim */}
-          <Col xs={24} lg={8} className="order-1 lg:order-1">
-            <Card className="content-card shadow-md mb-6">
+          {/* Thông tin phim - Giảm kích thước cột bên trái */}
+          <Col xs={24} lg={6} className="order-1 lg:order-1">
+            <Card className="content-card shadow-md mb-6 border border-border-light">
               {showtimeDetails && showtimeDetails.movie && (
                 <div className="flex flex-col">
                   <div className="flex items-start">
-                    {/* Poster phim - đã thu nhỏ */}
+                    {/* Poster phim */}
                     <div className="w-1/3 mr-4">
                       <img
-                        src={showtimeDetails.movie.poster || showtimeDetails.movie.posterUrl || showtimeDetails.movie.image || "/fallback.jpg"}
+                        src={
+                          showtimeDetails.movie.poster ||
+                          showtimeDetails.movie.posterUrl ||
+                          showtimeDetails.movie.image ||
+                          "/fallback.jpg"
+                        }
                         alt={showtimeDetails.movie.title}
-                        className="w-full rounded-md shadow-sm"
+                        className="w-full rounded-lg shadow-sm object-cover"
+                        style={{ aspectRatio: "2/3" }}
                       />
                     </div>
-                    
+
                     {/* Thông tin phim */}
                     <div className="w-2/3">
-                      <h3 className="text-lg font-bold text-text-primary mb-2 line-clamp-2">{showtimeDetails.movie.title}</h3>
+                      <h3 className="text-lg font-bold text-text-primary mb-3 line-clamp-2">
+                        {showtimeDetails.movie.title}
+                      </h3>
                       <div className="space-y-2 text-sm">
-                        <div>
-                          <span className="font-medium text-text-primary">Rạp: </span>
-                          <span className="text-text-secondary">{showtimeDetails.hall?.cinema?.name}</span>
-                        </div>
-                        <div>
-                          <span className="font-medium text-text-primary">Phòng: </span>
-                          <span className="text-text-secondary">{showtimeDetails.hall?.name}</span>
-                        </div>
-                        <div>
-                          <span className="font-medium text-text-primary">Suất chiếu: </span>
-                          <span className="text-text-secondary">
-                            {new Date(showtimeDetails.startTime).toLocaleDateString("vi-VN")}
+                        <div className="flex items-start">
+                          <span className="font-medium text-text-primary w-20">
+                            Rạp:{" "}
+                          </span>
+                          <span className="text-text-secondary flex-1">
+                            {showtimeDetails.hall?.cinema?.name}
                           </span>
                         </div>
-                        <div>
-                          <span className="font-medium text-text-primary">Thời gian: </span>
-                          <span className="text-text-secondary">
-                            {new Date(showtimeDetails.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} -{" "}
-                            {new Date(showtimeDetails.endTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                        <div className="flex items-start">
+                          <span className="font-medium text-text-primary w-20">
+                            Phòng:{" "}
+                          </span>
+                          <span className="text-text-secondary flex-1">
+                            {showtimeDetails.hall?.name}
+                          </span>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="font-medium text-text-primary w-20">
+                            Suất chiếu:{" "}
+                          </span>
+                          <span className="text-text-secondary flex-1">
+                            {new Date(
+                              showtimeDetails.startTime
+                            ).toLocaleDateString("vi-VN")}
+                          </span>
+                        </div>
+                        <div className="flex items-start">
+                          <span className="font-medium text-text-primary w-20">
+                            Thời gian:{" "}
+                          </span>
+                          <span className="text-text-secondary flex-1">
+                            {new Date(
+                              showtimeDetails.startTime
+                            ).toLocaleTimeString("vi-VN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}{" "}
+                            -{" "}
+                            {new Date(
+                              showtimeDetails.endTime
+                            ).toLocaleTimeString("vi-VN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </span>
                         </div>
                       </div>
@@ -529,25 +662,35 @@ useEffect(() => {
             </Card>
 
             {/* Thông tin đặt vé */}
-            <Card className="content-card shadow-md">
+            <Card className="content-card shadow-md border border-border-light">
               <div className="space-y-4">
-                <h4 className="text-lg font-bold text-text-primary mb-1">Thông tin đặt vé</h4>
+                <h4 className="text-lg font-bold text-text-primary mb-1">
+                  Thông tin đặt vé
+                </h4>
                 <Divider className="my-3" />
-                
-                <div className="space-y-2">
-                  <h4 className="font-medium text-text-primary">Ghế đã chọn:</h4>
+
+                <div className="space-y-3">
+                  <h4 className="font-medium text-text-primary">
+                    Ghế đã chọn:
+                  </h4>
                   {renderSelectedSeatsInfo()}
                 </div>
 
-                <div className="flex justify-between items-center">
-                  <span className="font-medium text-text-primary">Số lượng ghế:</span>
-                  <span className="font-bold">{selectedSeats.length}</span>
+                <div className="flex justify-between items-center p-3 bg-light-bg-secondary rounded-lg">
+                  <span className="font-medium text-text-primary">
+                    Số lượng ghế:
+                  </span>
+                  <span className="font-bold text-primary">
+                    {selectedSeats.length}
+                  </span>
                 </div>
 
-                <Divider className="my-3" />
-                
-                <div className="flex justify-between items-center">
-                  <span className="font-medium text-text-primary">Tổng tiền:</span>
+                <Divider className="my-4" />
+
+                <div className="flex justify-between items-center bg-primary bg-opacity-5 p-4 rounded-lg">
+                  <span className="font-medium text-text-primary">
+                    Tổng tiền:
+                  </span>
                   <span className="text-lg font-bold text-primary">
                     {totalPrice.toLocaleString("vi-VN")}đ
                   </span>
@@ -560,7 +703,7 @@ useEffect(() => {
                   onClick={handleContinue}
                   loading={lockingSeats}
                   disabled={selectedSeats.length === 0}
-                  className="bg-button-gradient border-none rounded-md font-bold h-12 mt-4 hover:bg-button-gradient-hover hover:shadow-button-hover"
+                  className="bg-button-gradient border-none rounded-lg font-bold h-12 mt-4 hover:bg-button-gradient-hover hover:shadow-button-hover"
                 >
                   TIẾP TỤC THANH TOÁN
                 </Button>
@@ -570,22 +713,18 @@ useEffect(() => {
 
           {/* Sơ đồ ghế */}
           <Col xs={24} lg={16} className="order-2 lg:order-2">
-            <Card className="content-card shadow-md">
-              {/* Màn hình - Cải thiện */}
-              <div className="mb-8 relative">
-                <div className="w-3/4 mx-auto h-10 bg-gradient-to-b from-gray-700 to-gray-800 rounded-t-lg flex items-center justify-center text-white text-sm font-medium shadow-md">
-                  MÀN HÌNH
-                </div>
-                <div className="w-3/4 mx-auto h-3 bg-gradient-to-b from-gray-400 to-transparent rounded-b-lg"></div>
-              </div>
+            <Card className="content-card shadow-md border border-border-light">
+
+              {/* Màn hình - Đã cải tiến */}
+              {renderScreen()}
 
               {/* Sơ đồ ghế */}
               <div className="flex flex-col items-center">
                 {seats.length > 0 ? (
                   renderSeats()
                 ) : (
-                  <div className="py-8 text-center">
-                    <Text type="warning">
+                  <div className="py-12 text-center bg-light-bg-secondary rounded-lg">
+                    <Text type="warning" className="text-lg">
                       Không có thông tin ghế cho suất chiếu này
                     </Text>
                   </div>
@@ -598,8 +737,7 @@ useEffect(() => {
           </Col>
         </Row>
       </div>
-      <Footer />
-    </>
+    </div>
   );
 };
 

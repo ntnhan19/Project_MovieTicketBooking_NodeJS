@@ -9,6 +9,8 @@ const {
 } = require("vnpay");
 const prisma = require("../../prisma/prisma");
 const paymentService = require("./paymentService");
+const crypto = require("crypto");
+const { URLSearchParams } = require("url");
 
 /**
  * Khởi tạo instance VNPay với cấu hình
@@ -28,6 +30,85 @@ const initVNPay = () => {
 };
 
 /**
+ * Tạo chữ ký VNPay từ các tham số
+ * @param {Object} params - Các tham số thanh toán
+ * @param {string} secretKey - Khóa bí mật VNPay
+ * @returns {string} Chữ ký đã được tạo
+ */
+const createVNPaySignature = (params, secretKey) => {
+  // Tạo bản sao để tránh thay đổi dữ liệu gốc
+  const sortedParams = {};
+
+  // Sắp xếp các tham số theo thứ tự chữ cái
+  const sortedKeys = Object.keys(params).sort();
+
+  // Lọc và thêm vào đối tượng đã sắp xếp, đảm bảo chuyển tất cả thành chuỗi
+  sortedKeys.forEach((key) => {
+    if (
+      params[key] !== undefined &&
+      params[key] !== null &&
+      params[key] !== "" &&
+      key.startsWith("vnp_") &&
+      key !== "vnp_SecureHash" &&
+      key !== "vnp_SecureHashType"
+    ) {
+      // Đảm bảo chuyển về chuỗi
+      sortedParams[key] = String(params[key]);
+    }
+  });
+
+  // Tạo chuỗi để ký theo định dạng chính xác của VNPay
+  const signData = Object.keys(sortedParams)
+    .map(
+      (key) =>
+        `${key}=${encodeURIComponent(sortedParams[key]).replace(/%20/g, "+")}`
+    )
+    .join("&");
+
+  // Log để debug
+  console.log("Raw string for signature:", signData);
+
+  // Tạo chữ ký SHA512 HMAC
+  const hmac = crypto.createHmac("sha512", secretKey);
+  const signature = hmac.update(signData).digest("hex");
+
+  return signature;
+};
+
+/**
+ * Xác thực chữ ký VNPay
+ * @param {Object} params - Các tham số từ VNPay
+ * @returns {boolean} Kết quả xác thực
+ */
+const verifyVNPaySignature = (params) => {
+  const secureSecret =
+    process.env.VNPAY_SECRET_KEY || "PTURY5JJM1OHGNOH8VVFZ0OAKCHE53EY";
+  const receivedSignature = params.vnp_SecureHash;
+
+  // Tạo một bản sao của params và loại bỏ vnp_SecureHash và vnp_SecureHashType
+  const paramsForSigning = { ...params };
+  delete paramsForSigning.vnp_SecureHash;
+  delete paramsForSigning.vnp_SecureHashType;
+
+  // In ra tham số để debug
+  console.log(
+    "Parameters for verification:",
+    JSON.stringify(paramsForSigning, null, 2)
+  );
+
+  // Tạo chữ ký mới để so sánh
+  const calculatedSignature = createVNPaySignature(
+    paramsForSigning,
+    secureSecret
+  );
+
+  console.log("Received signature:", receivedSignature);
+  console.log("Calculated signature:", calculatedSignature);
+
+  return receivedSignature === calculatedSignature;
+};
+
+/**
  * Tạo đơn hàng VNPay và trả về URL thanh toán
  * @param {Object} payment - Thông tin payment từ DB
  * @param {Object} ticket - Thông tin vé (có thể là đại diện nếu có nhiều vé)
@@ -36,8 +117,6 @@ const initVNPay = () => {
  */
 const createVNPayOrder = async (payment, ticket, ipAddr) => {
   try {
-    const vnpay = initVNPay();
-
     // Tạo mã đơn hàng duy nhất theo format yêu cầu
     const orderId = `${payment.id}-${Date.now()}-${Math.random()
       .toString(36)
@@ -56,17 +135,52 @@ const createVNPayOrder = async (payment, ticket, ipAddr) => {
     const safeIpAddr =
       ipAddr === "::1" || ipAddr === "::ffff:127.0.0.1" ? "127.0.0.1" : ipAddr;
 
-    // Tạo URL thanh toán sử dụng phương thức buildPaymentUrl của thư viện
-    const paymentUrl = vnpay.buildPaymentUrl({
-      vnp_Amount: amount * 100, // VNPay yêu cầu số tiền * 100
-      vnp_IpAddr: safeIpAddr,
+    // Lấy thời gian hiện tại theo GMT+7 cho createDate
+    const now = new Date();
+    const vnp_CreateDate = dateFormat(getDateInGMT7(now));
+
+    // Tạo đối tượng tham số thanh toán
+    const paymentParams = {
+      vnp_Version: "2.1.0",
+      vnp_Command: "pay",
+      vnp_TmnCode: process.env.VNPAY_TMN_CODE || "XMXDOF6C",
+      vnp_Amount: String(amount * 100), // Chuyển thành chuỗi
+      vnp_CurrCode: "VND",
       vnp_TxnRef: orderId,
-      vnp_OrderInfo: `Thanh toan ${movieInfo}, ma don hang: ${orderId}`,
-      vnp_OrderType: "190000", // Mã danh mục hàng hóa - Dịch vụ giải trí
+      vnp_OrderInfo: `Thanh toan ve xem phim ${orderId}`, // Đơn giản hóa
+      vnp_OrderType: "190000",
+      vnp_Locale: "vn",
       vnp_ReturnUrl: returnUrl,
-      vnp_BankCode: "", // Để trống để hiển thị tất cả các phương thức thanh toán
-      vnp_Locale: "vn", // Ngôn ngữ hiển thị: vn hoặc en
+      vnp_IpAddr: safeIpAddr,
+      vnp_CreateDate: String(vnp_CreateDate), // Chuyển thành chuỗi
+    };
+
+    // Tạo chữ ký
+    const secureSecret =
+      process.env.VNPAY_SECRET_KEY || "PTURY5JJM1OHGNOH8VVFZ0OAKCHE53EY";
+    const signature = createVNPaySignature(paymentParams, secureSecret);
+    paymentParams.vnp_SecureHash = signature;
+    paymentParams.vnp_SecureHashType = "SHA512";
+
+    // Log để debug
+    console.log("Generated secure hash:", signature);
+    console.log(
+      "Parameters for payment URL:",
+      JSON.stringify(paymentParams, null, 2)
+    );
+
+    // Tạo URL thanh toán
+    const baseUrl = `${
+      process.env.VNPAY_HOST || "https://sandbox.vnpayment.vn"
+    }/paymentv2/vpcpay.html`;
+    const queryParams = new URLSearchParams();
+    Object.keys(paymentParams).forEach((key) => {
+      queryParams.append(key, paymentParams[key]);
     });
+
+    const paymentUrl = `${baseUrl}?${queryParams.toString()}`;
+
+    console.log("Final payment URL:", paymentUrl);
 
     // Lưu ID đơn hàng vào payment
     await prisma.payment.update({
@@ -100,10 +214,8 @@ const processVNPayReturn = async (returnData) => {
   try {
     console.log("VNPay return data for verification:", returnData);
 
-    const vnpay = initVNPay();
-
-    // Kiểm tra chữ ký sử dụng thư viện
-    const isValidSignature = vnpay.verifyReturnUrl(returnData);
+    // Kiểm tra chữ ký trước
+    const isValidSignature = verifyVNPaySignature(returnData);
 
     if (!isValidSignature) {
       console.error("Invalid signature detected:", returnData.vnp_SecureHash);
@@ -190,10 +302,8 @@ const processVNPayIPN = async (ipnData) => {
   try {
     console.log("IPN data received:", ipnData);
 
-    const vnpay = initVNPay();
-
     // Xác thực chữ ký từ VNPay
-    const isValidSignature = vnpay.verifyReturnUrl(ipnData);
+    const isValidSignature = verifyVNPaySignature(ipnData);
 
     if (!isValidSignature) {
       console.error("IPN - Invalid signature detected");
@@ -377,15 +487,18 @@ const checkTransactionStatus = async (payment, ipAddress) => {
       .toString(36)
       .substring(2, 7)}`;
 
-    // Sử dụng phương thức queryDr của thư viện
-    const result = await vnpay.queryDr({
+    // Tạo tham số cho truy vấn
+    const queryParams = {
       vnp_RequestId: requestId,
       vnp_TxnRef: payment.appTransId,
       vnp_OrderInfo: `Truy van giao dich ${payment.appTransId}`,
       vnp_TransactionDate: transDate,
       vnp_IpAddr: safeIpAddr,
-      vnp_CreateDate: dateFormat(getDateInGMT7(new Date())), // Thêm thời gian hiện tại
-    });
+      vnp_CreateDate: dateFormat(getDateInGMT7(new Date())),
+    };
+
+    // Sử dụng phương thức queryDr của thư viện
+    const result = await vnpay.queryDr(queryParams);
 
     console.log("VNPay API response:", result);
 
@@ -514,4 +627,6 @@ module.exports = {
   processVNPayIPN,
   checkTransactionStatus,
   simulatePaymentSuccess,
+  verifyVNPaySignature, // Xuất hàm để sử dụng bên ngoài nếu cần
+  createVNPaySignature, // Xuất hàm để sử dụng bên ngoài nếu cần
 };
