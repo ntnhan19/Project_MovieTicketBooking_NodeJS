@@ -1,48 +1,24 @@
-//src/components/Movies/MovieEdit.jsx
-import React from "react";
-import {
-  Edit,
-  SimpleForm,
-  TextInput,
-  NumberInput,
-  DateInput,
-  required,
-  ReferenceArrayInput,
-  SelectArrayInput,
-  useRecordContext,
-  minValue,
-  maxValue,
-} from "react-admin";
-import { RichTextInput } from "ra-input-rich-text";
-import PosterPreview from "./PosterPreview";
-
-const MovieTitle = () => {
-  const record = useRecordContext();
-  return <span>Chỉnh sửa phim: {record?.title}</span>;
-};
+// admin/src/components/Movies/MovieEdit.jsx
+import { useParams } from "react-router-dom";
+import MovieForm from "./MovieForm";
+import { updateMovie } from "../../services/movieService";
 
 const MovieEdit = () => {
+  const { id } = useParams();
+  
+  const handleUpdateMovie = async (data) => {
+    return await updateMovie(id, data);
+  };
+
   return (
-    <Edit title={<MovieTitle />}>
-      <SimpleForm>
-        <TextInput source="title" label="Tên phim" validate={required()} />
-
-        <ReferenceArrayInput
-          source="genres"
-          reference="genres"
-          label="Thể loại"
-        >
-          <SelectArrayInput optionText="name" />
-        </ReferenceArrayInput>
-
-        <DateInput source="releaseDate" label="Ngày ra mắt" validate={required()} />
-        <RichTextInput source="description" label="Mô tả" validate={required()} />
-        <PosterPreview source="poster" />
-        <NumberInput source="duration" label="Thời lượng (phút)" validate={[required(), minValue(1), maxValue(500)]} />
-        <TextInput source="director" label="Đạo diễn" validate={required()} />
-        <TextInput source="mainActors" label="Diễn viên chính" />
-      </SimpleForm>
-    </Edit>
+    <div className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <MovieForm 
+        mode="edit" 
+        id={id} 
+        onSubmit={handleUpdateMovie}
+        submitButtonText="Cập nhật phim"
+      />
+    </div>
   );
 };
 

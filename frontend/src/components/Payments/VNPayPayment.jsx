@@ -1,27 +1,50 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Card, Button, Result, Spin, Typography, Alert, Steps } from "antd";
+import {
+  Card,
+  Button,
+  Result,
+  Spin,
+  Typography,
+  Alert,
+  Form,
+  Space,
+  Divider,
+  Image,
+} from "antd";
 import { paymentApi } from "../../api/paymentApi";
-import { useSearchParams } from "react-router-dom";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   LoadingOutlined,
 } from "@ant-design/icons";
 
-const { Title, Text, Paragraph } = Typography;
-const { Step } = Steps;
+const { Title, Text } = Typography;
 
-const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
-  const [loading, setLoading] = useState(true);
+/**
+ * Component xử lý thanh toán VNPay
+ * @param {Object} payment - Thông tin thanh toán
+ * @param {Function} onPaymentComplete - Callback khi thanh toán hoàn tất (success, result)
+ * @param {Function} onBack - Callback khi người dùng muốn quay lại
+ * @param {Boolean} isCallback - Có phải đang xử lý callback từ VNPay hay không
+ * @param {String} callbackUrl - URL callback từ VNPay (nếu có)
+ */
+const VNPayPayment = ({
+  payment,
+  onPaymentComplete,
+  onBack,
+  isCallback = false,
+  callbackUrl = null,
+  isProcessing = false,
+}) => {
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(isCallback);
   const [status, setStatus] = useState("pending");
   const [error, setError] = useState(null);
   const [paymentResult, setPaymentResult] = useState(null);
-  const [searchParams] = useSearchParams();
-  const [currentStep, setCurrentStep] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 5;
 
-  // Tham chiếu để kiểm soát quá trình xử lý
+  // Các tham chiếu để kiểm soát quá trình xử lý
   const processingRequest = useRef(false);
   const lastRequestTime = useRef(0);
   const retryTimeoutRef = useRef(null);
@@ -41,29 +64,17 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
       processingRequest.current = false;
     };
 
-    // Kiểm tra các tham số từ URL
-    const vnp_ResponseCode = searchParams.get("vnp_ResponseCode");
-    const status = searchParams.get("status");
-    const paymentId = 
-      searchParams.get("paymentId") || 
-      localStorage.getItem("lastPaymentId");
-    
-    currentPaymentId.current = paymentId || (payment && payment.id);
+    // Lưu payment ID để sử dụng cho việc kiểm tra trạng thái
+    if (payment && payment.id) {
+      currentPaymentId.current = payment.id;
+    }
 
-    // Xử lý các trường hợp khác nhau
-    if (vnp_ResponseCode || status) {
-      // Nếu có tham số từ VNPay callback, xử lý kết quả
-      setCurrentStep(2);
-      handleVNPayCallback();
-    } else if (paymentId) {
-      // Nếu có paymentId, kiểm tra trạng thái
-      setCurrentStep(1);
-      pendingTimeoutRef.current = setTimeout(() => {
-        checkPaymentStatus(paymentId, true);
-      }, 1500);
+    // Xử lý theo điều kiện đầu vào
+    if (isCallback && callbackUrl) {
+      // Nếu đang xử lý callback từ VNPay
+      handleVNPayCallback(callbackUrl);
     } else if (payment && payment.id) {
-      // Nếu có thông tin payment từ props
-      setCurrentStep(0);
+      // Nếu có thông tin payment từ props nhưng không phải là callback
       setLoading(false);
     } else {
       setLoading(false);
@@ -72,22 +83,24 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
     }
 
     return cleanup;
-  }, [payment, searchParams]);
+  }, [payment, isCallback, callbackUrl]);
 
   // Tạo delay giữa các request để tránh lỗi trùng lặp
   const delayBetweenRequests = async (minDelay = 8000) => {
     const now = Date.now();
     const timeSinceLastRequest = now - lastRequestTime.current;
-    
+
     if (timeSinceLastRequest < minDelay) {
       const delay = minDelay - timeSinceLastRequest;
-      console.log(`Chờ ${Math.ceil(delay/1000)}s trước khi gửi yêu cầu tiếp theo...`);
+      console.log(
+        `Chờ ${Math.ceil(delay / 1000)}s trước khi gửi yêu cầu tiếp theo...`
+      );
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
     lastRequestTime.current = Date.now();
   };
 
-  // Kiểm tra trạng thái thanh toán với các cải tiến từ API mới
+  // Kiểm tra trạng thái thanh toán
   const checkPaymentStatus = async (paymentId, firstCheck = false) => {
     // Tránh xử lý nhiều request cùng lúc
     if (processingRequest.current || paymentChecked.current) {
@@ -98,29 +111,37 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
     try {
       setLoading(true);
       processingRequest.current = true;
-      
+
       // Đảm bảo khoảng cách thời gian giữa các request
       await delayBetweenRequests(firstCheck ? 3000 : 8000);
 
       // Gọi API kiểm tra trạng thái thanh toán
-      console.log(`Kiểm tra trạng thái VNPay cho payment ${paymentId}, lần thử: ${retryCount + 1}`);
+      console.log(
+        `Kiểm tra trạng thái VNPay cho payment ${paymentId}, lần thử: ${
+          retryCount + 1
+        }`
+      );
       const result = await paymentApi.checkVNPayStatus(paymentId);
 
       // Xử lý trường hợp cần đợi thêm theo cơ chế mới từ API
       if (result.nextQueryAllowed) {
-        console.warn("Phát hiện yêu cầu cần thời gian chờ theo hướng dẫn từ backend");
-        
+        console.warn(
+          "Phát hiện yêu cầu cần thời gian chờ theo hướng dẫn từ backend"
+        );
+
         // Tính toán thời gian chờ dựa trên nextQueryAllowed từ API
         const nextQueryTime = new Date(result.nextQueryAllowed);
         const currentTime = new Date();
         let waitTime = Math.max(15000, nextQueryTime - currentTime);
-        
-        console.log(`Sẽ đợi đến ${nextQueryTime.toLocaleTimeString()} trước khi thử lại`);
-        
-        setRetryCount(prev => prev + 1);
+
+        console.log(
+          `Sẽ đợi đến ${nextQueryTime.toLocaleTimeString()} trước khi thử lại`
+        );
+
+        setRetryCount((prev) => prev + 1);
         processingRequest.current = false;
         setLoading(false);
-        
+
         if (retryCount < MAX_RETRIES) {
           retryTimeoutRef.current = setTimeout(() => {
             if (retryCount >= 1) {
@@ -136,17 +157,14 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
         return;
       }
 
-      // Kiểm tra trạng thái thanh toán theo các tiêu chí mới
+      // Kiểm tra trạng thái thanh toán theo các tiêu chí
       if (result.status === "COMPLETED" || result.success === true) {
         // Thanh toán thành công
         setStatus("success");
         setPaymentResult(result);
         paymentChecked.current = true;
         onPaymentComplete(true, result);
-      } else if (
-        result.status === "FAILED" || 
-        result.status === "CANCELLED"
-      ) {
+      } else if (result.status === "FAILED" || result.status === "CANCELLED") {
         // Thất bại hoặc bị hủy
         setStatus("error");
         setError(result.message || "Thanh toán thất bại");
@@ -159,24 +177,37 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
           "02": "Merchant không tồn tại hoặc không hoạt động",
           "03": "Dữ liệu gửi sang không đúng định dạng",
           "04": "Khởi tạo giao dịch không thành công",
-          "24": "Khách hàng đã hủy giao dịch",
-          "51": "Tài khoản không đủ số dư để thực hiện giao dịch",
-          "97": "Chữ ký không hợp lệ",
-          "99": "Lỗi không xác định",
+          "07": "Giao dịch bị nghi ngờ gian lận",
+          "09": "Thẻ/Tài khoản hết hạn thanh toán",
+          10: "Đã hết hạn chờ thanh toán",
+          11: "Giao dịch thất bại",
+          24: "Khách hàng đã hủy giao dịch",
+          51: "Tài khoản không đủ số dư để thực hiện giao dịch",
+          65: "Tài khoản của quý khách đã vượt quá hạn mức thanh toán trong ngày",
+          75: "Ngân hàng thanh toán đang bảo trì",
+          79: "Đã vượt quá số lần thanh toán cho phép",
+          91: "Không tìm thấy giao dịch yêu cầu",
+          94: "Yêu cầu bị trùng lặp trong thời gian giới hạn",
+          97: "Chữ ký không hợp lệ",
+          99: "Lỗi không xác định",
         };
-        
-        const errorMessage = vnpayErrorCodes[result.responseCode] || `Lỗi VNPay mã ${result.responseCode}`;
+
+        const errorMessage =
+          vnpayErrorCodes[result.responseCode] ||
+          `Lỗi VNPay mã ${result.responseCode}`;
         setStatus("error");
         setError(`Thanh toán thất bại: ${errorMessage}`);
         paymentChecked.current = true;
         onPaymentComplete(false, result);
       } else {
         // Vẫn đang xử lý (pending)
-        setRetryCount(prev => prev + 1);
+        setRetryCount((prev) => prev + 1);
         processingRequest.current = false;
-        
+
         if (retryCount < MAX_RETRIES) {
-          console.log(`Thanh toán vẫn đang chờ xử lý, sẽ kiểm tra lại sau 8 giây...`);
+          console.log(
+            `Thanh toán vẫn đang chờ xử lý, sẽ kiểm tra lại sau 8 giây...`
+          );
           pendingTimeoutRef.current = setTimeout(() => {
             if (retryCount >= 2) {
               // Sau 2 lần thử, chuyển sang phương thức dự phòng
@@ -192,12 +223,14 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
     } catch (error) {
       console.error("Lỗi kiểm tra trạng thái VNPay:", error);
 
-      setRetryCount(prev => prev + 1);
-      
+      setRetryCount((prev) => prev + 1);
+
       if (retryCount < MAX_RETRIES) {
         const waitTime = 8000 + retryCount * 4000;
-        console.log(`Lỗi khi kiểm tra, thử lại sau ${Math.ceil(waitTime/1000)} giây...`);
-        
+        console.log(
+          `Lỗi khi kiểm tra, thử lại sau ${Math.ceil(waitTime / 1000)} giây...`
+        );
+
         processingRequest.current = false;
         retryTimeoutRef.current = setTimeout(() => {
           if (retryCount >= 2) {
@@ -217,7 +250,7 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
     }
   };
 
-  // Cải tiến phương thức fallback để sử dụng trackVNPayPayment
+  // Sử dụng trackVNPayPayment mới cho phương thức fallback
   const fallbackPaymentCheck = async (paymentId) => {
     if (processingRequest.current || paymentChecked.current) {
       console.log("Đang có một yêu cầu xử lý, bỏ qua fallback check.");
@@ -225,22 +258,31 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
     }
 
     try {
-      console.log("Sử dụng phương thức trackVNPayPayment để theo dõi thanh toán");
+      console.log(
+        "Sử dụng phương thức trackVNPayPayment để theo dõi thanh toán"
+      );
       setLoading(true);
       processingRequest.current = true;
-      
+
       // Thử sử dụng trackVNPayPayment để theo dõi cập nhật từ VNPay
       try {
-        // Chỉ theo dõi trong 30 giây với khoảng thời gian 3 giây
-        const trackResult = await paymentApi.trackVNPayPayment(paymentId, 3000, 30000);
-        
+        // Sử dụng API trackVNPayPayment mới
+        const trackResult = await paymentApi.trackVNPayPayment(
+          paymentId,
+          3000,
+          30000
+        );
+
         if (trackResult.success || trackResult.status === "COMPLETED") {
           setStatus("success");
           setPaymentResult(trackResult);
           paymentChecked.current = true;
           onPaymentComplete(true, trackResult);
           return;
-        } else if (trackResult.status === "FAILED" || trackResult.status === "CANCELLED") {
+        } else if (
+          trackResult.status === "FAILED" ||
+          trackResult.status === "CANCELLED"
+        ) {
           setStatus("error");
           setError(trackResult.message || "Thanh toán thất bại");
           paymentChecked.current = true;
@@ -249,17 +291,16 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
         }
       } catch (trackError) {
         console.error("Lỗi khi theo dõi payment:", trackError);
-        // Nếu trackVNPayPayment thất bại, thử lấy thông tin trực tiếp
       }
-      
-      // Nếu không theo dõi được hoặc không nhận được kết quả rõ ràng, kiểm tra trực tiếp
+
+      // Nếu trackVNPayPayment không thành công, tiếp tục với phương thức thay thế
       console.log("Lấy thông tin thanh toán trực tiếp");
       const paymentInfo = await paymentApi.getPaymentById(paymentId);
       console.log("Kết quả kiểm tra thanh toán (fallback):", paymentInfo);
 
       if (paymentInfo.status === "COMPLETED") {
         setStatus("success");
-        setPaymentResult(paymentInfo); 
+        setPaymentResult(paymentInfo);
         paymentChecked.current = true;
         onPaymentComplete(true, paymentInfo);
       } else if (
@@ -272,9 +313,9 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
         onPaymentComplete(false, paymentInfo);
       } else if (paymentInfo.status === "PENDING" && retryCount < MAX_RETRIES) {
         console.log("Thanh toán vẫn đang xử lý, đợi thêm thời gian...");
-        setRetryCount(prev => prev + 1);
+        setRetryCount((prev) => prev + 1);
         processingRequest.current = false;
-        
+
         // Kiểm tra lại sau thời gian dài hơn
         pendingTimeoutRef.current = setTimeout(() => {
           fallbackPaymentCheck(paymentId);
@@ -283,8 +324,8 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
         // Không xác định được trạng thái sau nhiều lần thử
         setStatus("error");
         setError(
-          paymentInfo.status === "PENDING" 
-            ? "Hệ thống đang xử lý thanh toán của bạn. Vui lòng kiểm tra lại sau." 
+          paymentInfo.status === "PENDING"
+            ? "Hệ thống đang xử lý thanh toán của bạn. Vui lòng kiểm tra lại sau."
             : "Không thể xác định trạng thái thanh toán. Vui lòng liên hệ hỗ trợ."
         );
         setLoading(false);
@@ -292,13 +333,13 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
       }
     } catch (fallbackError) {
       console.error("Lỗi khi thử phương thức thay thế:", fallbackError);
-      
-      setRetryCount(prev => prev + 1);
-      
+
+      setRetryCount((prev) => prev + 1);
+
       if (retryCount < MAX_RETRIES) {
         const waitTime = 10000 + retryCount * 5000;
         processingRequest.current = false;
-        
+
         retryTimeoutRef.current = setTimeout(() => {
           fallbackPaymentCheck(paymentId);
         }, waitTime);
@@ -313,8 +354,8 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
     }
   };
 
-  // Cải tiến xử lý callback từ VNPay sử dụng API mới
-  const handleVNPayCallback = async () => {
+  // Sử dụng API handleVNPayResult mới
+  const handleVNPayCallback = async (callbackSearchParams) => {
     if (processingRequest.current) {
       console.log("Đang xử lý callback VNPay, bỏ qua yêu cầu mới.");
       return;
@@ -325,16 +366,15 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
       processingRequest.current = true;
 
       // Sử dụng hàm handleVNPayResult mới từ API
-      const callbackUrl = window.location.search;
-      console.log("Xử lý callback từ VNPay với URL:", callbackUrl);
+      console.log("Xử lý callback từ VNPay với URL:", callbackSearchParams);
 
       // Gọi API xử lý kết quả
-      const result = await paymentApi.handleVNPayResult(callbackUrl);
+      const result = await paymentApi.handleVNPayResult(callbackSearchParams);
       console.log("Kết quả xử lý callback:", result);
 
       // Lưu kết quả để hiển thị
       setPaymentResult(result);
-      
+
       // Xử lý các trường hợp từ API mới
       if (result.success) {
         setStatus("success");
@@ -369,19 +409,22 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
       }
     } catch (error) {
       console.error("Lỗi xử lý callback VNPay:", error);
-      
+
       // Thử kiểm tra với phương thức trackVNPayPayment từ API mới
-      const paymentId = 
-        searchParams.get("paymentId") || 
-        localStorage.getItem("lastPaymentId") ||
-        currentPaymentId.current;
-        
+      const paymentId = currentPaymentId.current;
+
       if (paymentId) {
         try {
-          console.log("Thử theo dõi trạng thái thanh toán với API trackVNPayPayment");
-          // Chỉ theo dõi trong 30 giây
-          const trackResult = await paymentApi.trackVNPayPayment(paymentId, 5000, 30000);
-          
+          console.log(
+            "Thử theo dõi trạng thái thanh toán với API trackVNPayPayment"
+          );
+          // Sử dụng API trackVNPayPayment mới
+          const trackResult = await paymentApi.trackVNPayPayment(
+            paymentId,
+            3000,
+            30000
+          );
+
           if (trackResult.success || trackResult.status === "COMPLETED") {
             setStatus("success");
             setPaymentResult(trackResult);
@@ -392,7 +435,7 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
         } catch (trackError) {
           console.error("Lỗi khi theo dõi payment:", trackError);
         }
-        
+
         // Thử kiểm tra trực tiếp một lần nữa
         processingRequest.current = false;
         pendingTimeoutRef.current = setTimeout(() => {
@@ -400,10 +443,10 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
         }, 3000);
         return;
       }
-      
+
       setStatus("error");
       setError(error.message || "Có lỗi xảy ra khi xử lý kết quả thanh toán");
-      onPaymentComplete(false);
+      onPaymentComplete(false, { error: error.message });
     } finally {
       if (!pendingTimeoutRef.current) {
         processingRequest.current = false;
@@ -412,15 +455,11 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
     }
   };
 
-  // Hủy thanh toán sử dụng API mới
+  // Sử dụng API hủy thanh toán mới
   const handleCancel = async () => {
     try {
       setLoading(true);
-      let paymentId =
-        payment?.id ||
-        searchParams.get("paymentId") ||
-        localStorage.getItem("lastPaymentId") ||
-        currentPaymentId.current;
+      let paymentId = payment?.id || currentPaymentId.current;
 
       if (paymentId) {
         await paymentApi.cancelPayment(paymentId);
@@ -435,7 +474,7 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
     }
   };
 
-  // Cải tiến quá trình bắt đầu thanh toán VNPay
+  // Sử dụng API xử lý thanh toán mới
   const startVNPayPayment = async () => {
     try {
       setLoading(true);
@@ -449,10 +488,10 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
       if (payment && payment.paymentUrl) {
         // Sử dụng URL thanh toán có sẵn
         console.log("Sử dụng URL thanh toán có sẵn:", payment.paymentUrl);
-        
+
         // Thông tin thanh toán sẽ được lưu vào localStorage ở phía API
         currentPaymentId.current = payment.id;
-        
+
         // Chuyển đến trang thanh toán
         window.location.href = payment.paymentUrl;
         return;
@@ -474,7 +513,7 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
       if (result && result.paymentUrl) {
         console.log("Đã nhận URL thanh toán từ VNPay:", result.paymentUrl);
         currentPaymentId.current = result.id;
-        
+
         // Chuyển đến trang thanh toán
         window.location.href = result.paymentUrl;
       } else {
@@ -491,9 +530,12 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
   // Hiển thị trạng thái đang xử lý
   if (loading) {
     return (
-      <Card className="content-card p-8">
+      <Card className="p-8">
         <div className="flex flex-col items-center justify-center py-8">
-          <Spin size="large" indicator={<LoadingOutlined style={{ fontSize: 36 }} />} />
+          <Spin
+            size="large"
+            indicator={<LoadingOutlined style={{ fontSize: 36 }} />}
+          />
           <Text className="mt-4 text-center text-gray-600">
             Đang xử lý thanh toán VNPay...
           </Text>
@@ -509,22 +551,38 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
 
   // Hiển thị kết quả thành công
   if (status === "success") {
+    // Lưu thông tin giao dịch để sử dụng ở CompletionStep
+    const transactionId =
+      paymentResult?.payment?.transactionId ||
+      paymentResult?.transactionId ||
+      paymentResult?.appTransId ||
+      paymentResult?.vnp_TransactionNo ||
+      "N/A";
+
+    // Lưu vào global state (có thể truy cập từ window object)
+    window.paymentTransactionId = transactionId;
+
+    // Hoặc lưu vào localStorage để có thể truy cập sau này
+    localStorage.setItem("lastPaymentTransactionId", transactionId);
+
     return (
-      <Card className="content-card p-8">
+      <Card className="p-8">
         <Result
           status="success"
           icon={<CheckCircleOutlined className="text-green-500" />}
           title="Thanh toán thành công"
-          subTitle={`Mã giao dịch: ${
-            paymentResult?.payment?.transactionId ||
-            paymentResult?.transactionId ||
-            "N/A"
-          }`}
+          subTitle={`Mã giao dịch: ${transactionId}`}
           extra={[
             <Button
               type="primary"
               key="done"
-              onClick={() => onPaymentComplete(true, paymentResult)}
+              onClick={() => {
+                // Truyền thông tin giao dịch khi chuyển trang
+                onPaymentComplete(true, {
+                  ...paymentResult,
+                  transactionId: transactionId, // Đảm bảo transactionId luôn được truyền
+                });
+              }}
             >
               Hoàn tất
             </Button>,
@@ -544,7 +602,9 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
                 <Text type="secondary">Số tiền:</Text>{" "}
                 <Text strong>
                   {(
-                    paymentResult.payment?.amount || paymentResult.amount
+                    paymentResult.payment?.amount ||
+                    paymentResult.amount ||
+                    paymentResult.statusData?.amount
                   )?.toLocaleString("vi-VN")}{" "}
                   VNĐ
                 </Text>
@@ -555,6 +615,7 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
                   {new Date(
                     paymentResult.payment?.updatedAt ||
                       paymentResult.updatedAt ||
+                      paymentResult.statusData?.updatedAt ||
                       Date.now()
                   ).toLocaleString("vi-VN")}
                 </Text>
@@ -575,7 +636,7 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
   // Hiển thị lỗi
   if (status === "error") {
     return (
-      <Card className="content-card p-8">
+      <Card className="p-8">
         <Result
           status="error"
           icon={<CloseCircleOutlined className="text-red-500" />}
@@ -591,47 +652,17 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
     );
   }
 
-  // Các bước trong quá trình thanh toán
-  const steps = [
-    {
-      title: "Chuẩn bị",
-      description: "Chuẩn bị thanh toán",
-    },
-    {
-      title: "Thanh toán",
-      description: "Đang xử lý",
-    },
-    {
-      title: "Hoàn tất",
-      description: "Kết quả thanh toán",
-    },
-  ];
-
-  // Hiển thị giao diện thanh toán
+  // Sử dụng giao diện đẹp từ PaymentMethodStep
+  // Sử dụng giao diện đẹp từ PaymentMethodStep
   return (
-    <Card className="content-card p-8">
-      <Steps
-        current={currentStep}
-        className="mb-8"
-        items={steps.map((step, index) => ({
-          key: index,
-          title: step.title,
-          description: step.description,
-          icon: currentStep === index && loading ? <LoadingOutlined /> : null,
-        }))}
-      />
-
-      <div className="text-center mb-6">
-        <Title level={4}>Thanh toán qua VNPay</Title>
-        <Paragraph>
-          Bạn sẽ được chuyển hướng đến cổng thanh toán VNPay để hoàn tất quá
-          trình thanh toán.
-        </Paragraph>
-      </div>
+    <div className="w-full max-w-3xl mx-auto animate-fadeIn">
+      <Title level={4} className="mb-6 text-text-primary">
+        Phương thức thanh toán
+      </Title>
 
       {error && (
         <Alert
-          message="Lỗi"
+          message="Lỗi thanh toán"
           description={error}
           type="error"
           showIcon
@@ -639,66 +670,105 @@ const VNPayPayment = ({ payment, onPaymentComplete, onBack }) => {
         />
       )}
 
-      <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg mb-8">
-        <div className="flex items-start mb-4">
-          <div className="w-8 h-8 bg-blue-800 rounded flex items-center justify-center text-white font-bold mr-3">
-            VN
-          </div>
-          <div>
-            <Text strong className="block mb-1">
-              Thanh toán an toàn qua cổng VNPay
-            </Text>
-            <Text className="text-gray-600">
-              Hỗ trợ thanh toán qua nhiều ngân hàng và thẻ nội địa
-            </Text>
-          </div>
-        </div>
-
-        <div className="text-sm text-gray-600">
-          <Text className="block mb-2 font-medium">Lưu ý:</Text>
-          <ul className="list-disc pl-5">
-            <li className="mb-1">
-              Hãy đảm bảo bạn đã đăng ký dịch vụ Internet Banking
-            </li>
-            <li className="mb-1">
-              Chuẩn bị thiết bị nhận SMS/OTP để xác nhận thanh toán
-            </li>
-            <li className="mb-1">Không tắt trình duyệt cho đến khi hoàn tất thanh toán</li>
-            <li>Sau khi thanh toán, vui lòng đợi hệ thống xử lý</li>
-          </ul>
-        </div>
-      </div>
-
-      {payment && (
-        <div className="mb-8 p-4 bg-gray-50 rounded-lg">
-          <Title level={5} className="mb-3">
-            Thông tin thanh toán
-          </Title>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <Text type="secondary">Mã thanh toán:</Text>{" "}
-              <Text strong>{payment.id}</Text>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={startVNPayPayment}
+        initialValues={{ paymentMethod: "vnpay" }}
+      >
+        <Card className="content-card p-6 mb-6">
+          <div className="w-full">
+            <div className="border rounded-lg p-4 mb-4 cursor-pointer bg-blue-50">
+              <div className="flex items-center">
+                <div className="w-12 h-12 mr-4 flex-shrink-0">
+                  <Image
+                    preview={false}
+                    src="https://vinadesign.vn/uploads/images/2023/05/vnpay-logo-vinadesign-25-12-57-55.jpg"
+                    alt="VNPay"
+                    width={48}
+                    height={48}
+                  />
+                </div>
+                <div className="flex-grow">
+                  <Text className="font-medium text-base mb-1">VNPay</Text>
+                  <Text className="text-sm text-gray-500 block">
+                    Thanh toán an toàn qua cổng VNPay
+                  </Text>
+                </div>
+                <div className="w-6 h-6 rounded-full border-2 border-blue-600 flex items-center justify-center">
+                  <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
+                </div>
+              </div>
             </div>
-            <div>
-              <Text type="secondary">Số tiền:</Text>{" "}
-              <Text strong>{payment.amount?.toLocaleString("vi-VN")} VNĐ</Text>
+
+            <Divider className="my-4" />
+
+            {payment && (
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <Title level={5} className="mb-2">
+                  Thông tin thanh toán
+                </Title>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <Text type="secondary">Mã thanh toán:</Text>{" "}
+                    <Text strong>{payment.id}</Text>
+                  </div>
+                  <div>
+                    <Text type="secondary">Số tiền:</Text>{" "}
+                    <Text strong>
+                      {payment.amount?.toLocaleString("vi-VN")} VNĐ
+                    </Text>
+                  </div>
+                  {payment.description && (
+                    <div className="col-span-2">
+                      <Text type="secondary">Nội dung:</Text>{" "}
+                      <Text strong>{payment.description}</Text>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <Divider className="my-4" />
+
+            <div className="mb-4">
+              <Title level={5} className="mb-2">
+                Các bước thanh toán:
+              </Title>
+              <div className="mb-2 flex items-start">
+                <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center mr-2 flex-shrink-0">
+                  <Text className="text-white">1</Text>
+                </div>
+                <Text>Nhấn "Tiếp tục thanh toán" để chuyển đến cổng VNPay</Text>
+              </div>
+              <div className="mb-2 flex items-start">
+                <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center mr-2 flex-shrink-0">
+                  <Text className="text-white">2</Text>
+                </div>
+                <Text>Chọn phương thức thanh toán trên cổng VNPay</Text>
+              </div>
+              <div className="mb-2 flex items-start">
+                <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center mr-2 flex-shrink-0">
+                  <Text className="text-white">3</Text>
+                </div>
+                <Text>Hoàn tất giao dịch và quay lại trang web</Text>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        </Card>
 
-      <div className="mt-8 flex justify-center gap-4">
-        <Button onClick={handleCancel}>Hủy thanh toán</Button>
-        <Button
-          type="primary"
-          onClick={startVNPayPayment}
-          loading={loading}
-          disabled={loading}
-        >
-          Tiếp tục đến VNPay
-        </Button>
-      </div>
-    </Card>
+        <div className="flex justify-between mt-6">
+          <Button onClick={handleCancel}>Quay lại</Button>
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={isProcessing || loading}
+          >
+            Tiếp tục thanh toán
+          </Button>
+        </div>
+      </Form>
+    </div>
   );
 };
 

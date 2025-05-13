@@ -13,6 +13,9 @@ router.post('/login', authController.login);
 // Gửi lại email xác thực
 router.post('/resend-verification', authController.resendVerificationEmail);
 
+// Xác thực email
+router.get('/verify-email/:token', authController.verifyEmail);
+
 // Test route: chỉ dành cho admin/user
 router.get("/admin-only", authenticate, authorizeRoles("ADMIN"), (req, res) => {
   res.json({ message: "Chào admin!" });

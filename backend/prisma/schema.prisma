@@ -8,18 +8,19 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  phone     String
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  role      Role     @default(USER)
-  avatar    String?
-  emailVerified  Boolean       @default(false)
-  reviews   Review[]
-  tickets   Ticket[]
+  id               Int               @id @default(autoincrement())
+  name             String
+  email            String            @unique
+  phone            String
+  password         String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  role             Role              @default(USER)
+  avatar           String?
+  emailVerified    Boolean           @default(false)
+  concessionOrders ConcessionOrder[]
+  reviews          Review[]
+  tickets          Ticket[]
 }
 
 model Genre {
@@ -69,8 +70,8 @@ model Showtime {
   startTime DateTime
   endTime   DateTime
   hallId    Int
-  seats     Seat[]
   price     Float?
+  seats     Seat[]
   hall      Hall     @relation(fields: [hallId], references: [id])
   movie     Movie    @relation(fields: [movieId], references: [id])
   tickets   Ticket[]
@@ -88,53 +89,35 @@ model Seat {
 }
 
 model Ticket {
-  id          Int        @id @default(autoincrement())
-  userId      Int
-  showtimeId  Int
-  seatId      Int
-  price       Float
-  status      String
-  promotionId Int?
-  paymentId   Int?
-  payment     Payment?   @relation(fields: [paymentId], references: [id])
-  promotion   Promotion? @relation(fields: [promotionId], references: [id])
-  seat        Seat       @relation(fields: [seatId], references: [id])
-  showtime    Showtime   @relation(fields: [showtimeId], references: [id])
-  user        User       @relation(fields: [userId], references: [id])
+  id               Int               @id @default(autoincrement())
+  userId           Int
+  showtimeId       Int
+  seatId           Int
+  price            Float
+  status           String
+  promotionId      Int?
+  paymentId        Int?
+  concessionOrders ConcessionOrder[]
+  payment          Payment?          @relation(fields: [paymentId], references: [id])
+  promotion        Promotion?        @relation(fields: [promotionId], references: [id])
+  seat             Seat              @relation(fields: [seatId], references: [id])
+  showtime         Showtime          @relation(fields: [showtimeId], references: [id])
+  user             User              @relation(fields: [userId], references: [id])
 }
-
-enum PaymentStatus {
-  PENDING
-  COMPLETED
-  CANCELLED
-  FAILED
-}
-
-enum PaymentMethod {
-  CREDIT_CARD
-  BANK_TRANSFER
-  E_WALLET
-  CASH
-  ZALOPAY
-  VNPAY
-  MOMO
-}
-
 
 model Payment {
-  id           Int           @id @default(autoincrement())
-  tickets      Ticket[]     
-  amount       Float
-  method       PaymentMethod
-  status       PaymentStatus @default(PENDING)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  paymentDate  DateTime?
-  transactionId String?
-
-  // Dữ liệu cho VNPay
-  appTransId    String?       // Mã đơn hàng gửi đến VNPay (vnp_TxnRef)
-  additionalData String?      // Dữ liệu bổ sung dạng JSON
+  id               Int               @id @default(autoincrement())
+  amount           Float
+  method           PaymentMethod
+  status           PaymentStatus     @default(PENDING)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  paymentDate      DateTime?
+  transactionId    String?
+  appTransId       String?
+  additionalData   String?
+  concessionOrders ConcessionOrder[]
+  tickets          Ticket[]
 
   @@map("payments")
 }
@@ -163,6 +146,116 @@ model Promotion {
   title       String
   type        PromoType @default(PERCENTAGE)
   Ticket      Ticket[]
+}
+
+model ConcessionCategory {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  description String?
+  image       String?
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @default(now()) @updatedAt
+  items       ConcessionItem[]
+}
+
+model ConcessionItem {
+  id          Int                   @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float
+  image       String?
+  isAvailable Boolean               @default(true)
+  categoryId  Int
+  size        String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @default(now()) @updatedAt
+  comboItems  ConcessionComboItem[]
+  category    ConcessionCategory    @relation(fields: [categoryId], references: [id])
+  orderItems  ConcessionOrderItem[]
+}
+
+model ConcessionCombo {
+  id              Int                   @id @default(autoincrement())
+  name            String
+  description     String?
+  price           Float
+  image           String?
+  isAvailable     Boolean               @default(true)
+  discountPercent Float                 @default(0)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @default(now()) @updatedAt
+  items           ConcessionComboItem[]
+  orderItems      ConcessionOrderItem[]
+}
+
+model ConcessionComboItem {
+  id       Int             @id @default(autoincrement())
+  comboId  Int
+  itemId   Int
+  quantity Int             @default(1)
+  combo    ConcessionCombo @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  item     ConcessionItem  @relation(fields: [itemId], references: [id])
+}
+
+model ConcessionOrder {
+  id          Int                   @id @default(autoincrement())
+  userId      Int
+  status      OrderStatus           @default(PENDING)
+  orderType   OrderType             @default(STANDALONE) // Thêm trường này
+  totalAmount Float
+  paymentId   Int?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @default(now()) @updatedAt
+  payment     Payment?              @relation(fields: [paymentId], references: [id])
+  user        User                  @relation(fields: [userId], references: [id])
+  items       ConcessionOrderItem[]
+  tickets     Ticket[]              
+}
+
+
+model ConcessionOrderItem {
+  id       Int              @id @default(autoincrement())
+  orderId  Int
+  itemId   Int?
+  comboId  Int?
+  quantity Int
+  price    Float
+  notes    String?
+  combo    ConcessionCombo? @relation(fields: [comboId], references: [id])
+  item     ConcessionItem?  @relation(fields: [itemId], references: [id])
+  order    ConcessionOrder  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+enum OrderType {
+  STANDALONE    // Đơn độc lập
+  WITH_TICKET   // Đơn kèm vé
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  BANK_TRANSFER
+  E_WALLET
+  CASH
+  ZALOPAY
+  VNPAY
+  MOMO
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
 }
 
 enum Role {

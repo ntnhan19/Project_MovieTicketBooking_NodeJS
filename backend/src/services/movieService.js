@@ -342,6 +342,7 @@ exports.getMoviesByCinema = async (cinemaId, date) => {
 // Tạo phim mới
 exports.createMovie = async (movieData) => {
   let {
+    id, // Lấy id (nếu có) để loại bỏ
     title,
     description,
     releaseDate,
@@ -351,7 +352,13 @@ exports.createMovie = async (movieData) => {
     duration,
     director,
     mainActors,
+    ...rest // Lấy các trường còn lại (nếu có)
   } = movieData;
+
+  // Loại bỏ id nếu có
+  if (id) {
+    console.log(`Loại bỏ id ${id} từ dữ liệu phim trước khi tạo mới`);
+  }
 
   // Phân tích mảng thể loại
   genres = parseGenres(genres);

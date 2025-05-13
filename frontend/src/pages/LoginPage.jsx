@@ -1,3 +1,4 @@
+//frontend/src/components/LoginForm.jsx
 import React, { useState } from "react";
 import { Form, Input, Button, Typography, Divider, message, Space } from "antd";
 import {
@@ -7,7 +8,7 @@ import {
   FacebookOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const { Text, Title } = Typography;
 
@@ -16,37 +17,77 @@ const LoginForm = ({ onRegisterClick, onLoginSuccess }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Kiểm tra xem có tham số redirect không
+  const queryParams = new URLSearchParams(location.search);
+  const redirectToAdmin = queryParams.get('redirect') === 'admin';
 
   const onFinish = async (values) => {
     try {
       setLoading(true);
       // Gọi hàm login từ context
-      const response = await login({ email: values.email, password: values.password });
-      
+      const response = await login({
+        email: values.email,
+        password: values.password,
+      });
+
       // Kiểm tra nếu đăng nhập thất bại
       if (!response || response.success === false) {
         console.error("Đăng nhập thất bại:", response?.error);
+        message.error("Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
         return;
       }
-      
+
       console.log("Login response:", response);
-      
+
       // Lấy thông tin người dùng
-      const { user } = response;
+      const { user, token } = response;
+
+      // Lưu thông tin auth vào localStorage theo định dạng mà trang admin cần
+      const authData = {
+        user: {
+          ...user,
+          id: user.id,
+          email: user.email,
+          role: user.role.toUpperCase(), // Đảm bảo chuyển thành chữ hoa
+        },
+        token: token,
+      };
       
+      localStorage.setItem("auth", JSON.stringify(authData));
+      localStorage.setItem("token", token);
+      localStorage.setItem("userId", user.id);
+
+      console.log("Role của người dùng:", user.role);
+      console.log("Đã lưu dữ liệu auth vào localStorage:", authData);
+
       // Kiểm tra role để chuyển hướng
-      if (user && user.role?.toUpperCase() === "ADMIN") {
+      if (user && user.role && user.role.toUpperCase() === "ADMIN") {
+        console.log("Phát hiện người dùng là ADMIN, chuẩn bị chuyển hướng...");
         message.success("Đăng nhập thành công! Đang chuyển hướng tới trang quản trị...");
-        // Chuyển hướng tới trang admin (có thể điều chỉnh URL)
-        window.location.href = "http://localhost:3001";
+
+        // Thay đổi cơ chế chuyển hướng - sử dụng window.location.href thay vì form
+        const adminUrl = `http://localhost:3001?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(user))}`;
+        
+        // Đặt timeout để đảm bảo localStorage đã được cập nhật
+        setTimeout(() => {
+          console.log("Chuyển hướng đến trang admin...");
+          // Chuyển hướng trực tiếp
+          window.location.href = adminUrl;
+        }, 1000);
       } else {
+        message.success("Đăng nhập thành công!");
+
         // Gọi callback onLoginSuccess nếu có
         if (onLoginSuccess) {
           onLoginSuccess();
         }
-        
-        // Tải lại trang để đảm bảo cập nhật trạng thái
-        window.location.reload();
+
+        // Ở lại trang người dùng
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -67,6 +108,11 @@ const LoginForm = ({ onRegisterClick, onLoginSuccess }) => {
           Chào mừng trở lại
         </Title>
         <Text className="text-text-secondary">Đăng nhập để tiếp tục</Text>
+        {redirectToAdmin && (
+          <Text className="text-red-500 block mt-2">
+            Bạn cần đăng nhập với tài khoản ADMIN để truy cập trang quản trị
+          </Text>
+        )}
       </div>
 
       <Form
@@ -104,9 +150,9 @@ const LoginForm = ({ onRegisterClick, onLoginSuccess }) => {
         </Form.Item>
 
         <div className="flex justify-end mb-4">
-          <a 
+          <a
             className="text-primary hover:text-primary-dark transition-all"
-            onClick={() => navigate('/forgot-password')}
+            onClick={() => navigate("/forgot-password")}
           >
             Quên mật khẩu?
           </a>

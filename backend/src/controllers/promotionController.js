@@ -1,23 +1,52 @@
 // backend/src/controllers/promotionController.js
-const promotionService = require('../services/promotionService');
+const promotionService = require("../services/promotionService");
 
-// Tạo khuyến mãi mới (Admin only)
+/**
+ * Xử lý lỗi và trả về response phù hợp
+ * @param {Error} error - Lỗi cần xử lý
+ * @param {Object} res - Response object
+ */
+const handlePromotionError = (error, res) => {
+  console.error("Lỗi xử lý promotion:", error);
+  
+  // Danh sách các lỗi được xác định trước
+  const knownErrors = {
+    "Mã khuyến mãi đã tồn tại": 400,
+    "ID khuyến mãi không hợp lệ": 400,
+    "Không tìm thấy khuyến mãi": 404,
+    "Mã khuyến mãi đã hết hạn": 400,
+    "Mã khuyến mãi không hoạt động": 400,
+    "Không thể xóa khuyến mãi này vì có vé đang sử dụng nó": 400,
+    "Thiếu mã khuyến mãi": 400,
+    "Thiếu ID khuyến mãi": 400,
+    "Missing required fields": 400
+  };
+
+  const statusCode = knownErrors[error.message] || 500;
+  const message = statusCode === 500 ? "Lỗi máy chủ" : error.message;
+  
+  res.status(statusCode).json({ message });
+};
+
+/**
+ * Tạo khuyến mãi mới (Admin only)
+ */
 const createPromotion = async (req, res) => {
   try {
-    const { 
-      title, 
-      description, 
-      type, 
-      code, 
-      discount, 
-      validFrom, 
-      validUntil, 
-      image, 
-      isActive 
+    const {
+      title,
+      description,
+      type,
+      code,
+      discount,
+      validFrom,
+      validUntil,
+      image,
+      isActive,
     } = req.body;
 
     if (!title || !type || !code || !discount || !validFrom || !validUntil) {
-      return res.status(400).json({ message: 'Missing required fields' });
+      return handlePromotionError(new Error("Missing required fields"), res);
     }
 
     const newPromotion = await promotionService.createPromotion({
@@ -29,88 +58,100 @@ const createPromotion = async (req, res) => {
       validFrom: new Date(validFrom),
       validUntil: new Date(validUntil),
       image,
-      isActive: isActive !== undefined ? isActive : true
+      isActive: isActive !== undefined ? isActive : true,
     });
 
     res.status(201).json(newPromotion);
   } catch (error) {
-    console.error('Lỗi tạo khuyến mãi:', error);
-    if (error.message === 'Mã khuyến mãi đã tồn tại') {
-      return res.status(400).json({ message: error.message });
-    }
-    res.status(500).json({ message: 'Lỗi máy chủ' });
+    handlePromotionError(error, res);
   }
 };
 
-// Lấy danh sách tất cả khuyến mãi (Admin only)
+/**
+ * Lấy danh sách tất cả khuyến mãi
+ */
 const getAllPromotions = async (req, res) => {
   try {
     const { active } = req.query;
     let isActive = undefined;
-    
-    if (active === 'true') isActive = true;
-    if (active === 'false') isActive = false;
-    
+
+    if (active === "true") isActive = true;
+    if (active === "false") isActive = false;
+
     const promotions = await promotionService.getAllPromotions(isActive);
     res.status(200).json(promotions);
   } catch (error) {
-    console.error('Lỗi lấy khuyến mãi:', error);
-    res.status(500).json({ message: 'Lỗi máy chủ' });
+    handlePromotionError(error, res);
   }
 };
 
-// Lấy khuyến mãi theo id (Admin only)
+/**
+ * Lấy khuyến mãi theo ID
+ */
 const getPromotionById = async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const promotion = await promotionService.getPromotionById(id);
-    
-    if (!promotion) {
-      return res.status(404).json({ message: 'Không tìm thấy khuyến mãi' });
+    const id = req.params.id;
+
+    if (!id) {
+      return handlePromotionError(new Error("Thiếu ID khuyến mãi"), res);
     }
-    
+
+    const promotion = await promotionService.getPromotionById(id);
+
+    if (!promotion) {
+      return handlePromotionError(new Error("Không tìm thấy khuyến mãi"), res);
+    }
+
     res.status(200).json(promotion);
   } catch (error) {
-    console.error('Error getting promotion:', error);
-    res.status(500).json({ message: 'Lỗi máy chủ' });
+    handlePromotionError(error, res);
   }
 };
 
-// Lấy khuyến mãi theo mã (Admin only)
+/**
+ * Lấy khuyến mãi theo mã code
+ */
 const getPromotionByCode = async (req, res) => {
   try {
     const { code } = req.params;
-    const promotion = await promotionService.getPromotionByCode(code);
-    
-    if (!promotion) {
-      return res.status(404).json({ message: 'Không tìm thấy khuyến mãi' });
+
+    if (!code) {
+      return handlePromotionError(new Error("Thiếu mã khuyến mãi"), res);
     }
-    
+
+    const promotion = await promotionService.getPromotionByCode(code);
+
+    if (!promotion) {
+      return handlePromotionError(new Error("Không tìm thấy khuyến mãi"), res);
+    }
+
     res.status(200).json(promotion);
   } catch (error) {
-    console.error('Error getting promotion by code:', error);
-    res.status(500).json({ message: 'Lỗi máy chủ' });
+    handlePromotionError(error, res);
   }
 };
 
-// Cập nhật khuyến mãi (Admin only)
+/**
+ * Cập nhật khuyến mãi
+ */
 const updatePromotion = async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const { 
-      title, 
-      description, 
-      type, 
-      code, 
-      discount, 
-      validFrom, 
-      validUntil, 
-      image, 
-      isActive 
+    const id = req.params.id;
+    const {
+      title,
+      description,
+      type,
+      code,
+      discount,
+      validFrom,
+      validUntil,
+      image,
+      isActive,
     } = req.body;
 
+    // Chuẩn bị dữ liệu cập nhật
     const updatedData = {};
-    
+
     // Chỉ cập nhật các trường được cung cấp
     if (title !== undefined) updatedData.title = title;
     if (description !== undefined) updatedData.description = description;
@@ -122,55 +163,45 @@ const updatePromotion = async (req, res) => {
     if (image !== undefined) updatedData.image = image;
     if (isActive !== undefined) updatedData.isActive = isActive;
 
-    const updatedPromotion = await promotionService.updatePromotion(id, updatedData);
-    
-    if (!updatedPromotion) {
-      return res.status(404).json({ message: 'Không tìm thấy khuyến mãi' });
-    }
-    
+    const updatedPromotion = await promotionService.updatePromotion(
+      id,
+      updatedData
+    );
+
     res.status(200).json(updatedPromotion);
   } catch (error) {
-    console.error('Lỗi cập nhật khuyến mãi:', error);
-    if (error.message === 'Mã khuyến mãi đã tồn tại') {
-      return res.status(400).json({ message: error.message });
-    }
-    res.status(500).json({ message: 'Lỗi máy chủ' });
+    handlePromotionError(error, res);
   }
 };
 
-// Xóa khuyến mãi (Admin only)
+/**
+ * Xóa khuyến mãi
+ */
 const deletePromotion = async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    
+    const id = req.params.id;
     await promotionService.deletePromotion(id);
-    res.status(200).json({ message: 'Xóa khuyến mãi thành công' });
+    res.status(200).json({ message: "Xóa khuyến mãi thành công" });
   } catch (error) {
-    console.error('Lỗi xóa khuyến mãi:', error);
-    if (error.message === 'Không tìm thấy khuyến mãi') {
-      return res.status(404).json({ message: error.message });
-    }
-    if (error.message === 'Không thể xóa khuyến mãi đang hoạt động') {
-      return res.status(400).json({ message: error.message });
-    }
-    res.status(500).json({ message: 'Lỗi máy chủ' });
+    handlePromotionError(error, res);
   }
 };
 
-// Xác thực mã khuyến mãi (Admin only)
+/**
+ * Xác thực mã khuyến mãi
+ */
 const validatePromotionCode = async (req, res) => {
   try {
     const { code } = req.params;
+
+    if (!code) {
+      return handlePromotionError(new Error("Thiếu mã khuyến mãi"), res);
+    }
+
     const result = await promotionService.validatePromotionCode(code);
     res.status(200).json(result);
   } catch (error) {
-    console.error('Lỗi xác thực mã khuyến mãi:', error);
-    if (error.message === 'Không tìm thấy khuyến mãi' || 
-        error.message === 'Khuyến mãi đã hết hạn' || 
-        error.message === 'Khuyến mãi không hoạt động') {
-      return res.status(400).json({ message: error.message });
-    }
-    res.status(500).json({ message: 'Lỗi máy chủ' });
+    handlePromotionError(error, res);
   }
 };
 
@@ -181,5 +212,5 @@ module.exports = {
   getPromotionByCode,
   updatePromotion,
   deletePromotion,
-  validatePromotionCode
+  validatePromotionCode,
 };

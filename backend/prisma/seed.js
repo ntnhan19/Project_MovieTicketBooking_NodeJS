@@ -12,40 +12,20 @@ async function main() {
   console.log('Bắt đầu seed dữ liệu...');
 
   try {
-    // 1. Seed Users
-    console.log('Seeding users...');
-    for (const user of data.users) {
-      await prisma.user.upsert({
-        where: { email: user.email },
-        update: {
-          name: user.name,
-          phone: user.phone,
-          password: user.password,
-          role: user.role,
-          avatar: user.avatar,
-        },
-        create: {
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          password: user.password,
-          role: user.role,
-          avatar: user.avatar,
-        },
-      });
-    }
-
-    // 2. Seed Genres
+    // 1. Seed Genres
     console.log('Seeding genres...');
     for (const genre of data.genres) {
       await prisma.genre.upsert({
-        where: { name: genre.name },
-        update: {},
-        create: { name: genre.name },
+        where: { id: genre.id },
+        update: { name: genre.name },
+        create: { 
+          id: genre.id,
+          name: genre.name 
+        },
       });
     }
 
-    // 3. Seed Movies
+    // 2. Seed Movies
     console.log('Seeding movies...');
     for (const movie of data.movies) {
       // Lấy ID của các thể loại
@@ -67,6 +47,7 @@ async function main() {
           }
         },
         create: {
+          id: movie.id,
           title: movie.title,
           description: movie.description,
           releaseDate: new Date(movie.releaseDate),
@@ -82,7 +63,7 @@ async function main() {
       });
     }
 
-    // 4. Seed Cinemas
+    // 3. Seed Cinemas
     console.log('Seeding cinemas...');
     for (const cinema of data.cinemas) {
       await prisma.cinema.upsert({
@@ -94,6 +75,7 @@ async function main() {
           mapUrl: cinema.mapUrl,
         },
         create: {
+          id: cinema.id,
           name: cinema.name,
           address: cinema.address,
           image: cinema.image,
@@ -102,7 +84,7 @@ async function main() {
       });
     }
 
-    // 5. Seed Halls
+    // 4. Seed Halls
     console.log('Seeding halls...');
     for (const hall of data.halls) {
       await prisma.hall.upsert({
@@ -115,6 +97,7 @@ async function main() {
           cinemaId: hall.cinemaId,
         },
         create: {
+          id: hall.id,
           name: hall.name,
           totalSeats: hall.totalSeats,
           rows: hall.rows,
@@ -124,7 +107,7 @@ async function main() {
       });
     }
 
-    // 6. Seed Promotions
+    // 5. Seed Promotions
     console.log('Seeding promotions...');
     for (const promotion of data.promotions) {
       await prisma.promotion.upsert({
@@ -141,6 +124,7 @@ async function main() {
           type: promotion.type,
         },
         create: {
+          id: promotion.id,
           code: promotion.code,
           discount: promotion.discount,
           validFrom: new Date(promotion.validFrom),
@@ -154,7 +138,7 @@ async function main() {
       });
     }
 
-    // 7. Seed Showtimes
+    // 6. Seed Showtimes
     console.log('Seeding showtimes...');
     for (const showtime of data.showtimes) {
       await prisma.showtime.upsert({
@@ -167,6 +151,7 @@ async function main() {
           price: showtime.price,
         },
         create: {
+          id: showtime.id,
           movieId: showtime.movieId,
           startTime: new Date(showtime.startTime),
           endTime: new Date(showtime.endTime),
@@ -176,7 +161,7 @@ async function main() {
       });
     }
 
-    // 8. Seed Seats
+    // 7. Seed Seats
     console.log('Seeding seats...');
     for (const seat of data.seats) {
       await prisma.seat.upsert({
@@ -189,89 +174,12 @@ async function main() {
           type: seat.type,
         },
         create: {
+          id: seat.id,
           showtimeId: seat.showtimeId,
           row: seat.row,
           column: seat.column,
           status: seat.status,
           type: seat.type,
-        },
-      });
-    }
-
-    // 9. Seed Payments
-    console.log('Seeding payments...');
-    for (const payment of data.payments) {
-      await prisma.payment.upsert({
-        where: { id: payment.id },
-        update: {
-          amount: payment.amount,
-          method: payment.method,
-          status: payment.status,
-          paymentDate: payment.paymentDate ? new Date(payment.paymentDate) : null,
-          transactionId: payment.transactionId,
-          appTransId: payment.appTransId,
-          orderToken: payment.orderToken,
-          paymentUrl: payment.paymentUrl,
-          zaloPayOrderData: payment.zaloPayOrderData,
-        },
-        create: {
-          amount: payment.amount,
-          method: payment.method,
-          status: payment.status,
-          paymentDate: payment.paymentDate ? new Date(payment.paymentDate) : null,
-          transactionId: payment.transactionId,
-          appTransId: payment.appTransId,
-          orderToken: payment.orderToken,
-          paymentUrl: payment.paymentUrl,
-          zaloPayOrderData: payment.zaloPayOrderData,
-        },
-      });
-    }
-
-    // 10. Seed Tickets
-    console.log('Seeding tickets...');
-    for (const ticket of data.tickets) {
-      await prisma.ticket.upsert({
-        where: { id: ticket.id },
-        update: {
-          userId: ticket.userId,
-          showtimeId: ticket.showtimeId,
-          seatId: ticket.seatId,
-          price: ticket.price,
-          status: ticket.status,
-          promotionId: ticket.promotionId,
-          paymentId: ticket.paymentId,
-        },
-        create: {
-          userId: ticket.userId,
-          showtimeId: ticket.showtimeId,
-          seatId: ticket.seatId,
-          price: ticket.price,
-          status: ticket.status,
-          promotionId: ticket.promotionId,
-          paymentId: ticket.paymentId,
-        },
-      });
-    }
-
-    // 11. Seed Reviews
-    console.log('Seeding reviews...');
-    for (const review of data.reviews) {
-      await prisma.review.upsert({
-        where: { id: review.id },
-        update: {
-          userId: review.userId,
-          movieId: review.movieId,
-          rating: review.rating,
-          comment: review.comment,
-          isAnonymous: review.isAnonymous,
-        },
-        create: {
-          userId: review.userId,
-          movieId: review.movieId,
-          rating: review.rating,
-          comment: review.comment,
-          isAnonymous: review.isAnonymous,
         },
       });
     }

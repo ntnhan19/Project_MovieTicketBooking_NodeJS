@@ -40,11 +40,11 @@ export const ticketApi = {
     }
   },
 
-  // Lấy danh sách vé của người dùng đang đăng nhập
+  // Lấy danh sách vé của người dùng đang đăng nhập (bao gồm thông tin chi tiết)
   getMyTickets: async () => {
     try {
       const userId = localStorage.getItem("userId");
-      const response = await axiosInstance.get(`/tickets/user/${userId}`);
+      const response = await axiosInstance.get(`/tickets/user/${userId}?includeDetails=true`);
       return response.data;
     } catch (error) {
       console.error("Lỗi khi lấy danh sách vé:", error);
@@ -146,6 +146,54 @@ export const ticketApi = {
       return response.data;
     } catch (error) {
       console.error('Lỗi khi mở khóa ghế:', error);
+      throw error;
+    }
+  },
+
+  // Tạo QR code cho vé - Phương thức mới dựa vào thông tin vé hiện có
+  generateTicketQR: async (ticketId) => {
+    try {
+      // Đầu tiên, lấy chi tiết vé từ API
+      const ticket = await ticketApi.getTicketById(ticketId);
+      
+      // Nếu vé không tồn tại hoặc không có showtime, trả về lỗi
+      if (!ticket || !ticket.showtime) {
+        throw new Error('Không thể tạo mã QR: Thiếu thông tin vé');
+      }
+      
+      // Lấy thông tin cần thiết từ vé
+      const { showtime, seat } = ticket;
+      const cinema = showtime.hall.cinema;
+      const movie = showtime.movie;
+      
+      // Tạo dữ liệu QR theo cùng định dạng như phía client
+      const qrData = JSON.stringify({
+        ticketCode: `T${ticket.id}`,
+        movieTitle: movie.title,
+        cinema: cinema.name,
+        hall: showtime.hall.name,
+        time: new Date(showtime.startTime).toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        date: new Date(showtime.startTime).toLocaleDateString("vi-VN"),
+        seat: `${seat.row}${seat.column || seat.number}`
+      });
+      
+      return qrData;
+    } catch (error) {
+      console.error('Lỗi khi tạo QR code cho vé:', error);
+      throw error;
+    }
+  },
+  
+  // Xác thực vé (sử dụng khi quét QR)
+  validateTicket: async (ticketId) => {
+    try {
+      const response = await axiosInstance.put(`/tickets/${ticketId}/validate`);
+      return response.data;
+    } catch (error) {
+      console.error('Lỗi khi xác thực vé:', error);
       throw error;
     }
   }

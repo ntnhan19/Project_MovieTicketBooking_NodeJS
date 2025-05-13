@@ -1,3 +1,4 @@
+// frontend/src/components/RegisterForm.jsx
 import React, { useState } from "react";
 import { Form, Input, Button, Typography, Checkbox, message } from "antd";
 import {
@@ -10,7 +11,7 @@ import { useAuth } from "../context/AuthContext";
 
 const { Text, Title } = Typography;
 
-const RegisterForm = ({ onLoginClick, onRegisterSuccess }) => {
+const RegisterForm = ({ onLoginClick }) => {
   const { register } = useAuth();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -26,7 +27,15 @@ const RegisterForm = ({ onLoginClick, onRegisterSuccess }) => {
     try {
       setLoading(true);
       const { confirmPassword: _, agreement: __, ...userData } = values;
-      await register(userData);
+      
+      // Chuyển đổi từ fullName sang name để phù hợp với backend
+      const submitData = {
+        ...userData,
+        name: userData.fullName, 
+      };
+      delete submitData.fullName; 
+      
+      await register(submitData);
       
       // Lưu email để hiển thị thông báo
       setRegisteredEmail(values.email);
@@ -35,8 +44,9 @@ const RegisterForm = ({ onLoginClick, onRegisterSuccess }) => {
       // Reset form
       form.resetFields();
       
-      // Callback nếu có
-      if (onRegisterSuccess) onRegisterSuccess();
+      // Quan trọng: Không gọi onRegisterSuccess() nếu muốn hiển thị thông báo xác nhận
+      // Người dùng sẽ phải click nút "Quay lại đăng nhập" để chuyển về màn hình đăng nhập
+      // Nếu vẫn muốn tự động chuyển đến đăng nhập sau một khoảng thời gian, có thể thêm setTimeout
       
     } catch (error) {
       console.error("Registration error:", error);
@@ -54,6 +64,13 @@ const RegisterForm = ({ onLoginClick, onRegisterSuccess }) => {
     } catch {
       message.error("Không thể gửi lại email xác thực. Vui lòng thử lại sau.");
     }
+  };
+
+  // Hàm để xử lý việc chuyển sang màn hình đăng nhập
+  const handleLoginClick = () => {
+    // Reset trạng thái verification message trước khi chuyển sang form đăng nhập
+    setShowVerificationMsg(false);
+    if (onLoginClick) onLoginClick();
   };
 
   return (
@@ -79,7 +96,7 @@ const RegisterForm = ({ onLoginClick, onRegisterSuccess }) => {
             <Button type="primary" onClick={handleResendVerification}>
               Gửi lại email xác nhận
             </Button>
-            <Button type="link" onClick={onLoginClick} className="ml-2">
+            <Button type="link" onClick={handleLoginClick} className="ml-2">
               Quay lại đăng nhập
             </Button>
           </div>
@@ -217,7 +234,7 @@ const RegisterForm = ({ onLoginClick, onRegisterSuccess }) => {
         <div className="text-center mt-6">
           <Text className="text-text-secondary">Đã có tài khoản? </Text>
           <a
-            onClick={onLoginClick}
+            onClick={handleLoginClick}
             className="text-primary font-medium hover:text-primary-dark transition-all cursor-pointer"
           >
             Đăng nhập ngay

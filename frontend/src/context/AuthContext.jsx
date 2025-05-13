@@ -21,6 +21,38 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // Thêm state quản lý modal đăng nhập
+  const [authModal, setAuthModal] = useState({
+    visible: false,
+    activeTab: '1', // '1' cho đăng nhập, '2' cho đăng ký
+    redirectAfterLogin: null // Lưu đường dẫn để chuyển hướng sau khi đăng nhập nếu cần
+  });
+
+  // Mở modal đăng nhập
+  const openAuthModal = (tab = '1', redirectPath = null) => {
+    setAuthModal({
+      visible: true,
+      activeTab: tab,
+      redirectAfterLogin: redirectPath
+    });
+  };
+
+  // Đóng modal đăng nhập
+  const closeAuthModal = () => {
+    setAuthModal({
+      ...authModal,
+      visible: false
+    });
+  };
+
+  // Chuyển tab trong modal
+  const switchAuthTab = (tab) => {
+    setAuthModal({
+      ...authModal,
+      activeTab: tab
+    });
+  };
 
   // Kiểm tra người dùng đã đăng nhập từ localStorage
   useEffect(() => {
@@ -81,14 +113,36 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
       setIsAuthenticated(true);
       
-      // Đảm bảo token được lưu trong localStorage
+      // Lưu thông tin người dùng theo định dạng mà cả 2 trang (user và admin) đều có thể đọc được
+      // Lưu token riêng
       localStorage.setItem('token', token);
+      
+      // Lưu thông tin user riêng
       localStorage.setItem('user', JSON.stringify(user));
+      
+      // Lưu id người dùng nếu cần
       localStorage.setItem('userId', user.id);
       
+      // QUAN TRỌNG: Lưu cả thông tin auth theo định dạng mà trang admin cần
+      localStorage.setItem('auth', JSON.stringify({
+        user: user,
+        token: token
+      }));
+      
+      console.log("Đã lưu auth vào localStorage:", {user, token});
+      
       // Thiết lập token trong header cho tất cả các request tiếp theo
-      // (Điều này đã được thực hiện trong authApi.login nhưng thêm vào đây để chắc chắn)
       axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      // Đóng modal đăng nhập nếu đang mở
+      closeAuthModal();
+      
+      // Chuyển hướng sau khi đăng nhập thành công nếu có
+      if (authModal.redirectAfterLogin) {
+        setTimeout(() => {
+          window.location.href = authModal.redirectAfterLogin;
+        }, 500);
+      }
       
       // Hiển thị thông báo thành công
       toast.success('Đăng nhập thành công!');
@@ -104,12 +158,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Các phương thức khác giữ nguyên
   const register = async (userData) => {
     try {
       setLoading(true);
       const result = await authApi.register(userData);
       toast.success(result.message || 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.');
+      
+      // Sau khi đăng ký thành công, chuyển tab sang đăng nhập
+      switchAuthTab('1');
+      
       return { success: true, message: result.message };
     } catch (error) {
       console.error("Register error:", error);
@@ -146,7 +203,7 @@ export const AuthProvider = ({ children }) => {
   const verifyEmail = async (token) => {
     try {
       setLoading(true);
-      const result = await userApi.verifyEmail(token);
+      const result = await authApi.verifyEmail(token);
       toast.success(result.message || 'Xác thực email thành công');
       return { success: true };
     } catch (error) {
@@ -257,7 +314,7 @@ export const AuthProvider = ({ children }) => {
   // Value object cung cấp cho context
   const value = {
     user,
-    currentUser: user, // Thêm alias để tương thích với các component khác
+    currentUser: user,
     isAuthenticated,
     loading,
     login,
@@ -270,7 +327,11 @@ export const AuthProvider = ({ children }) => {
     uploadAvatar,
     forgotPassword,
     verifyResetToken,
-    resetPassword
+    resetPassword,
+    authModal,
+    openAuthModal,
+    closeAuthModal,
+    switchAuthTab
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
