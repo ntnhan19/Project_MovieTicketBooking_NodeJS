@@ -7,53 +7,65 @@ A comprehensive web application for online movie ticket booking and management.
 
 ## 📋 Overview
 
+> 🎓 This project was developed as a **university foundation project** by a group of third-year Software Engineering students.  
+> It is **not a commercial product**, but a hands-on academic project to apply full-stack web development knowledge.
+
 **Movie Ticket Booking** is a modern platform that allows users to conveniently book movie tickets online. The project features both user-facing systems for ticket booking and administrative systems for managing movies, screenings, theaters, and booking transactions.
+
+As part of the system, a **VNPay (sandbox)** integration was implemented to simulate online payment.
+
+---
 
 ## ✨ Key Features
 
 ### 👤 User Features
 - **Account Management**
-  - User registration and authentication
-  - Personal profile management
+  - User registration and login
+  - Personal profile editing
 - **Movie Experience**
-  - Browse current movies with detailed information
-  - Book tickets with seat selection
-  - Online payment processing
-  - Submit movie reviews and ratings
+  - Browse currently showing movies with details
+  - Book movie tickets with seat selection
+  - **VNPay sandbox payment integration**
+  - Post movie reviews and ratings
 
 ### 🔧 Admin Features
 - **Content Management**
-  - Movie catalog administration
-  - Screening schedule management
-  - Theater and seating configuration
+  - Manage movie catalog (CRUD)
+  - Create and edit screening schedules
+  - Theater and seat configuration
 - **Business Operations**
-  - Booking transaction monitoring
-  - Promotion and discount management
-  - User data administration
+  - Manage booking transactions
+  - Create promotions and discounts
+  - Manage user information
+
+---
 
 ## 🛠️ Technology Stack
 
 ### Frontend
-- **React.js** - Modern UI library for building interactive interfaces
-- **Tailwind CSS** - Utility-first CSS framework
-- **Ant Design** - UI component library
+- **React.js** – Modern UI library for interactive frontend
+- **Tailwind CSS** – Utility-first CSS framework
+- **Ant Design** – React UI component library
 
 ### Backend
-- **Node.js** - JavaScript runtime environment
-- **Express.js** - Web application framework
-- **PostgreSQL** - Relational database
-- **Prisma ORM** - Next-generation ORM
-- **JWT** - Secure authentication mechanism
+- **Node.js** – JavaScript runtime environment
+- **Express.js** – Web framework for REST APIs
+- **PostgreSQL** – Relational database
+- **Prisma ORM** – Type-safe ORM for PostgreSQL
+- **JWT** – Secure authentication with JSON Web Tokens
+- **VNPay (Sandbox)** – Simulated payment gateway integration
 
 ### Admin Panel
-- **React Admin** - Admin interface framework
+- **React Admin** – Powerful admin interface for managing system resources
+
+---
 
 ## 🚀 Installation & Setup
 
 ### Prerequisites
 - Node.js (v14+)
 - npm or yarn
-- PostgreSQL
+- PostgreSQL installed and running
 
 ### Step 1: Clone the repository
 ```bash
