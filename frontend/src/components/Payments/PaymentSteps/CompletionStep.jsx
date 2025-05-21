@@ -11,6 +11,7 @@ import {
   Tag,
   Image,
   Spin,
+  App,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -170,63 +171,104 @@ const CompletionStep = ({
     return formatPaymentMethod(paymentMethod);
   };
 
+  console.log("Debug ticketData structure:", ticketData);
+  console.log("Debug ticketData keys:", Object.keys(ticketData || {}));
+
   // Lấy mã giao dịch
   // 1. Cập nhật hàm getTransactionId() trong CompletionStep.jsx
+  // Hàm getTransactionId() đã được sửa lỗi
   const getTransactionId = () => {
     if (!ticketData) return "Không xác định";
 
-    // Nếu có transactionId trực tiếp từ URL hoặc global state
-    if (window && window.paymentTransactionId) {
-      return window.paymentTransactionId;
+    // Ưu tiên các nguồn dữ liệu theo thứ tự quan trọng
+
+    // 1. Kiểm tra vnp_TransactionNo trực tiếp từ ticketData
+    if (ticketData.vnp_TransactionNo) {
+      return ticketData.vnp_TransactionNo;
     }
 
-    // Lấy từ tham số URL nếu có
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlTransactionId =
-      urlParams.get("transactionId") || urlParams.get("vnp_TransactionNo");
-    if (urlTransactionId) {
-      return urlTransactionId;
+    // 2. Kiểm tra trong vnpayData
+    if (ticketData.vnpayData && ticketData.vnpayData.vnp_TransactionNo) {
+      return ticketData.vnpayData.vnp_TransactionNo;
     }
 
-    // Kiểm tra trong đối tượng payment
-    if (ticketData.payment && ticketData.payment.transactionId) {
-      return ticketData.payment.transactionId;
-    }
-
-    // Kiểm tra nếu có payment trực tiếp ở ticketData
+    // 3. Kiểm tra transactionId trực tiếp
     if (ticketData.transactionId) {
       return ticketData.transactionId;
     }
 
-    // Kiểm tra nếu có một mảng tickets và ticket đầu tiên có payment
+    // 4. Kiểm tra trong payment object
+    if (ticketData.payment) {
+      if (ticketData.payment.vnp_TransactionNo) {
+        return ticketData.payment.vnp_TransactionNo;
+      }
+      if (ticketData.payment.transactionId) {
+        return ticketData.payment.transactionId;
+      }
+      if (ticketData.payment.transactionNo) {
+        return ticketData.payment.transactionNo;
+      }
+    }
+
+    // 5. Kiểm tra trong paymentDetails
+    if (ticketData.paymentDetails) {
+      if (ticketData.paymentDetails.vnp_TransactionNo) {
+        return ticketData.paymentDetails.vnp_TransactionNo;
+      }
+      if (ticketData.paymentDetails.transactionId) {
+        return ticketData.paymentDetails.transactionId;
+      }
+    }
+
+    // 6. Kiểm tra từ tham số URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlTransactionId =
+      urlParams.get("vnp_TransactionNo") ||
+      urlParams.get("transactionId") ||
+      urlParams.get("vnp_TransactionId");
+    if (urlTransactionId) {
+      return urlTransactionId;
+    }
+
+    // 7. Kiểm tra global variable
+    if (window && window.paymentTransactionId) {
+      return window.paymentTransactionId;
+    }
+
+    // 8. Kiểm tra trong mảng tickets
     if (
       ticketData.tickets &&
       Array.isArray(ticketData.tickets) &&
       ticketData.tickets.length > 0
     ) {
       const firstTicket = ticketData.tickets[0];
-      if (firstTicket.payment && firstTicket.payment.transactionId) {
-        return firstTicket.payment.transactionId;
+      if (firstTicket.payment) {
+        if (firstTicket.payment.vnp_TransactionNo) {
+          return firstTicket.payment.vnp_TransactionNo;
+        }
+        if (firstTicket.payment.transactionId) {
+          return firstTicket.payment.transactionId;
+        }
+      }
+      if (firstTicket.vnp_TransactionNo) {
+        return firstTicket.vnp_TransactionNo;
+      }
+      if (firstTicket.transactionId) {
+        return firstTicket.transactionId;
       }
     }
 
-    // Kiểm tra trong dữ liệu VNPay
-    if (ticketData.vnpayData && ticketData.vnpayData.vnp_TransactionNo) {
-      return ticketData.vnpayData.vnp_TransactionNo;
-    }
-
-    // Kiểm tra nếu có vnp_TransactionNo
-    if (ticketData.vnp_TransactionNo) {
-      return ticketData.vnp_TransactionNo;
-    }
-
-    // Kiểm tra trong đối tượng paymentDetails nếu có
-    if (ticketData.paymentDetails && ticketData.paymentDetails.transactionId) {
-      return ticketData.paymentDetails.transactionId;
-    }
-
-    // Kiểm tra trong firstTicket nếu có
+    // 9. Kiểm tra trong firstTicket
     if (ticketData.firstTicket) {
+      if (ticketData.firstTicket.vnp_TransactionNo) {
+        return ticketData.firstTicket.vnp_TransactionNo;
+      }
+      if (
+        ticketData.firstTicket.payment &&
+        ticketData.firstTicket.payment.vnp_TransactionNo
+      ) {
+        return ticketData.firstTicket.payment.vnp_TransactionNo;
+      }
       if (
         ticketData.firstTicket.payment &&
         ticketData.firstTicket.payment.transactionId
@@ -238,8 +280,38 @@ const CompletionStep = ({
       }
     }
 
-    // Trường hợp không tìm thấy, trả về một thông báo rõ ràng
+    // 10. Cuối cùng, trả về thông báo rõ ràng
+    console.warn("Không tìm thấy mã giao dịch trong ticketData:", ticketData);
     return "Không có mã giao dịch";
+  };
+
+  const DebugTransactionInfo = ({ ticketData }) => {
+    if (!ticketData) return null;
+
+    const debugInfo = {
+      vnp_TransactionNo: ticketData.vnp_TransactionNo,
+      transactionId: ticketData.transactionId,
+      payment: ticketData.payment,
+      vnpayData: ticketData.vnpayData,
+      paymentDetails: ticketData.paymentDetails,
+      allKeys: Object.keys(ticketData),
+    };
+
+    return (
+      <div
+        style={{
+          backgroundColor: "#f5f5f5",
+          padding: "10px",
+          margin: "10px 0",
+          borderRadius: "5px",
+          fontSize: "12px",
+          fontFamily: "monospace",
+        }}
+      >
+        <h4>Debug Transaction Info:</h4>
+        <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+      </div>
+    );
   };
 
   // Render thông tin một vé

@@ -14,8 +14,7 @@ const getAllHalls = async (page = 1, limit = 10, cinemaId = undefined) => {
     prisma.hall.findMany({
       where: whereClause,
       skip,
-      take: limit,
-      include: {
+      take: limit,      include: {
         cinema: {
           select: {
             id: true,
@@ -30,7 +29,7 @@ const getAllHalls = async (page = 1, limit = 10, cinemaId = undefined) => {
         }
       },
       orderBy: {
-        name: 'asc'
+        id: 'asc'
       }
     }),
     prisma.hall.count({ where: whereClause })

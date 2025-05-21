@@ -1,5 +1,4 @@
-// frontend/src/components/Profile/TicketHistoryCard.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   Card,
   Table,
@@ -11,7 +10,7 @@ import {
   Dropdown,
   Space,
   Skeleton,
-  message,
+  notification,
   Badge,
   Select,
 } from "antd";
@@ -31,10 +30,12 @@ import {
 } from "@ant-design/icons";
 import { ticketApi } from "../../api/ticketApi";
 import TicketDetailModal from "../Tickets/TicketDetailModal";
+import { ThemeContext } from "../../context/ThemeContext";
 
 const { Option } = Select;
 
 const TicketHistoryCard = () => {
+  const { theme } = useContext(ThemeContext);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -48,10 +49,7 @@ const TicketHistoryCard = () => {
   }, []);
 
   useEffect(() => {
-    // Lọc vé dựa trên từ khóa tìm kiếm và trạng thái
     let filtered = [...tickets];
-
-    // Lọc theo từ khóa
     if (searchText) {
       filtered = filtered.filter(
         (ticket) =>
@@ -65,34 +63,31 @@ const TicketHistoryCard = () => {
               .includes(searchText.toLowerCase()))
       );
     }
-
-    // Lọc theo trạng thái
     if (statusFilter !== "all") {
       filtered = filtered.filter(
         (ticket) => ticket.status?.toLowerCase() === statusFilter
       );
     }
-
     setFilteredTickets(filtered);
   }, [searchText, tickets, statusFilter]);
 
-  // Hàm lấy vé của người dùng từ API
   const fetchUserTickets = async () => {
     setLoading(true);
     try {
       const ticketsData = await ticketApi.getMyTickets();
-      console.log("Tickets data fetched:", ticketsData); // Debug: Kiểm tra dữ liệu vé
       setTickets(ticketsData);
       setFilteredTickets(ticketsData);
     } catch (error) {
-      message.error("Không thể lấy lịch sử vé. Vui lòng thử lại!");
+      notification.error({
+        message: 'Lỗi',
+        description: 'Không thể lấy lịch sử vé. Vui lòng thử lại!',
+      });
       console.error("Error fetching tickets:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Format date từ ISO string
   const formatDate = (dateString) => {
     if (!dateString) return "";
     try {
@@ -102,7 +97,6 @@ const TicketHistoryCard = () => {
     }
   };
 
-  // Format time từ ISO string
   const formatTime = (dateString) => {
     if (!dateString) return "";
     try {
@@ -115,10 +109,8 @@ const TicketHistoryCard = () => {
     }
   };
 
-  // Hàm chuyển đổi trạng thái của vé sang tag có màu
   const renderStatus = (status) => {
     if (!status) return null;
-
     const statusMap = {
       confirmed: {
         color: "green",
@@ -126,7 +118,7 @@ const TicketHistoryCard = () => {
         text: "Đã xác nhận",
       },
       pending: {
-        color: "gold",
+        color: "yellow",
         icon: <ClockCircleOutlined />,
         text: "Đang xử lý",
       },
@@ -137,46 +129,39 @@ const TicketHistoryCard = () => {
       },
       used: { color: "blue", icon: <HistoryOutlined />, text: "Đã sử dụng" },
     };
-
     const statusInfo = statusMap[status.toLowerCase()] || {
       color: "default",
       icon: null,
       text: status,
     };
-
     return (
-      <Tag color={statusInfo.color} icon={statusInfo.icon}>
-        {statusInfo.text}
+      <Tag
+        className={`ant-tag-${statusInfo.color}`}
+      >
+        {statusInfo.icon} {statusInfo.text}
       </Tag>
     );
   };
 
-  // Hàm xem chi tiết vé
   const handleViewTicketDetail = (ticketId) => {
     setSelectedTicketId(ticketId);
     setDetailModalVisible(true);
   };
 
-  // Hàm tải vé
   const handleDownloadTicket = (ticketId) => {
     handleViewTicketDetail(ticketId);
-    // Modal chi tiết vé có chức năng tải xuống
   };
 
-  // Hàm đóng modal chi tiết vé
   const handleCloseDetailModal = () => {
     setDetailModalVisible(false);
     setSelectedTicketId(null);
-    // Sau khi đóng modal, làm mới dữ liệu vé
     fetchUserTickets();
   };
 
-  // Lọc theo trạng thái
   const handleStatusFilterChange = (value) => {
     setStatusFilter(value);
   };
 
-  // Menu items cho nút thao tác (thay thế getActionMenu cũ)
   const getActionMenuItems = (record) => {
     return {
       items: [
@@ -204,7 +189,6 @@ const TicketHistoryCard = () => {
     };
   };
 
-  // Kiểm tra xem showtime đã qua chưa
   const isShowtimePassed = (showtimeDate) => {
     if (!showtimeDate) return false;
     const now = new Date();
@@ -212,7 +196,6 @@ const TicketHistoryCard = () => {
     return showtime < now;
   };
 
-  // Định nghĩa các cột của bảng
   const columns = [
     {
       title: "Phim",
@@ -220,22 +203,22 @@ const TicketHistoryCard = () => {
       key: "movie",
       render: (showtime, record) => (
         <div className="flex flex-col">
-          <span className="font-medium text-text-primary">
+          <span className="font-medium text-text-primary dark:text-dark-text-primary">
             {showtime?.movie?.title || "Không có tên phim"}
             {isShowtimePassed(showtime?.startTime) &&
               record.status?.toLowerCase() === "active" && (
                 <Badge
                   count="Đã chiếu"
                   style={{ backgroundColor: "#52c41a" }}
-                  className="ml-2"
+                  className="ml-2 text-text-primary dark:text-dark-text-primary"
                 />
               )}
           </span>
-          <small className="text-text-secondary flex items-center mt-1">
-            <CalendarOutlined className="mr-1" />{" "}
+          <small className="text-text-secondary dark:text-dark-text-secondary flex items-center mt-1">
+            <CalendarOutlined className="mr-1 text-gray-400 dark:text-gray-300" />{" "}
             {formatDate(showtime?.startTime)}
-            <span className="mx-1">|</span>
-            <ClockCircleOutlined className="mr-1" />{" "}
+            <span className="mx-1 text-gray-400 dark:text-gray-300">|</span>
+            <ClockCircleOutlined className="mr-1 text-gray-400 dark:text-gray-300" />{" "}
             {formatTime(showtime?.startTime)}
           </small>
         </div>
@@ -247,10 +230,12 @@ const TicketHistoryCard = () => {
       key: "cinema",
       render: (showtime) => (
         <div className="flex flex-col">
-          <span>{showtime?.hall?.cinema?.name || "Không có tên rạp"}</span>
+          <span className="text-text-primary dark:text-dark-text-primary">
+            {showtime?.hall?.cinema?.name || "Không có tên rạp"}
+          </span>
           {showtime?.hall && (
-            <small className="text-text-secondary flex items-center mt-1">
-              <EnvironmentOutlined className="mr-1" />{" "}
+            <small className="text-text-secondary dark:text-dark-text-secondary flex items-center mt-1">
+              <EnvironmentOutlined className="mr-1 text-gray-400 dark:text-gray-300" />{" "}
               {showtime.hall.name || "Không có phòng"}
             </small>
           )}
@@ -263,7 +248,6 @@ const TicketHistoryCard = () => {
       key: "seat",
       render: (seat) => {
         if (!seat) return "-";
-
         const seatInfo = `${seat.row}${seat.column || seat.number}`;
         const seatType =
           seat.type === "VIP"
@@ -273,9 +257,8 @@ const TicketHistoryCard = () => {
             : seat.type === "COUPLE"
             ? " (Ghế đôi)"
             : "";
-
         return (
-          <div>
+          <div className="text-text-primary dark:text-dark-text-primary">
             {seatInfo}
             {seatType}
           </div>
@@ -293,7 +276,10 @@ const TicketHistoryCard = () => {
       key: "action",
       render: (_, record) => (
         <Dropdown menu={getActionMenuItems(record)} trigger={["click"]}>
-          <Button type="link" className="p-0">
+          <Button 
+            type="link" 
+            className="p-0 ripple-btn text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
+          >
             <Space>
               Thao tác
               <DownloadOutlined />
@@ -308,25 +294,30 @@ const TicketHistoryCard = () => {
     <>
       <Card
         title={
-          <div className="flex items-center">
-            <HistoryOutlined className="mr-2 text-primary" />
-            <span>Lịch sử đặt vé</span>
+          <div className="flex items-center text-text-primary dark:text-dark-text-primary">
+            <HistoryOutlined className="mr-2 text-red-500 dark:text-red-400" />
+            <span className="font-medium">Lịch sử đặt vé</span>
           </div>
         }
         extra={
           <div className="flex space-x-2">
             <Input
               placeholder="Tìm kiếm theo phim/rạp"
-              prefix={<SearchOutlined />}
+              prefix={<SearchOutlined className="text-gray-400 dark:text-gray-300" />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              className="w-48 md:w-64"
+              className={`form-input w-48 md:w-64 ${
+                theme === 'dark' ? 'bg-gray-800 text-dark-text-primary' : 'bg-white text-text-primary'
+              }`}
             />
             <Select
               defaultValue="all"
               style={{ width: 120 }}
               onChange={handleStatusFilterChange}
               value={statusFilter}
+              className={`booking-select ${
+                theme === 'dark' ? 'bg-gray-800 text-dark-text-primary' : 'bg-white text-text-primary'
+              }`}
             >
               <Option value="all">Tất cả</Option>
               <Option value="confirmed">Đã xác nhận</Option>
@@ -339,11 +330,16 @@ const TicketHistoryCard = () => {
                 icon={<ReloadOutlined />}
                 onClick={fetchUserTickets}
                 loading={loading}
+                className={`ripple-btn transition-all ${
+                  theme === 'dark'
+                    ? 'border-gray-600 text-dark-text-secondary hover:bg-red-600 hover:text-white'
+                    : 'border-gray-300 text-text-secondary hover:bg-red-500 hover:text-white'
+                }`}
               />
             </Tooltip>
           </div>
         }
-        className="content-card"
+        className={`ticket-history-card content-card`}
       >
         {loading ? (
           <Skeleton active paragraph={{ rows: 5 }} />
@@ -352,11 +348,18 @@ const TicketHistoryCard = () => {
             columns={columns}
             dataSource={filteredTickets}
             rowKey="id"
+            className={`animate-fadeIn ${
+              theme === 'dark' ? 'text-dark-text-primary' : 'text-text-primary'
+            }`}
+            rowClassName={`transition-colors ${
+              theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+            }`}
             locale={{
               emptyText: (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
                   description="Bạn chưa có lịch sử đặt vé nào"
+                  className={theme === 'dark' ? 'text-dark-text-secondary' : 'text-text-secondary'}
                 />
               ),
             }}
@@ -364,12 +367,12 @@ const TicketHistoryCard = () => {
               pageSize: 5,
               showSizeChanger: false,
               showTotal: (total) => `Tổng ${total} vé`,
+              className: `pagination-custom ${theme === 'dark' ? 'text-white' : 'text-black'}`, // Đảm bảo màu text đúng
             }}
           />
         )}
       </Card>
 
-      {/* Modal chi tiết vé */}
       <TicketDetailModal
         visible={detailModalVisible}
         ticketId={selectedTicketId}

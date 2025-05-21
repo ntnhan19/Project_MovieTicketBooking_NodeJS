@@ -214,7 +214,7 @@ const getAllTickets = async (page = 1, limit = 10) => {
       },
       orderBy: {
         showtime: {
-          startTime: 'desc'
+          startTime: 'asc'
         }
       }
     }),

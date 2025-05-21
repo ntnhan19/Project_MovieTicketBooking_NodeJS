@@ -196,5 +196,43 @@ export const ticketApi = {
       console.error('Lỗi khi xác thực vé:', error);
       throw error;
     }
+  },
+
+  getTicketWithPayment: async (ticketId) => {
+    try {
+      const [ticket, payment] = await Promise.all([
+        axiosInstance.get(`/tickets/${ticketId}`),
+        axiosInstance.get(`/payments/ticket/${ticketId}`)
+      ]);
+      
+      return {
+        ticket: ticket.data,
+        payment: payment.data
+      };
+    } catch (error) {
+      console.error("Lỗi khi lấy thông tin vé và thanh toán:", error);
+      throw error;
+    }
+  },
+
+  // Lấy thông tin nhiều vé kèm payment
+  getTicketsWithPayment: async (ticketIds) => {
+    try {
+      const tickets = await Promise.all(
+        ticketIds.map(id => axiosInstance.get(`/tickets/${id}`))
+      );
+      
+      // Lấy payment từ ticket đầu tiên
+      const payment = await axiosInstance.get(`/payments/ticket/${ticketIds[0]}`);
+      
+      return {
+        tickets: tickets.map(response => response.data),
+        payment: payment.data
+      };
+    } catch (error) {
+      console.error("Lỗi khi lấy thông tin vé và thanh toán:", error);
+      throw error;
+    }
   }
 };
+

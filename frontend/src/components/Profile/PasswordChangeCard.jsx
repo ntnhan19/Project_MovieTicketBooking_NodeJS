@@ -14,7 +14,6 @@ const PasswordChangeCard = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
-  // Hàm xử lý đổi mật khẩu
   const handleChangePassword = async (values) => {
     try {
       setLoading(true);
@@ -75,12 +74,12 @@ const PasswordChangeCard = () => {
   return (
     <Card
       title={
-        <div className="flex items-center text-lg font-medium">
-          <KeyOutlined className="mr-2 text-primary" /> 
+        <div className="flex items-center text-lg font-medium text-text-primary dark:text-dark-text-primary">
+          <KeyOutlined className="mr-2 text-red-500 dark:text-red-400" /> 
           Đổi mật khẩu
         </div>
       }
-      className="shadow-md rounded-xl overflow-hidden"
+      className="content-card"
     >
       <Form
         form={form}
@@ -91,38 +90,38 @@ const PasswordChangeCard = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Form.Item
             name="currentPassword"
-            label="Mật khẩu hiện tại"
+            label={<span className="text-text-primary dark:text-dark-text-primary">Mật khẩu hiện tại</span>}
             rules={[
               { required: true, message: 'Vui lòng nhập mật khẩu hiện tại!' }
             ]}
           >
             <Input.Password
-              prefix={<LockOutlined className="text-gray-400 mr-2" />}
+              prefix={<LockOutlined className="text-gray-400 dark:text-gray-300 mr-2" />}
               placeholder="Nhập mật khẩu hiện tại"
-              className="rounded-lg py-2"
+              className="form-input"
               iconRender={visible => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
             />
           </Form.Item>
 
           <Form.Item
             name="newPassword"
-            label="Mật khẩu mới"
+            label={<span className="text-text-primary dark:text-dark-text-primary">Mật khẩu mới</span>}
             rules={[
               { required: true, message: 'Vui lòng nhập mật khẩu mới!' },
               ...passwordRules
             ]}
           >
             <Input.Password
-              prefix={<LockOutlined className="text-gray-400 mr-2" />}
+              prefix={<LockOutlined className="text-gray-400 dark:text-gray-300 mr-2" />}
               placeholder="Nhập mật khẩu mới"
-              className="rounded-lg py-2"
+              className="form-input"
               iconRender={visible => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
             />
           </Form.Item>
 
           <Form.Item
             name="confirmPassword"
-            label="Xác nhận mật khẩu mới"
+            label={<span className="text-text-primary dark:text-dark-text-primary">Xác nhận mật khẩu mới</span>}
             rules={[
               { required: true, message: 'Vui lòng xác nhận mật khẩu mới!' },
               ({ getFieldValue }) => ({
@@ -136,9 +135,9 @@ const PasswordChangeCard = () => {
             ]}
           >
             <Input.Password
-              prefix={<LockOutlined className="text-gray-400 mr-2" />}
+              prefix={<LockOutlined className="text-gray-400 dark:text-gray-300 mr-2" />}
               placeholder="Xác nhận mật khẩu mới"
-              className="rounded-lg py-2"
+              className="form-input"
               iconRender={visible => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
             />
           </Form.Item>
@@ -150,21 +149,21 @@ const PasswordChangeCard = () => {
             htmlType="submit"
             loading={loading}
             icon={<SafetyOutlined />}
-            className="bg-button-gradient hover:bg-button-gradient-hover transition-all"
+            className="ripple-btn bg-button-gradient hover:bg-button-gradient-hover transition-all"
           >
             Cập nhật mật khẩu
           </Button>
         </Form.Item>
       </Form>
 
-      <Divider />
+      <Divider className="border-gray-200 dark:border-gray-600" />
 
-      <div className="bg-light-bg-secondary p-4 rounded-lg">
-        <h4 className="font-medium flex items-center">
-          <SafetyOutlined className="mr-2 text-primary" />
+      <div className="bg-light-bg-secondary dark:bg-gray-700 p-4 rounded-lg">
+        <h4 className="font-medium flex items-center text-text-primary dark:text-dark-text-primary">
+          <SafetyOutlined className="mr-2 text-red-500 dark:text-red-400" />
           Lưu ý bảo mật
         </h4>
-        <ul className="text-sm list-disc pl-5 mt-2 text-text-secondary">
+        <ul className="text-sm list-disc pl-5 mt-2 text-text-secondary dark:text-gray-300">
           <li>Mật khẩu phải có ít nhất 8 ký tự</li>
           <li>Nên bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt</li>
           <li>Không sử dụng thông tin cá nhân như ngày sinh, tên, số điện thoại</li>

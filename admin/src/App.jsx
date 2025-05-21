@@ -77,6 +77,10 @@ import TicketList from "./components/Tickets/TicketList";
 import TicketShow from "./components/Tickets/TicketShow";
 import TicketCreate from "./components/Tickets/TicketCreate";
 
+// Payment components
+import PaymentList from "./components/Payments/PaymentList";
+import PaymentShow from "./components/Payments/PaymentShow";
+
 // Dashboard component
 import Dashboard from "./components/Dashboard/Dashboard";
 
@@ -94,6 +98,7 @@ import {
   CubeIcon,
   QueueListIcon,
   ShoppingCartIcon,
+  CreditCardIcon, // Thêm CreditCardIcon
 } from "@heroicons/react/24/outline";
 
 function App() {
@@ -106,17 +111,17 @@ function App() {
         dashboard={Dashboard}
         disableTelemetry
         requireAuth
-      >
-        <Resource
+      >          <Resource
           name="movies"
-          list={MovieList}
+          list={MovieList} 
           edit={MovieEdit}
           create={MovieCreate}
           show={MovieShow}
           icon={FilmIcon}
-          options={{ 
-            label: 'Phim',
-            menuIcon: <FilmIcon className="w-5 h-5" />
+          options={{
+            label: 'Quản lý phim',
+            menuIcon: <FilmIcon className="w-5 h-5" />,
+            recordRepresentation: 'title'
           }}
         />
         <Resource
@@ -126,7 +131,7 @@ function App() {
           create={GenreCreate}
           show={GenreShow}
           options={{ 
-            label: 'Thể loại',
+            label: 'Quản lý thể loại',
             menuIcon: <TagIcon className="w-5 h-5" /> 
           }}
         />
@@ -137,7 +142,7 @@ function App() {
           create={ShowtimeCreate}
           show={ShowtimeShow}
           options={{ 
-            label: 'Lịch chiếu',
+            label: 'Quản lý lịch chiếu',
             menuIcon: <ClockIcon className="w-5 h-5" /> 
           }}
         />
@@ -148,7 +153,7 @@ function App() {
           create={HallCreate}
           show={HallShow}
           options={{ 
-            label: 'Phòng chiếu',
+            label: 'Quản lý phòng chiếu',
             menuIcon: <BuildingOffice2Icon className="w-5 h-5" /> 
           }}
         />
@@ -159,7 +164,7 @@ function App() {
           create={CinemaCreate}
           show={CinemaShow}
           options={{ 
-            label: 'Rạp phim',
+            label: 'Quản lý rạp phim',
             menuIcon: <MapPinIcon className="w-5 h-5" /> 
           }}
         />
@@ -170,7 +175,7 @@ function App() {
           create={PromotionCreate}
           show={PromotionShow}
           options={{ 
-            label: 'Khuyến mãi',
+            label: 'Quản lý khuyến mãi',
             menuIcon: <PromotionIcon className="w-5 h-5" /> 
           }}
         />
@@ -181,7 +186,7 @@ function App() {
           create={UserCreate}
           show={UserShow}
           options={{ 
-            label: 'Người dùng',
+            label: 'Quản lý người dùng',
             menuIcon: <UserIcon className="w-5 h-5" /> 
           }}
         />
@@ -192,7 +197,7 @@ function App() {
           create={TicketCreate}
           show={TicketShow}
           options={{
-            label: "Vé",
+            label: "Quản lý vé",
             menuIcon: <TicketIcon className="w-5 h-5" />
           }}
         />
@@ -205,7 +210,7 @@ function App() {
           create={ConcessionCategoryCreate}
           show={ConcessionCategoryShow}
           options={{ 
-            label: 'Danh mục đồ ăn',
+            label: 'Danh mục bắp nước',
             menuIcon: <QueueListIcon className="w-5 h-5" /> 
           }}
         />
@@ -218,7 +223,7 @@ function App() {
           create={ConcessionItemCreate}
           show={ConcessionItemShow}
           options={{ 
-            label: 'Đồ ăn/Thức uống',
+            label: 'Sản phẩm bắp nước',
             menuIcon: <CubeIcon className="w-5 h-5" /> 
           }}
         />
@@ -231,7 +236,7 @@ function App() {
           create={ConcessionComboCreate}
           show={ConcessionComboShow}
           options={{ 
-            label: 'Combo đồ ăn',
+            label: 'Combo bắp nước',
             menuIcon: <ShoppingBagIcon className="w-5 h-5" /> 
           }}
         />
@@ -244,8 +249,21 @@ function App() {
           create={ConcessionOrderCreate}
           show={ConcessionOrderShow}
           options={{ 
-            label: 'Đơn hàng đồ ăn',
+            label: 'Đơn hàng bắp nước',
             menuIcon: <ShoppingCartIcon className="w-5 h-5" /> 
+          }}
+        />
+
+        {/* Payment Resource */}
+        <Resource
+          name="payments"
+          list={PaymentList}
+          show={PaymentShow}
+          icon={CreditCardIcon}
+          options={{
+            label: "Quản lý thanh toán",
+            menuIcon: <CreditCardIcon className="w-5 h-5" />,
+            requiredPermission: "admin",
           }}
         />
       </Admin>

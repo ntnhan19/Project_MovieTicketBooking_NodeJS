@@ -12,6 +12,10 @@ router.post('/webhook', paymentController.paymentWebhook); // Webhook tổng h�
 // Routes cần xác thực người dùng
 router.use(authenticate);
 
+// Routes chỉ dành cho admin
+router.get('/', authorizeRoles('ADMIN'), paymentController.getPayments);
+router.get('/statistics', authorizeRoles('ADMIN'), paymentController.getPaymentStatistics);
+
 // Routes cho tất cả người dùng đã xác thực
 router.post('/', paymentController.createPayment);
 router.get('/:id', paymentController.getPaymentById);

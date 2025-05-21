@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Form, Input, Button, message } from 'antd';
+import { Card, Form, Input, Button, notification } from 'antd';
 import { 
   EditOutlined, 
   SaveOutlined, 
@@ -16,7 +16,6 @@ const PersonalInfoCard = ({ user }) => {
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Format date từ ISO string
   const formatDate = (dateString) => {
     if (!dateString) return '';
     try {
@@ -26,22 +25,28 @@ const PersonalInfoCard = ({ user }) => {
     }
   };
 
-  // Hàm lưu thông tin người dùng
   const handleSaveUserInfo = async () => {
     try {
       setLoading(true);
       const values = await form.validateFields();
-      
       const result = await updateProfile(user.id, values);
-      
       if (result.success) {
-        message.success('Cập nhật thông tin thành công!');
+        notification.success({
+          message: 'Thành công',
+          description: 'Cập nhật thông tin thành công!',
+        });
         setEditMode(false);
       } else {
-        message.error('Cập nhật thông tin thất bại!');
+        notification.error({
+          message: 'Lỗi',
+          description: 'Cập nhật thông tin thất bại!',
+        });
       }
     } catch (error) {
-      message.error('Lỗi khi cập nhật thông tin. Vui lòng thử lại!');
+      notification.error({
+        message: 'Lỗi',
+        description: 'Lỗi khi cập nhật thông tin. Vui lòng thử lại!',
+      });
       console.error('Error updating user info:', error);
     } finally {
       setLoading(false);
@@ -51,19 +56,19 @@ const PersonalInfoCard = ({ user }) => {
   return (
     <Card
       title={
-        <div className="flex items-center text-lg font-medium">
-          <UserOutlined className="mr-2 text-primary" /> 
+        <div className="flex items-center text-lg font-medium text-text-primary dark:text-dark-text-primary">
+          <UserOutlined className="mr-2 text-red-500 dark:text-red-400" /> 
           Thông tin cá nhân
         </div>
       }
-      className="shadow-md rounded-xl overflow-hidden"
+      className="content-card"
       extra={
         <Button 
           type={editMode ? "primary" : "default"}
           icon={editMode ? <SaveOutlined /> : <EditOutlined />}
           onClick={editMode ? handleSaveUserInfo : () => setEditMode(true)}
           loading={loading}
-          className={editMode ? "bg-button-gradient hover:bg-button-gradient-hover" : ""}
+          className={`ripple-btn transition-all duration-300 ${editMode ? "bg-button-gradient hover:bg-button-gradient-hover" : "border-red-500 text-red-500 hover:bg-red-500 hover:text-white dark:border-red-400 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white"}`}
         >
           {editMode ? 'Lưu thông tin' : 'Chỉnh sửa'}
         </Button>
@@ -77,24 +82,24 @@ const PersonalInfoCard = ({ user }) => {
           email: user?.email,
           phone: user?.phone,
         }}
-        className="transition-all duration-300"
+        className="transition-all duration-300 animate-fadeIn"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Form.Item 
-            label="Họ và tên" 
+            label={<span className="text-text-primary dark:text-dark-text-primary">Họ và tên</span>} 
             name="name"
             rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
           >
             <Input 
               disabled={!editMode} 
-              className="rounded-lg py-2" 
-              prefix={<UserOutlined className="text-gray-400 mr-2" />}
+              className={`form-input ${!editMode ? 'bg-light-bg-secondary dark:bg-gray-700 text-text-primary dark:text-dark-text-primary' : ''}`}
+              prefix={<UserOutlined className="text-gray-400 dark:text-gray-300 mr-2" />}
               placeholder="Nhập họ và tên"
             />
           </Form.Item>
           
           <Form.Item 
-            label="Số điện thoại" 
+            label={<span className="text-text-primary dark:text-dark-text-primary">Số điện thoại</span>} 
             name="phone"
             rules={[
               { required: true, message: 'Vui lòng nhập số điện thoại!' },
@@ -103,37 +108,42 @@ const PersonalInfoCard = ({ user }) => {
           >
             <Input 
               disabled={!editMode} 
-              className="rounded-lg py-2" 
-              prefix={<PhoneOutlined className="text-gray-400 mr-2" />}
+              className={`form-input ${!editMode ? 'bg-light-bg-secondary dark:bg-gray-700 text-text-primary dark:text-dark-text-primary' : ''}`}
+              prefix={<PhoneOutlined className="text-gray-400 dark:text-gray-300 mr-2" />}
               placeholder="Nhập số điện thoại"
             />
           </Form.Item>
           
-          <Form.Item label="Email" name="email">
+          <Form.Item 
+            label={<span className="text-text-primary dark:text-dark-text-primary">Email</span>} 
+            name="email"
+          >
             <Input 
               disabled={true} 
-              className="rounded-lg py-2 bg-light-bg-secondary" 
-              prefix={<MailOutlined className="text-gray-400 mr-2" />}
+              className="form-input bg-light-bg-secondary dark:bg-gray-700 text-text-primary dark:text-dark-text-primary"
+              prefix={<MailOutlined className="text-gray-400 dark:text-gray-300 mr-2" />}
             />
           </Form.Item>
           
-          <Form.Item label="Ngày tham gia">
+          <Form.Item 
+            label={<span className="text-text-primary dark:text-dark-text-primary">Ngày tham gia</span>}
+          >
             <Input 
               value={formatDate(user?.createdAt)} 
               disabled={true} 
-              className="rounded-lg py-2 bg-light-bg-secondary" 
-              prefix={<CalendarOutlined className="text-gray-400 mr-2" />}
+              className="form-input bg-light-bg-secondary dark:bg-gray-700 text-text-primary dark:text-dark-text-primary"
+              prefix={<CalendarOutlined className="text-gray-400 dark:text-gray-300 mr-2" />}
             />
           </Form.Item>
         </div>
       </Form>
       
-      <div className="mt-4 p-4 bg-light-bg-secondary rounded-lg">
+      <div className="mt-4 p-4 bg-light-bg-secondary dark:bg-gray-700 rounded-lg">
         <div className="flex items-start space-x-4">
-          <div className="text-primary text-2xl">💡</div>
+          <div className="text-red-500 dark:text-red-400 text-2xl">💡</div>
           <div>
-            <h4 className="font-medium">Lời khuyên</h4>
-            <p className="text-sm text-text-secondary">
+            <h4 className="font-medium text-text-primary dark:text-dark-text-primary">Lời khuyên</h4>
+            <p className="text-sm text-text-secondary dark:text-gray-300">
               Cập nhật thông tin cá nhân của bạn giúp chúng tôi phục vụ bạn tốt hơn và thông báo cho bạn về những ưu đãi đặc biệt phù hợp.
             </p>
           </div>

@@ -21,6 +21,6 @@ router.post('/lock/:id', authenticate, ticketController.lockSeat);
 router.post('/unlock/:id', authenticate, ticketController.unlockSeat);
 
 // Admin Routes
-router.get('/', authenticate, authorizeRoles(['ADMIN']), ticketController.getAllTickets);
+router.get('/', authenticate, authorizeRoles("ADMIN"), ticketController.getAllTickets);
 
 module.exports = router;

@@ -1,14 +1,11 @@
-// frontend/src/context/AuthContext.js
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { authApi } from '../api/authApi';
 import { userApi } from '../api/userApi';
 import { toast } from 'react-toastify';
 import axiosInstance from '../api/axiosInstance';
 
-// Tạo context cho xác thực người dùng
 export const AuthContext = createContext();
 
-// Tạo custom hook useAuth để sử dụng AuthContext
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -22,14 +19,17 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
-  // Thêm state quản lý modal đăng nhập
   const [authModal, setAuthModal] = useState({
     visible: false,
-    activeTab: '1', // '1' cho đăng nhập, '2' cho đăng ký
-    redirectAfterLogin: null // Lưu đường dẫn để chuyển hướng sau khi đăng nhập nếu cần
+    activeTab: '1',
+    redirectAfterLogin: null
   });
 
-  // Mở modal đăng nhập
+  // Thêm trạng thái cho modal Quên mật khẩu
+  const [forgotPasswordModal, setForgotPasswordModal] = useState({
+    visible: false
+  });
+
   const openAuthModal = (tab = '1', redirectPath = null) => {
     setAuthModal({
       visible: true,
@@ -38,7 +38,6 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
-  // Đóng modal đăng nhập
   const closeAuthModal = () => {
     setAuthModal({
       ...authModal,
@@ -46,7 +45,6 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
-  // Chuyển tab trong modal
   const switchAuthTab = (tab) => {
     setAuthModal({
       ...authModal,
@@ -54,25 +52,32 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
-  // Kiểm tra người dùng đã đăng nhập từ localStorage
+  // Hàm mở modal Quên mật khẩu
+  const openForgotPasswordModal = () => {
+    setForgotPasswordModal({
+      visible: true
+    });
+    closeAuthModal(); // Đóng modal đăng nhập/đăng ký khi mở modal quên mật khẩu
+  };
+
+  // Hàm đóng modal Quên mật khẩu
+  const closeForgotPasswordModal = () => {
+    setForgotPasswordModal({
+      visible: false
+    });
+  };
+
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Kiểm tra nếu có token trong localStorage
         const token = localStorage.getItem('token');
-        
         if (token) {
-          // Lấy thông tin người dùng từ API
           try {
             const userData = await userApi.getCurrentUser();
-            console.log("Fetched user data:", userData);
             setUser(userData);
             setIsAuthenticated(true);
-            
-            // Cập nhật lại localStorage với thông tin mới nhất
             localStorage.setItem('user', JSON.stringify(userData));
           } catch (error) {
-            // Nếu API request thất bại, xóa token và đăng xuất
             console.error("Failed to fetch user data:", error);
             authApi.logout();
             setUser(null);
@@ -88,65 +93,32 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
     };
-
     initializeAuth();
   }, []);
 
-  // Đăng nhập
   const login = async (credentials) => {
     try {
       setLoading(true);
       const response = await authApi.login(credentials);
-      
-      // Lấy dữ liệu người dùng từ response
       const { user, token } = response;
-      
-      console.log("Login successful, user data:", user);
-      
-      // Kiểm tra xem có thông tin người dùng hay không
       if (!user) {
         console.error("Không nhận được thông tin người dùng từ API");
         return { success: false, error: 'Không nhận được thông tin người dùng' };
       }
-      
-      // Cập nhật trạng thái toàn cục
       setUser(user);
       setIsAuthenticated(true);
-      
-      // Lưu thông tin người dùng theo định dạng mà cả 2 trang (user và admin) đều có thể đọc được
-      // Lưu token riêng
       localStorage.setItem('token', token);
-      
-      // Lưu thông tin user riêng
       localStorage.setItem('user', JSON.stringify(user));
-      
-      // Lưu id người dùng nếu cần
       localStorage.setItem('userId', user.id);
-      
-      // QUAN TRỌNG: Lưu cả thông tin auth theo định dạng mà trang admin cần
-      localStorage.setItem('auth', JSON.stringify({
-        user: user,
-        token: token
-      }));
-      
-      console.log("Đã lưu auth vào localStorage:", {user, token});
-      
-      // Thiết lập token trong header cho tất cả các request tiếp theo
+      localStorage.setItem('auth', JSON.stringify({ user, token }));
       axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
-      // Đóng modal đăng nhập nếu đang mở
       closeAuthModal();
-      
-      // Chuyển hướng sau khi đăng nhập thành công nếu có
       if (authModal.redirectAfterLogin) {
         setTimeout(() => {
           window.location.href = authModal.redirectAfterLogin;
         }, 500);
       }
-      
-      // Hiển thị thông báo thành công
       toast.success('Đăng nhập thành công!');
-      
       return response;
     } catch (error) {
       console.error("Login error:", error);
@@ -163,10 +135,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       const result = await authApi.register(userData);
       toast.success(result.message || 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.');
-      
-      // Sau khi đăng ký thành công, chuyển tab sang đăng nhập
       switchAuthTab('1');
-      
       return { success: true, message: result.message };
     } catch (error) {
       console.error("Register error:", error);
@@ -250,13 +219,10 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const result = await userApi.uploadAvatar(formData);
-      
-      // Cập nhật avatar trong state
       setUser(prevUser => ({
         ...prevUser,
         avatar: result.avatar
       }));
-      
       toast.success(result.message || 'Upload avatar thành công');
       return { success: true, avatar: result.avatar };
     } catch (error) {
@@ -311,7 +277,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Value object cung cấp cho context
   const value = {
     user,
     currentUser: user,
@@ -331,7 +296,10 @@ export const AuthProvider = ({ children }) => {
     authModal,
     openAuthModal,
     closeAuthModal,
-    switchAuthTab
+    switchAuthTab,
+    forgotPasswordModal,
+    openForgotPasswordModal,
+    closeForgotPasswordModal
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -37,8 +37,16 @@ const checkAuth = () => {
 
 // HTTP client tùy chỉnh với khả năng đính kèm token
 const httpClient = (url, options = {}) => {
+  // Khởi tạo Headers nếu chưa có hoặc chuyển đổi nếu đã có nhưng không phải là instance của Headers
   if (!options.headers) {
     options.headers = new Headers({ Accept: "application/json" });
+  } else if (!(options.headers instanceof Headers)) {
+    // Nếu options.headers là object thường, chuyển đổi thành Headers
+    const headers = new Headers({ Accept: "application/json" });
+    Object.entries(options.headers).forEach(([key, value]) => {
+      headers.set(key, value);
+    });
+    options.headers = headers;
   }
 
   try {

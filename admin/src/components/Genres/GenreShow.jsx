@@ -1,20 +1,14 @@
 // admin/src/components/Genres/GenreShow.jsx
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Show,
   TextField,
-  TopToolbar,
-  EditButton,
-  DeleteButton,
   ReferenceManyField,
   Datagrid,
   DateField,
-  useShowController,
-  ListButton
+  useShowController
 } from 'react-admin';
-import { Card, CardContent, Typography, Box, Divider } from '@mui/material';
-import ArrowLeftIcon from '@mui/icons-material/ArrowLeft';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import MovieIcon from '@mui/icons-material/Movie';
 
 const GenreShowActions = ({ basePath, data }) => (
@@ -49,118 +43,148 @@ const GenreTitle = ({ record }) => {
 const GenreShow = () => {
   const controllerProps = useShowController();
   const { record } = controllerProps;
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  if (!record) return null;
+  useEffect(() => {
+    if (record) {
+      setLoading(false);
+    }
+  }, [record]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!record && !loading) {
+    return (
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
+        <div className="bg-red-50 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-md">
+          <p className="font-medium">Không tìm thấy thể loại hoặc đã có lỗi xảy ra.</p>
+        </div>
+        <div className="mt-4">
+          <button
+            onClick={() => navigate("/genres")}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+          >
+            Quay lại danh sách
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-background-light dark:bg-background-dark p-6 rounded-lg">
-      <div className="mb-6">
-        <Typography variant="h4" className="text-2xl font-bold text-text-primary dark:text-text-primary-dark mb-2">
-          {record ? `Thể loại: ${record.name}` : 'Chi tiết thể loại'}
-        </Typography>
-        <Typography variant="body2" className="text-text-secondary dark:text-text-secondary-dark">
-          Xem thông tin chi tiết và danh sách phim thuộc thể loại này
-        </Typography>
+    <div className="px-4 py-6 sm:px-6 lg:px-8 animate-fadeIn">
+      {/* Header */}
+      <div className="sm:flex sm:items-center sm:justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
+            Chi tiết thể loại
+          </h1>
+          <p className="mt-1 text-sm text-text-secondary dark:text-text-secondary-dark">
+            Mã thể loại: {record.id}
+          </p>
+        </div>
+        <div className="mt-4 sm:mt-0 flex space-x-3">
+          <Link
+            to="/genres"
+            className="inline-flex items-center px-4 py-2 border border-border dark:border-border-dark rounded-md shadow-sm text-sm font-medium text-text-primary dark:text-text-primary-dark bg-white dark:bg-background-paper-dark hover:bg-gray-50 dark:hover:bg-secondary-dark/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+          >
+            <svg className="-ml-1 mr-2 h-5 w-5 text-text-secondary dark:text-text-secondary-dark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M7.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+            Quay lại danh sách
+          </Link>
+          <Link
+            to={`/genres/${record.id}/edit`}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+          >
+            <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+              <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
+            </svg>
+            Chỉnh sửa
+          </Link>
+        </div>
       </div>
 
-      <Show 
-        title={<GenreTitle />} 
-        actions={<GenreShowActions />}
-        component="div"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-white dark:bg-background-paper-dark shadow-card rounded-xl overflow-hidden col-span-1">
-            <CardContent>
-              <Typography variant="h6" className="font-bold mb-4 text-primary dark:text-primary-light">
-                Thông tin thể loại
-              </Typography>
-              <Divider className="mb-4" />
-              
-              <Box className="mb-4">
-                <Typography variant="body2" className="text-text-secondary dark:text-text-secondary-dark mb-1">
-                  ID
-                </Typography>
-                <Typography variant="body1" className="font-medium text-text-primary dark:text-text-primary-dark">
-                  <TextField source="id" />
-                </Typography>
-              </Box>
-              
-              <Box className="mb-4">
-                <Typography variant="body2" className="text-text-secondary dark:text-text-secondary-dark mb-1">
-                  Tên thể loại
-                </Typography>
-                <Typography variant="body1" className="font-medium text-text-primary dark:text-text-primary-dark">
-                  <TextField source="name" />
-                </Typography>
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white dark:bg-background-paper-dark shadow-card rounded-xl overflow-hidden col-span-1 md:col-span-2">
-            <CardContent>
-              <div className="flex items-center mb-4">
-                <MovieIcon className="text-primary mr-2" />
-                <Typography variant="h6" className="font-bold text-primary dark:text-primary-light">
-                  Danh sách phim thuộc thể loại này
-                </Typography>
-              </div>
-              <Divider className="mb-4" />
-              
-              <Box className="overflow-x-auto">
-                <ReferenceManyField
-                  reference="movies"
-                  target="genreId"
-                  label=""
-                >
-                  <Datagrid
-                    className="min-w-full"
-                    bulkActionButtons={false}
-                    sx={{
-                      '& .RaDatagrid-headerCell': {
-                        backgroundColor: 'rgb(249, 250, 251)',
-                        fontWeight: 'bold',
-                        color: '#334155',
-                        padding: '16px',
-                      },
-                      '& .RaDatagrid-row': {
-                        '&:hover': {
-                          backgroundColor: 'rgba(231, 26, 15, 0.04)',
-                        },
-                      },
-                      '& .RaDatagrid-tbody': {
-                        '& tr': {
-                          borderBottom: '1px solid #f0f0f0',
-                        },
-                      },
-                    }}
-                  >
-                    <TextField 
-                      source="title" 
-                      label="Tên phim" 
-                      className="text-text-primary dark:text-text-primary-dark font-medium"
-                    />
-                    <DateField 
-                      source="releaseDate" 
-                      label="Ngày phát hành" 
-                      className="text-text-primary dark:text-text-primary-dark"
-                      options={{ 
-                        year: "numeric", 
-                        month: "long", 
-                        day: "numeric" 
-                      }}
-                    />
-                    <TextField 
-                      source="duration" 
-                      label="Thời lượng (phút)" 
-                      className="text-text-primary dark:text-text-primary-dark"
-                    />
-                  </Datagrid>
-                </ReferenceManyField>
-              </Box>
-            </CardContent>
-          </Card>
+      {/* Genre Details Card */}
+      <div className="bg-white dark:bg-background-paper-dark shadow-card rounded-lg overflow-hidden">
+        <div className="px-6 py-5 border-b border-border dark:border-border-dark">
+          <h3 className="text-lg font-medium text-text-primary dark:text-text-primary-dark">
+            Thông tin thể loại
+          </h3>
         </div>
-      </Show>
+
+        <div className="px-6 py-5">
+          <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+            <div>
+              <dt className="text-sm font-medium text-text-secondary dark:text-text-secondary-dark">
+                Mã thể loại
+              </dt>
+              <dd className="mt-1 text-lg font-medium text-text-primary dark:text-text-primary-dark">
+                {record.id}
+              </dd>
+            </div>
+            
+            <div>
+              <dt className="text-sm font-medium text-text-secondary dark:text-text-secondary-dark">
+                Tên thể loại
+              </dt>
+              <dd className="mt-1 text-lg font-medium text-text-primary dark:text-text-primary-dark">
+                {record.name}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+
+      {/* Movies List Card */}
+      <div className="mt-6 bg-white dark:bg-background-paper-dark shadow-card rounded-lg overflow-hidden">
+        <div className="px-6 py-5 border-b border-border dark:border-border-dark">
+          <h3 className="text-lg font-medium text-text-primary dark:text-text-primary-dark flex items-center">
+            <MovieIcon className="mr-2" /> Danh sách phim thuộc thể loại này
+          </h3>
+        </div>
+
+        <div className="px-6 py-5">
+          <ReferenceManyField
+            reference="movies"
+            target="genreId"
+            label=""
+          >
+            <Datagrid
+              bulkActionButtons={false}
+              sx={{
+                '& .RaDatagrid-thead': {
+                  borderBottom: '2px solid #eee',
+                },
+                '& .RaDatagrid-row': {
+                  borderBottom: '1px solid #eee',
+                }
+              }}
+            >
+              <TextField source="title" label="Tên phim" />
+              <DateField 
+                source="releaseDate" 
+                label="Ngày phát hành"
+                options={{ 
+                  year: "numeric", 
+                  month: "long", 
+                  day: "numeric" 
+                }}
+              />
+              <TextField source="duration" label="Thời lượng (phút)" />
+            </Datagrid>
+          </ReferenceManyField>
+        </div>
+      </div>
     </div>
   );
 };

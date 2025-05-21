@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   Row,
@@ -35,6 +35,7 @@ import { genreApi } from "../../api/genreApi";
 import MovieList from "./MovieList";
 import MovieReviews from "../../components/Movies/MovieReviews";
 import { useAuth } from "../../context/AuthContext";
+import { ThemeContext } from "../../context/ThemeContext";
 
 const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
@@ -42,7 +43,8 @@ const { Option } = Select;
 const MovieDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated, openAuthModal } = useAuth(); 
+  const { isAuthenticated, openAuthModal } = useAuth();
+  const { theme } = useContext(ThemeContext);
 
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,6 @@ const MovieDetailPage = () => {
 
         // Fetch chi tiết thể loại nếu genres là mảng ID
         if (movieData.genres && Array.isArray(movieData.genres)) {
-          // Nếu genres là mảng ID, thì fetch chi tiết
           if (typeof movieData.genres[0] !== "object") {
             const genrePromises = movieData.genres.map((genreId) =>
               genreApi.getGenreById(genreId).catch((err) => {
@@ -85,40 +86,26 @@ const MovieDetailPage = () => {
             const validGenres = genreResults.filter((genre) => genre !== null);
             setGenreDetails(validGenres);
           } else {
-            // Nếu genres đã là objects đầy đủ thông tin thì dùng luôn
             setGenreDetails(movieData.genres);
           }
 
           try {
-            // Lấy danh sách phim đang chiếu khác từ API
             const nowShowingData = await movieApi.getNowShowing();
+            const otherNowShowingMovies = nowShowingData
+              .filter((m) => m.id !== id) // Loại bỏ phim hiện tại
+              .slice(0, 4); // Giới hạn 4 phim
+            setOtherNowShowingMovies(otherNowShowingMovies);
 
-            // Loại bỏ phim hiện tại khỏi danh sách phim đang chiếu
-            const otherNowShowingMovies = nowShowingData.filter(
-              (m) => m.id !== id
-            );
-
-            // Lưu danh sách phim đang chiếu khác
-            setOtherNowShowingMovies(otherNowShowingMovies.slice(0, 8));
-
-            // Lấy phim cùng thể loại nếu có genreId
             if (movieData.genres && movieData.genres.length > 0) {
-              // Lấy ID của thể loại đầu tiên để tìm phim tương tự
               const firstGenreId =
                 typeof movieData.genres[0] === "object"
                   ? movieData.genres[0].id
                   : movieData.genres[0];
-
-              // Sử dụng API filter theo thể loại
               const { data: similarMoviesData } =
                 await movieApi.filterMoviesByGenre(firstGenreId);
-
-              // Loại bỏ phim hiện tại khỏi kết quả
               const filteredSimilarMovies = similarMoviesData.filter(
                 (m) => m.id !== id
               );
-
-              // Lưu các phim tương tự (giới hạn 4 phim)
               setSimilarMovies(filteredSimilarMovies.slice(0, 4));
             } else {
               setSimilarMovies([]);
@@ -133,7 +120,6 @@ const MovieDetailPage = () => {
           }
         }
 
-        // Fetch danh sách rạp
         try {
           const cinemasData = await cinemaApi.getAllCinemas();
           setCinemas(cinemasData || []);
@@ -158,7 +144,6 @@ const MovieDetailPage = () => {
 
     if (id) {
       fetchMovieDetail();
-      // Scroll to top khi component mount
       window.scrollTo(0, 0);
     }
   }, [id]);
@@ -172,8 +157,6 @@ const MovieDetailPage = () => {
         setLoadingShowtimes(true);
         const dates = await showtimeApi.getAvailableDates(id, selectedCinema);
         setAvailableDates(dates || []);
-
-        // Tự động chọn ngày đầu tiên nếu có
         if (dates && dates.length > 0) {
           setSelectedDate(dates[0]);
         } else {
@@ -208,13 +191,11 @@ const MovieDetailPage = () => {
 
       try {
         setLoadingShowtimes(true);
-        // Gọi API để lấy danh sách suất chiếu
         const showtimesData = await showtimeApi.getShowtimesByFilters(
           id,
           selectedCinema,
           selectedDate
         );
-        // Kiểm tra và xử lý dữ liệu nhận được từ API
         if (showtimesData && Array.isArray(showtimesData)) {
           setShowtimes(showtimesData);
         } else {
@@ -244,7 +225,6 @@ const MovieDetailPage = () => {
   const showTrailer = (url) => {
     if (!url) return;
 
-    // Chuyển đổi URL từ dạng watch thành embed nếu cần
     let embedUrl = url;
     if (url.includes("youtube.com/watch")) {
       const videoId = url.split("v=")[1].split("&")[0];
@@ -260,7 +240,6 @@ const MovieDetailPage = () => {
     });
   };
 
-  // Hàm đóng modal trailer
   const closeTrailer = () => {
     setTrailerModal({
       visible: false,
@@ -268,36 +247,25 @@ const MovieDetailPage = () => {
     });
   };
 
-  // Handler khi chọn rạp
   const handleCinemaChange = (cinemaId) => {
     setSelectedCinema(cinemaId);
-    // Reset các giá trị khác
     setSelectedDate(null);
     setShowtimes([]);
   };
 
-  // Handler khi chọn ngày
   const handleDateChange = (date) => {
     setSelectedDate(date);
   };
 
-  // Handler khi chọn suất chiếu để đặt vé
   const handleSelectShowtime = (showtimeId) => {
-
-
-    // Kiểm tra xem người dùng đã đăng nhập chưa
     if (!isAuthenticated) {
-      // Nếu chưa đăng nhập, mở modal đăng nhập với đường dẫn chuyển hướng sau khi đăng nhập
-      openAuthModal('1', `/booking/seats/${showtimeId}`);
+      openAuthModal("1", `/booking/seats/${showtimeId}`);
       message.warning("Vui lòng đăng nhập để đặt vé");
       return;
     }
-
-    // Nếu đã đăng nhập, chuyển hướng đến trang chọn ghế
     navigate(`/booking/seats/${showtimeId}`);
   };
 
-  // Định dạng thời lượng phim
   const formatDuration = (minutes) => {
     if (!minutes) return "Chưa cập nhật";
     const hrs = Math.floor(minutes / 60);
@@ -305,7 +273,6 @@ const MovieDetailPage = () => {
     return `${hrs > 0 ? `${hrs} giờ ` : ""}${mins > 0 ? `${mins} phút` : ""}`;
   };
 
-  // Định dạng ngày khởi chiếu
   const formatReleaseDate = (dateString) => {
     if (!dateString) return "Chưa cập nhật";
     const date = new Date(dateString);
@@ -316,7 +283,6 @@ const MovieDetailPage = () => {
     });
   };
 
-  // Định dạng hiển thị ngày
   const formatDisplayDate = (dateString) => {
     if (!dateString) return "";
     const date = new Date(dateString);
@@ -333,14 +299,13 @@ const MovieDetailPage = () => {
     return `${weekday}, ${date.getDate()}/${date.getMonth() + 1}`;
   };
 
-  // Tạo cấu hình cho tabs items
   const tabItems = [
     {
       key: "1",
-      label: "Tổng quan",
+      label: <span>Tổng quan</span>,
       children: (
         <div className="p-4">
-          <Title level={3} className="mb-6 font-bold text-primary">
+          <Title level={3} className="mb-6 font-bold text-red-500">
             Nội dung phim
           </Title>
           <Paragraph className="text-base leading-relaxed">
@@ -352,7 +317,7 @@ const MovieDetailPage = () => {
           {movie?.cast && movie?.cast.length > 0 && (
             <>
               <Divider />
-              <Title level={3} className="mb-6 font-bold text-primary">
+              <Title level={3} className="mb-6 font-bold text-red-500">
                 Diễn viên chính
               </Title>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -377,11 +342,10 @@ const MovieDetailPage = () => {
             </>
           )}
 
-          {/* Thêm phần diễn viên chính nếu không có trong movie.cast */}
           {(!movie?.cast || movie?.cast.length === 0) && movie?.mainActors && (
             <>
               <Divider />
-              <Title level={3} className="mb-6 font-bold text-primary">
+              <Title level={3} className="mb-6 font-bold text-red-500">
                 Diễn viên chính
               </Title>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -403,14 +367,13 @@ const MovieDetailPage = () => {
     },
     {
       key: "2",
-      label: "Lịch chiếu & Đặt vé",
+      label: <span>Lịch chiếu & Đặt vé</span>,
       children: (
         <div className="p-4">
-          <Title level={3} className="mb-6 font-bold text-primary">
+          <Title level={3} className="mb-6 font-bold text-red-500">
             Đặt vé xem phim
           </Title>
 
-          {/* Cinema Selection */}
           <div className="mb-6">
             <Text strong className="block mb-2 text-lg">
               Chọn rạp
@@ -419,17 +382,24 @@ const MovieDetailPage = () => {
               showSearch
               placeholder="Chọn rạp phim"
               optionFilterProp="children"
-              className="w-full"
+              className="w-full booking-select"
               onChange={handleCinemaChange}
               value={selectedCinema}
               size="large"
+              listHeight={400}
+              popupMatchSelectWidth={false}
+              styles={{
+                popup: {
+                  root: { minWidth: "400px", maxWidth: "90vw" },
+                },
+              }}
+              getPopupContainer={(trigger) => trigger.parentElement}
             >
               {cinemas.map((cinema) => (
                 <Option key={cinema.id} value={cinema.id}>
-                  <div className="py-1">
-                    <div className="font-medium">{cinema.name}</div>
-                    <div className="text-xs text-gray-500 flex items-center">
-                      <EnvironmentOutlined className="mr-1" /> {cinema.address}
+                  <div className="py-2 px-2 flex flex-col booking-option-item">
+                    <div className="font-medium text-base mb-1 truncate">
+                      {cinema.name}
                     </div>
                   </div>
                 </Option>
@@ -437,7 +407,6 @@ const MovieDetailPage = () => {
             </Select>
           </div>
 
-          {/* Date Selection */}
           {selectedCinema && (
             <div className="mb-6">
               <Text strong className="block mb-2 text-lg">
@@ -457,8 +426,8 @@ const MovieDetailPage = () => {
                       key={index}
                       type={selectedDate === date ? "primary" : "default"}
                       onClick={() => handleDateChange(date)}
-                      className={`h-auto py-2 flex flex-col items-center justify-center ${
-                        selectedDate === date ? "border-primary" : ""
+                      className={`h-auto py-2 flex flex-col items-center justify-center booking-date-btn ${
+                        selectedDate === date ? "border-red-500" : ""
                       }`}
                     >
                       <div className="font-bold">
@@ -476,7 +445,6 @@ const MovieDetailPage = () => {
             </div>
           )}
 
-          {/* Showtimes */}
           {selectedDate && (
             <div className="mb-6">
               <Text strong className="block mb-4 text-lg">
@@ -495,7 +463,7 @@ const MovieDetailPage = () => {
                     <Card
                       key={showtime.id}
                       hoverable
-                      className="text-center border border-gray-200 hover:border-primary hover:shadow-md transition-all duration-300"
+                      className="text-center border border-gray-200 hover:border-red-500 hover:shadow-md transition-all duration-300 booking-showtime-card"
                       onClick={() => handleSelectShowtime(showtime.id)}
                     >
                       <div className="font-bold text-lg">{showtime.time}</div>
@@ -520,10 +488,10 @@ const MovieDetailPage = () => {
     },
     {
       key: "3",
-      label: "Bình luận & Đánh giá",
+      label: <span>Bình luận & Đánh giá</span>,
       children: (
         <div className="p-4">
-          <Title level={3} className="mb-6 font-bold text-primary">
+          <Title level={3} className="mb-6 font-bold text-red-500">
             Bình luận & Đánh giá
           </Title>
           <MovieReviews movieId={id} onChangeTab={setActiveTab} />
@@ -532,7 +500,6 @@ const MovieDetailPage = () => {
     },
   ];
 
-  // Component kiểm tra khi đang loading
   if (loading) {
     return (
       <div className="min-h-screen flex justify-center items-center">
@@ -544,7 +511,6 @@ const MovieDetailPage = () => {
     );
   }
 
-  // Component hiển thị khi không tìm thấy phim
   if (!movie) {
     return (
       <div className="min-h-screen flex justify-center items-center flex-col">
@@ -562,10 +528,12 @@ const MovieDetailPage = () => {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      {/* Hero section - Banner film - Đã cải tiến */}
+    <div
+      className={`min-h-screen ${
+        theme === "dark" ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"
+      }`}
+    >
       <div className="relative">
-        {/* Banner với poster của phim */}
         <div
           className="relative w-full h-96 bg-cover bg-center"
           style={{
@@ -580,13 +548,11 @@ const MovieDetailPage = () => {
           }}
         >
           <div className="absolute inset-0 bg-banner-overlay"></div>
-
-          {/* Nút play trailer ở giữa banner */}
           <div className="absolute inset-0 flex items-center justify-center">
             {movie.trailerUrl && (
               <Button
                 onClick={() => showTrailer(movie.trailerUrl)}
-                className="trailer-btn flex items-center justify-center gap-2 px-8 py-3 bg-primary text-white rounded-full border-none shadow-button hover:shadow-button-hover transition-all transform hover:scale-105 hover:-translate-y-1"
+                className="trailer-btn flex items-center justify-center gap-2 px-8 py-3 bg-red-500 text-white rounded-full border-none shadow-button hover:shadow-button-hover transition-all transform hover:scale-105 hover:-translate-y-1"
               >
                 <PlayCircleOutlined className="text-xl" />
                 <span className="text-lg font-medium">Xem Trailer</span>
@@ -594,13 +560,14 @@ const MovieDetailPage = () => {
             )}
           </div>
         </div>
-
-        {/* Container cho poster và thông tin phim */}
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row -mt-32 relative z-10">
-            {/* Poster nổi lên từ banner (1 phần trên, 5 phần dưới) */}
             <div className="md:w-1/4 flex-shrink-0 mb-6 md:mb-0">
-              <div className="w-full aspect-[2/3] bg-white rounded-lg shadow-xl overflow-hidden">
+              <div
+                className={`w-full aspect-[2/3] ${
+                  theme === "dark" ? "bg-gray-800" : "bg-white"
+                } rounded-lg shadow-xl overflow-hidden`}
+              >
                 <img
                   src={
                     movie.poster ||
@@ -612,21 +579,16 @@ const MovieDetailPage = () => {
                 />
               </div>
             </div>
-
-            {/* Thông tin phim bên phải poster */}
             <div className="md:w-3/4 md:pl-8 md:pt-32 bg-transparent">
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h1 className="text-3xl font-bold mb-2 text-text-primary">
-                  {movie.title}
-                </h1>
-
+              <div
+                className={`rounded-lg shadow-lg p-6 ${
+                  theme === "dark" ? "bg-gray-800" : "bg-white"
+                }`}
+              >
+                <h1 className="text-3xl font-bold mb-2">{movie.title}</h1>
                 {movie.originalTitle && (
-                  <h2 className="text-xl text-text-secondary mb-4">
-                    {movie.originalTitle}
-                  </h2>
+                  <h2 className="text-xl mb-4">{movie.originalTitle}</h2>
                 )}
-
-                {/* Rating hiển thị */}
                 {movie.rating && (
                   <div className="flex items-center mb-4">
                     <Rate
@@ -640,48 +602,40 @@ const MovieDetailPage = () => {
                     </span>
                   </div>
                 )}
-
-                {/* Thông tin chi tiết film với layout grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-6">
                   <div className="flex items-center">
-                    <CalendarOutlined className="text-lg mr-3 text-primary" />
+                    <CalendarOutlined className="text-lg mr-3 text-red-500" />
                     <span className="mr-2 font-medium">Khởi chiếu:</span>
                     <span>{formatReleaseDate(movie.releaseDate)}</span>
                   </div>
-
                   <div className="flex items-center">
-                    <FieldTimeOutlined className="text-lg mr-3 text-primary" />
+                    <FieldTimeOutlined className="text-lg mr-3 text-red-500" />
                     <span className="mr-2 font-medium">Thời lượng:</span>
                     <span>{formatDuration(movie.duration)}</span>
                   </div>
-
                   <div className="flex items-center">
-                    <TeamOutlined className="text-lg mr-3 text-primary" />
+                    <TeamOutlined className="text-lg mr-3 text-red-500" />
                     <span className="mr-2 font-medium">Đạo diễn:</span>
                     <span>{movie.director || "Chưa cập nhật"}</span>
                   </div>
-
                   {movie.mainActors && (
                     <div className="flex items-center">
-                      <UserOutlined className="text-lg mr-3 text-primary" />
+                      <UserOutlined className="text-lg mr-3 text-red-500" />
                       <span className="mr-2 font-medium">Diễn viên:</span>
                       <span className="truncate">{movie.mainActors}</span>
                     </div>
                   )}
                 </div>
-
-                {/* Thể loại */}
                 <div className="mb-6">
                   <div className="flex items-center mb-2">
-                    <TagOutlined className="text-lg mr-3 text-primary" />
+                    <TagOutlined className="text-lg mr-3 text-red-500" />
                     <span className="font-medium mr-2">Thể loại:</span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 movie-detail-tags">
                     {genreDetails && genreDetails.length > 0 ? (
                       genreDetails.map((genre, index) => (
                         <Tag
                           key={index}
-                          color="blue"
                           className="px-3 py-1.5 text-sm rounded-full"
                         >
                           {genre.name}
@@ -691,7 +645,6 @@ const MovieDetailPage = () => {
                       movie.genres.map((genre, index) => (
                         <Tag
                           key={index}
-                          color="blue"
                           className="px-3 py-1.5 text-sm rounded-full"
                         >
                           {typeof genre === "object" ? genre.name : genre}
@@ -702,10 +655,8 @@ const MovieDetailPage = () => {
                     )}
                   </div>
                 </div>
-
-                {/* Mô tả ngắn */}
                 <div className="mb-6">
-                  <p className="text-text-secondary line-clamp-3">
+                  <p className="line-clamp-3">
                     {movie?.description ||
                       movie?.overview ||
                       "Chưa có thông tin nội dung phim."}
@@ -716,26 +667,29 @@ const MovieDetailPage = () => {
           </div>
         </div>
       </div>
-
-      {/* Nội dung chi tiết */}
       <div className="container mx-auto py-12 px-4" id="booking-section">
         <Row gutter={[32, 32]}>
           <Col xs={24} lg={16}>
             <Tabs
               activeKey={activeTab}
               onChange={setActiveTab}
-              className="movie-detail-tabs bg-white rounded-lg shadow-lg p-4 animate-fadeIn"
+              className={`movie-detail-tabs ${
+                theme === "dark"
+                  ? "bg-gray-800 text-white"
+                  : "bg-white text-gray-800"
+              } rounded-lg shadow-lg p-4 animate-fadeIn`}
               items={tabItems}
             />
           </Col>
-
           <Col xs={24} lg={8}>
-            {/* Phim liên quan */}
-            <div className="bg-white rounded-lg shadow-lg p-6 mb-6 animate-fadeIn">
-              <Title level={4} className="mb-4 text-primary font-bold">
+            <div
+              className={`bg-${
+                theme === "dark" ? "gray-800" : "white"
+              } rounded-lg shadow-lg p-6 mb-6 animate-fadeIn`}
+            >
+              <Title level={4} className="mb-4 text-red-500 font-bold">
                 Phim cùng thể loại
               </Title>
-
               {similarMovies.length > 0 ? (
                 <div className="space-y-4">
                   {similarMovies.map((movie) => (
@@ -753,7 +707,7 @@ const MovieDetailPage = () => {
                           />
                         </div>
                         <div className="ml-4 flex-1">
-                          <div className="font-bold group-hover:text-primary transition-colors">
+                          <div className="font-bold group-hover:text-red-500 transition-colors">
                             {movie.title}
                           </div>
                           <div className="text-xs text-gray-500 mt-1">
@@ -784,7 +738,7 @@ const MovieDetailPage = () => {
               )}
               <div className="mt-4 text-center">
                 <Link to="/movies">
-                  <Button type="default" className="mt-4">
+                  <Button type="default" className="mt-4 text-red-500">
                     Xem tất cả phim
                   </Button>
                 </Link>
@@ -792,14 +746,15 @@ const MovieDetailPage = () => {
             </div>
           </Col>
         </Row>
-        {/* Phim đang chiếu khác */}
         <div className="mt-12">
           <div className="flex justify-between items-center mb-8">
-            <Title level={3} className="mb-0 font-bold text-primary">
+            <Title level={3} className="mb-0 font-bold text-red-500">
               Phim đang chiếu khác
             </Title>
             <Link to="/movies">
-              <Button type="link">Xem tất cả</Button>
+              <Button type="link" className="text-red-500">
+                Xem tất cả
+              </Button>
             </Link>
           </div>
           {otherNowShowingMovies.length > 0 ? (
@@ -811,7 +766,6 @@ const MovieDetailPage = () => {
           )}
         </div>
       </div>
-      {/* Modal hiển thị trailer */}
       <Modal
         title={null}
         open={trailerModal.visible}
@@ -829,7 +783,7 @@ const MovieDetailPage = () => {
             className="bg-white/20 text-white hover:bg-white/40 hover:text-white border-none"
           />
         }
-        destroyOnClose={true}
+        destroyOnHidden={true}
         styles={{ body: { padding: 0 } }}
       >
         <div

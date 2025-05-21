@@ -5,8 +5,6 @@ import {
   Alert,
   Card,
   Typography,
-  Space,
-  Divider,
   Image
 } from "antd";
 
@@ -21,7 +19,7 @@ const PaymentMethodStep = ({
 
   return (
     <div className="w-full max-w-3xl mx-auto animate-fadeIn">
-      <Title level={4} className="mb-6 text-text-primary">
+      <Title level={4} className="mb-6 text-text-primary dark:text-text-primary">
         Phương thức thanh toán
       </Title>
 
@@ -43,7 +41,7 @@ const PaymentMethodStep = ({
       >
         <Card className="content-card p-6 mb-6">
           <div className="w-full">
-            <div className="border rounded-lg p-4 mb-4 cursor-pointer bg-blue-50">
+            <div className="border rounded-lg p-4 mb-4 cursor-pointer">
               <div className="flex items-center">
                 <div className="w-12 h-12 mr-4 flex-shrink-0">
                   <Image
@@ -63,30 +61,6 @@ const PaymentMethodStep = ({
                 </div>
               </div>
             </div>
-
-            <Divider className="my-4" />
-
-            <Space direction="vertical" className="w-full" size="small">
-              <Text className="text-sm font-medium">Các bước thanh toán:</Text>
-              <div className="flex items-center mb-2">
-                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-2 text-xs font-medium">
-                  1
-                </div>
-                <Text className="text-sm">Nhấn "Tiếp tục thanh toán" để chuyển đến cổng VNPay</Text>
-              </div>
-              <div className="flex items-center mb-2">
-                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-2 text-xs font-medium">
-                  2
-                </div>
-                <Text className="text-sm">Chọn phương thức thanh toán trên cổng VNPay</Text>
-              </div>
-              <div className="flex items-center">
-                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-2 text-xs font-medium">
-                  3
-                </div>
-                <Text className="text-sm">Hoàn tất giao dịch và quay lại trang web</Text>
-              </div>
-            </Space>
           </div>
 
           <Form.Item className="mb-0 mt-6">
@@ -96,7 +70,7 @@ const PaymentMethodStep = ({
               loading={isProcessing}
               disabled={isProcessing}
               block
-              className="btn-primary h-12 text-base font-medium"
+              className="btn-primary h-12 text-base font-medium dark:text-text-primary"
               style={{ backgroundColor: "#005BAA" }}
             >
               Tiếp tục thanh toán

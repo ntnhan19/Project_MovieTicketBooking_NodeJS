@@ -158,44 +158,13 @@ const reviewApi = {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        notification.warning({
-          message: "Chưa đăng nhập",
-          description: "Vui lòng đăng nhập để đánh giá phim"
-        });
         throw new Error("Chưa đăng nhập");
       }
 
       const response = await axiosInstance.post("/reviews", reviewData);
-      notification.success({
-        message: "Thành công",
-        description: "Đã đăng đánh giá phim"
-      });
       return response.data;
     } catch (error) {
       console.error("API Error - createReview:", error);
-      
-      if (error.response?.status === 400) {
-        notification.error({
-          message: "Lỗi",
-          description: error.response.data.message || "Bạn đã đánh giá phim này"
-        });
-      } else if (error.response?.status === 403) {
-        notification.error({
-          message: "Không có quyền",
-          description: "Bạn cần mua vé và thanh toán để đánh giá phim này"
-        });
-      } else if (error.response?.status === 404) {
-        notification.error({
-          message: "Không tìm thấy",
-          description: error.response.data.message || "Không tìm thấy phim hoặc người dùng"
-        });
-      } else {
-        notification.error({
-          message: "Lỗi",
-          description: error.response?.data?.message || "Không thể tạo đánh giá"
-        });
-      }
-      
       throw error;
     }
   },
@@ -205,44 +174,13 @@ const reviewApi = {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        notification.warning({
-          message: "Chưa đăng nhập",
-          description: "Vui lòng đăng nhập để cập nhật đánh giá"
-        });
         throw new Error("Chưa đăng nhập");
       }
 
       const response = await axiosInstance.put(`/reviews/${reviewId}`, reviewData);
-      notification.success({
-        message: "Thành công",
-        description: "Đã cập nhật đánh giá"
-      });
       return response.data;
     } catch (error) {
       console.error("API Error - updateReview:", error);
-      
-      if (error.response?.status === 403) {
-        notification.error({
-          message: "Không có quyền",
-          description: "Bạn không có quyền cập nhật đánh giá này"
-        });
-      } else if (error.response?.status === 404) {
-        notification.error({
-          message: "Không tìm thấy",
-          description: "Không tìm thấy đánh giá"
-        });
-      } else if (error.response?.status === 400) {
-        notification.error({
-          message: "Dữ liệu không hợp lệ",
-          description: error.response.data.message || "Dữ liệu đánh giá không hợp lệ"
-        });
-      } else {
-        notification.error({
-          message: "Lỗi",
-          description: error.response?.data?.message || "Không thể cập nhật đánh giá"
-        });
-      }
-      
       throw error;
     }
   },

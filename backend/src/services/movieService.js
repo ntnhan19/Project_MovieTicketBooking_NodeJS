@@ -6,14 +6,25 @@ const parseGenres = (genres) => {
   if (!genres) return [];
   if (typeof genres === "string") {
     try {
-      return JSON.parse(genres).map((g) => ({
-        id: typeof g === "object" ? g.id : Number(g),
-      }));
+      const parsedGenres = JSON.parse(genres);
+      return Array.isArray(parsedGenres)
+        ? parsedGenres
+            .filter((g) => g !== null && g !== undefined) // Lọc các giá trị null/undefined
+            .map((g) => ({
+              id: typeof g === "object" && g !== null ? g.id : Number(g),
+            }))
+        : [];
     } catch (e) {
       return [];
     }
   }
-  return genres.map((g) => ({ id: typeof g === "object" ? g.id : Number(g) }));
+  return Array.isArray(genres)
+    ? genres
+        .filter((g) => g !== null && g !== undefined) // Lọc các giá trị null/undefined
+        .map((g) => ({
+          id: typeof g === "object" && g !== null ? g.id : Number(g),
+        }))
+    : [];
 };
 
 // Lấy tất cả phim với các điều kiện lọc
@@ -131,74 +142,83 @@ exports.getAllMovies = async (filter) => {
 exports.getMovieById = async (id) => {
   const movieId = Number(id);
 
-  const movie = await prisma.movie.findUnique({
-    where: { id: movieId },
-    include: {
-      genres: true,
-      reviews: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 10,
-      },
-      showtimes: {
-        include: {
-          hall: {
-            include: {
-              cinema: true,
-            },
-          },
-        },
-        where: {
-          startTime: {
-            gte: new Date(),
-          },
-        },
-        orderBy: {
-          startTime: "asc",
-        },
-      },
-    },
-  });
-
-  if (!movie) {
+  if (isNaN(movieId)) {
+    console.error(`ID không hợp lệ: ${id}`);
     return null;
   }
 
-  // Tính điểm đánh giá trung bình
-  const ratings = movie.reviews.map((review) => review.rating);
-  const avgRating =
-    ratings.length > 0
-      ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
-      : 0;
+  try {
+    const movie = await prisma.movie.findUnique({
+      where: {
+        id: movieId,
+      },
+      include: {
+        genres: true,
+        reviews: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 10,
+        },
+        showtimes: {
+          include: {
+            hall: {
+              include: {
+                cinema: true,
+              },
+            },
+          },
+          where: {
+            startTime: {
+              gte: new Date(),
+            },
+          },
+          orderBy: {
+            startTime: "asc",
+          },
+        },
+      },
+    });
 
-  // Định dạng dữ liệu trả về
-  return {
-    ...movie,
-    avgRating: parseFloat(avgRating.toFixed(1)),
-    reviewCount: ratings.length,
-    // Nhóm lịch chiếu theo ngày và rạp
-    showtimesByDate: Object.entries(
-      movie.showtimes.reduce((acc, showtime) => {
-        const date = showtime.startTime.toISOString().split("T")[0];
-        if (!acc[date]) acc[date] = [];
-        acc[date].push(showtime);
-        return acc;
-      }, {})
-    ).map(([date, showtimes]) => ({
-      date,
-      showtimes: showtimes,
-    })),
-  };
+    if (!movie) {
+      return null;
+    }
+
+    const ratings = movie.reviews.map((review) => review.rating);
+    const avgRating =
+      ratings.length > 0
+        ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
+        : 0;
+
+    return {
+      ...movie,
+      avgRating: parseFloat(avgRating.toFixed(1)),
+      reviewCount: ratings.length,
+      showtimesByDate: Object.entries(
+        movie.showtimes.reduce((acc, showtime) => {
+          const date = showtime.startTime.toISOString().split("T")[0];
+          if (!acc[date]) acc[date] = [];
+          acc[date].push(showtime);
+          return acc;
+        }, {})
+      ).map(([date, showtimes]) => ({
+        date,
+        showtimes: showtimes,
+      })),
+    };
+  } catch (error) {
+    console.error(`Lỗi trong getMovieById: ${error.message}`);
+    throw error;
+  }
 };
 
 // Lấy danh sách phim theo rạp chiếu
@@ -342,17 +362,18 @@ exports.getMoviesByCinema = async (cinemaId, date) => {
 // Tạo phim mới
 exports.createMovie = async (movieData) => {
   let {
-    id, // Lấy id (nếu có) để loại bỏ
+    id,
     title,
     description,
     releaseDate,
     genres,
     poster,
+    bannerImage,
     trailerUrl,
     duration,
     director,
     mainActors,
-    ...rest // Lấy các trường còn lại (nếu có)
+    ...rest
   } = movieData;
 
   // Loại bỏ id nếu có
@@ -372,6 +393,7 @@ exports.createMovie = async (movieData) => {
       releaseDate,
       poster,
       trailerUrl,
+      bannerImage,
       duration: Number(duration || 90),
       director: director || "",
       mainActors: mainActors || "",
@@ -392,6 +414,7 @@ exports.updateMovie = async (id, movieData) => {
     releaseDate,
     genres,
     poster,
+    bannerImage,
     trailerUrl,
     duration,
     director,
@@ -407,8 +430,15 @@ exports.updateMovie = async (id, movieData) => {
     return null;
   }
 
-  // Phân tích mảng thể loại
-  genres = parseGenres(genres);
+  // Xử lý an toàn mảng thể loại
+  let processedGenres = [];
+  try {
+    // Phân tích mảng thể loại
+    processedGenres = genres ? parseGenres(genres) : [];
+  } catch (error) {
+    console.error("Lỗi xử lý genres:", error);
+    processedGenres = [];
+  }
 
   if (releaseDate) releaseDate = new Date(releaseDate);
 
@@ -420,14 +450,15 @@ exports.updateMovie = async (id, movieData) => {
       ...(description && { description }),
       ...(releaseDate && { releaseDate }),
       ...(poster && { poster }),
+      ...(bannerImage !== undefined && { bannerImage }),
       ...(trailerUrl !== undefined && { trailerUrl }),
       ...(duration && { duration: Number(duration) }),
       ...(director !== undefined && { director }),
       ...(mainActors !== undefined && { mainActors }),
-      ...(genres.length > 0 && {
+      ...(processedGenres.length > 0 && {
         genres: {
           set: [],
-          connect: genres,
+          connect: processedGenres,
         },
       }),
     },
@@ -493,6 +524,7 @@ exports.getUpcomingMovies = async () => {
   });
 };
 
+// Lấy danh sách phim đang chiếu
 // Lấy danh sách phim đang chiếu
 exports.getNowShowingMovies = async () => {
   const now = new Date();

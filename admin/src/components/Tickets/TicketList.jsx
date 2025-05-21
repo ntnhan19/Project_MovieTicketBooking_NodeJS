@@ -1,46 +1,92 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import ticketService from '../../services/ticketService';
+// admin/src/components/Tickets/TicketList.jsx
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import ticketService from "../../services/ticketService";
+import Pagination from "../Common/Pagination";
+
+// Định nghĩa trạng thái vé
+const statusChoices = [
+  { id: 'PENDING', name: 'Đang xử lý', color: 'bg-yellow-500 text-yellow-900 bg-opacity-20' },
+  { id: 'CONFIRMED', name: 'Đã xác nhận', color: 'bg-green-500 text-green-900 bg-opacity-20' },
+  { id: 'CANCELED', name: 'Đã hủy', color: 'bg-red-500 text-red-900 bg-opacity-20' },
+  { id: 'USED', name: 'Đã sử dụng', color: 'bg-gray-500 text-gray-900 bg-opacity-20' },
+];
+
+// Hàm lấy class CSS cho trạng thái
+const getStatusClass = (status) => {
+  const statusInfo = statusChoices.find(choice => choice.id === status);
+  return statusInfo ? statusInfo.color : 'bg-gray-500 text-gray-900 bg-opacity-20';
+};
 
 const TicketList = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [totalTickets, setTotalTickets] = useState(0);
-  const [stats, setStats] = useState(null);
+  const [totalItems, setTotalItems] = useState(0); 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [stats, setStats] = useState({
+    PENDING: 0,
+    CONFIRMED: 0,
+    CANCELED: 0,
+    USED: 0,
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter, setDateFilter] = useState({
-    fromDate: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0], // 1 tháng trước
-    toDate: new Date().toISOString().split('T')[0] // Hôm nay
+    fromDate: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
+    toDate: new Date().toISOString().split('T')[0]
   });
   const navigate = useNavigate();
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Lấy danh sách vé
-      const response = await ticketService.getList({
-        page: 1,
-        perPage: 100,
-        status: statusFilter,
-        fromDate: dateFilter.fromDate ? new Date(dateFilter.fromDate).toISOString() : '',
-        toDate: dateFilter.toDate ? new Date(dateFilter.toDate).toISOString() : '',
-        sortBy: 'createdAt',
-        sortOrder: 'desc'
-      });
-      setTickets(response.data);
-      setTotalTickets(response.pagination.total);
+      setError(null);
 
-      // Lấy thống kê vé
-      const statsResponse = await ticketService.getTicketStats(
-        dateFilter.fromDate ? new Date(dateFilter.fromDate).toISOString() : '',
-        dateFilter.toDate ? new Date(dateFilter.toDate).toISOString() : ''
-      );
-      setStats(statsResponse.data);
+      const response = await ticketService.getList({
+        pagination: {
+          page: currentPage,
+          perPage: itemsPerPage
+        },
+        sort: { field: 'createdAt', order: 'desc' },
+        filter: {
+          status: statusFilter,
+          fromDate: dateFilter.fromDate ? new Date(dateFilter.fromDate).toISOString() : '',
+          toDate: dateFilter.toDate ? new Date(dateFilter.toDate).toISOString() : '',
+          search: searchTerm
+        }
+      });
+
+      if (response && response.data) {
+        const { data, total } = response.data;
+        setTickets(data || []);
+        setTotalItems(total || 0);
+        setTotalPages(Math.ceil((total || 0) / itemsPerPage));
+
+        // Cập nhật thống kê
+        const newStats = {
+          PENDING: 0,
+          CONFIRMED: 0,
+          CANCELED: 0,
+          USED: 0
+        };
+        
+        (data || []).forEach(ticket => {
+          if (newStats.hasOwnProperty(ticket.status)) {
+            newStats[ticket.status]++;
+          }
+        });
+        
+        setStats(newStats);
+      }
     } catch (err) {
       console.error("Lỗi khi tải dữ liệu:", err);
-      setError(err.message || "Có lỗi xảy ra khi tải dữ liệu");
+      setError(err.message || "Có lỗi xảy ra khi tải dữ liệu. Vui lòng thử lại sau.");
+      setTickets([]);
+      setTotalItems(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -48,16 +94,12 @@ const TicketList = () => {
 
   useEffect(() => {
     fetchData();
-  }, [statusFilter, dateFilter]);
+  }, [currentPage, statusFilter, dateFilter.fromDate, dateFilter.toDate]);
 
   const handleExport = async () => {
     try {
-      await ticketService.exportTickets({
-        fromDate: dateFilter.fromDate ? new Date(dateFilter.fromDate).toISOString() : '',
-        toDate: dateFilter.toDate ? new Date(dateFilter.toDate).toISOString() : '',
-        status: statusFilter
-      });
-      alert('Xuất dữ liệu thành công!');
+      // Nếu chưa có hàm exportTickets trong service, thông báo cho người dùng
+      alert('Chức năng xuất dữ liệu đang được phát triển!');
     } catch (err) {
       console.error("Lỗi khi xuất dữ liệu:", err);
       setError(err.message || "Có lỗi xảy ra khi xuất dữ liệu");
@@ -77,16 +119,18 @@ const TicketList = () => {
     }
   };
 
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  // Lọc vé theo từ khóa tìm kiếm
   const filteredTickets = tickets.filter(ticket => {
     // Lọc theo từ khóa tìm kiếm (ID vé hoặc tên khách hàng)
     const matchSearch = searchTerm === "" || 
                         (ticket.id && ticket.id.toString().includes(searchTerm)) || 
                         (ticket.user && ticket.user.name && ticket.user.name.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    // Lọc theo trạng thái
-    const matchStatus = statusFilter === "" || ticket.status === statusFilter;
-    
-    return matchSearch && matchStatus;
+    return matchSearch;
   });
 
   if (loading) {
@@ -105,7 +149,7 @@ const TicketList = () => {
             Danh sách vé
           </h1>
           <p className="mt-1 text-sm text-text-secondary dark:text-text-secondary-dark">
-            Tổng số: {filteredTickets.length} vé
+            Tổng số: {totalItems} vé
           </p>
         </div>
         <div className="mt-4 sm:mt-0">
@@ -121,26 +165,24 @@ const TicketList = () => {
         </div>
       </div>
 
-      {/* Hiển thị thống kê nếu có */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          {Object.entries(stats).map(([status, count]) => (
-            <div key={status} className="bg-white dark:bg-background-paper-dark p-4 rounded-lg shadow-card hover:shadow-card-hover transition-all duration-300">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-text-secondary dark:text-text-secondary-dark">
-                    {statusChoices.find(choice => choice.id === status)?.name || status}
-                  </p>
-                  <p className="text-2xl font-semibold text-text-primary dark:text-text-primary-dark">
-                    {count}
-                  </p>
-                </div>
-                <div className={`w-3 h-3 rounded-full ${getStatusClass(status).split(' ')[0]}`}></div>
+      {/* Hiển thị thống kê */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        {Object.entries(stats).map(([status, count]) => (
+          <div key={status} className="bg-white dark:bg-background-paper-dark p-4 rounded-lg shadow-card hover:shadow-card-hover transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-text-secondary dark:text-text-secondary-dark">
+                  {statusChoices.find(choice => choice.id === status)?.name || status}
+                </p>
+                <p className="text-2xl font-semibold text-text-primary dark:text-text-primary-dark">
+                  {count}
+                </p>
               </div>
+              <div className={`w-3 h-3 rounded-full ${getStatusClass(status).split(' ')[0]}`}></div>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
 
       {/* Filters */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-5 gap-4 pb-6">
@@ -333,6 +375,20 @@ const TicketList = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Phân trang */}
+      {totalPages > 1 && (
+        <div className="mt-5">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            maxPageButtons={5}
+          />
         </div>
       )}
     </div>

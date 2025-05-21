@@ -21,13 +21,13 @@ const ItemQuantitySelector = ({ value = 1, onChange, min = 1, max = 10, size = '
   };
 
   return (
-    <div className={`flex items-center rounded-lg border border-border-light ${className}`}>
+    <div className={`flex items-center rounded-lg border border-border-light ${className} hover:shadow-md transition-all`}>
       <Button
         icon={<MinusOutlined />}
         onClick={handleDecrease}
         disabled={value <= min}
         size={size}
-        className="min-w-10 h-10 border-none hover:bg-primary hover:text-white transition-colors"
+        className="min-w-10 h-10 border-none hover:bg-red-600 hover:text-white transition-colors"
       />
       <InputNumber
         min={min}
@@ -43,7 +43,7 @@ const ItemQuantitySelector = ({ value = 1, onChange, min = 1, max = 10, size = '
         onClick={handleIncrease}
         disabled={value >= max}
         size={size}
-        className="min-w-10 h-10 border-none hover:bg-primary hover:text-white transition-colors"
+        className="min-w-10 h-10 border-none hover:bg-red-600 hover:text-white transition-colors"
       />
     </div>
   );

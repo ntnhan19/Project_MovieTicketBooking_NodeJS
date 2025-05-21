@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { ThemeContext } from "../../context/ThemeContext";
 import {
   Card,
   Row,
@@ -24,13 +25,12 @@ const { Title, Text } = Typography;
 const SeatSelectionPage = () => {
   const { showtimeId } = useParams();
   const navigate = useNavigate();
+  const { theme } = useContext(ThemeContext);
 
   // State cho dữ liệu
   const [showtimeDetails, setShowtimeDetails] = useState(null);
   const [seats, setSeats] = useState([]);
   const [selectedSeats, setSelectedSeats] = useState([]);
-
-  // State loading
   const [loading, setLoading] = useState(true);
   const [lockingSeats, setLockingSeats] = useState(false);
 
@@ -38,50 +38,35 @@ const SeatSelectionPage = () => {
   const totalPrice = selectedSeats.reduce((sum, seatId) => {
     const seatObj = seats.find((s) => s.id === seatId);
     if (!seatObj) return sum;
-
-    // Hệ số giá theo loại ghế
-    const priceMultiplier = {
-      STANDARD: 1,
-      VIP: 1.5,
-      COUPLE: 2,
-    };
-
-    // Lấy giá cơ bản từ showtime
+    const priceMultiplier = { STANDARD: 1, VIP: 1.5, COUPLE: 2 };
     const basePrice = showtimeDetails?.price || 0;
     const multiplier = priceMultiplier[seatObj.type] || 1;
     return sum + basePrice * multiplier;
   }, 0);
 
-  // Kiểm tra xem người dùng đã đăng nhập chưa
-  // Thêm hàm xóa dữ liệu cũ vào useEffect đầu tiên
+  // Kiểm tra đăng nhập và xóa dữ liệu cũ
   useEffect(() => {
     const token = localStorage.getItem("token");
     const userId = localStorage.getItem("userId");
-
     if (!token || !userId) {
       message.warning("Vui lòng đăng nhập để đặt vé");
       navigate("/login");
     } else {
-      // Kiểm tra nếu người dùng đang bắt đầu quy trình mới
       const currentPath = window.location.pathname;
       const isNewBookingProcess =
         currentPath.includes("/booking/seats") &&
         !currentPath.includes("/booking/payment");
-
-      // Nếu đây là phiên đặt vé mới và không phải quay lại từ trang thanh toán
       if (
         isNewBookingProcess &&
         !sessionStorage.getItem("returningFromPayment")
       ) {
-        // Xóa dữ liệu ghế cũ
         localStorage.removeItem("selectedSeats");
         localStorage.removeItem("showtimeId");
-        console.log("Đã xóa dữ liệu ghế của phiên trước");
       }
     }
   }, [navigate]);
 
-  // Sửa lại useEffect kiểm tra ghế đã chọn trước đó
+  // Kiểm tra ghế đã chọn trước đó
   useEffect(() => {
     const checkPreviousSelection = async () => {
       try {
@@ -89,54 +74,33 @@ const SeatSelectionPage = () => {
           localStorage.getItem("selectedSeats") || "[]"
         );
         const storedShowtimeId = localStorage.getItem("showtimeId");
-
-        // Chỉ khôi phục lại ghế đã chọn nếu:
-        // 1. Có ghế được lưu trữ
-        // 2. Đang ở cùng suất chiếu
-        // 3. Người dùng đang quay lại từ trang thanh toán
         const returningFromPayment =
           sessionStorage.getItem("returningFromPayment") === "true";
-
         if (
           storedSeats.length > 0 &&
           storedShowtimeId === showtimeId &&
           returningFromPayment
         ) {
-          console.log("Người dùng quay lại từ trang thanh toán, mở khóa ghế");
           const seatIds = storedSeats.map((seat) => seat.id);
-
-          // Mở khóa ghế
           await seatApi.unlockSeats(seatIds);
-          console.log("Đã mở khóa ghế từ phiên trước:", seatIds);
-
-          // Thiết lập lại ghế đã chọn trước đó
           setSelectedSeats(seatIds);
-
-          // Xóa trạng thái quay lại sau khi đã xử lý
           sessionStorage.removeItem("returningFromPayment");
         }
       } catch (error) {
         console.error("Lỗi khi mở khóa ghế:", error);
       }
     };
-
-    if (showtimeId) {
-      checkPreviousSelection();
-    }
+    if (showtimeId) checkPreviousSelection();
   }, [showtimeId]);
 
-  // Lấy thông tin suất chiếu và danh sách ghế khi component mount
+  // Lấy thông tin suất chiếu và danh sách ghế
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Lấy thông tin chi tiết suất chiếu
         const showtimeData = await showtimeApi.getShowtimeById(showtimeId);
         setShowtimeDetails(showtimeData);
-
-        // Lấy danh sách ghế
         const seatsData = await seatApi.getSeatsByShowtime(showtimeId);
-        console.log("Seats data fetched:", seatsData);
         setSeats(seatsData);
       } catch (error) {
         console.error("Error fetching seat data:", error);
@@ -145,17 +109,13 @@ const SeatSelectionPage = () => {
         setLoading(false);
       }
     };
-
-    if (showtimeId) {
-      fetchData();
-    }
+    if (showtimeId) fetchData();
   }, [showtimeId]);
 
-  // Cleanup: Giải phóng ghế khi người dùng rời khỏi trang
+  // Cleanup ghế khi rời trang
   useEffect(() => {
     return () => {
       if (selectedSeats.length > 0) {
-        console.log("Cleanup: Mở khóa ghế khi rời khỏi trang", selectedSeats);
         seatApi.unlockSeats(selectedSeats).catch((err) => {
           console.error("Error unlocking seats:", err);
         });
@@ -165,53 +125,34 @@ const SeatSelectionPage = () => {
 
   // Xử lý chọn ghế
   const handleSeatClick = (seatId) => {
-    // Tìm ghế trong danh sách
     const seat = seats.find((s) => s.id === seatId);
-
-    // Chỉ cho phép chọn ghế có trạng thái AVAILABLE
     if (seat && seat.status === "AVAILABLE") {
-      setSelectedSeats((prev) => {
-        // Nếu ghế đã được chọn, bỏ chọn
-        if (prev.includes(seatId)) {
-          return prev.filter((id) => id !== seatId);
-        }
-        // Nếu chưa chọn, thêm vào danh sách
-        return [...prev, seatId];
-      });
+      setSelectedSeats((prev) =>
+        prev.includes(seatId)
+          ? prev.filter((id) => id !== seatId)
+          : [...prev, seatId]
+      );
     } else if ((seat && seat.status === "LOCKED") || seat.status === "BOOKED") {
       message.warning("Ghế này không khả dụng");
     }
   };
 
-  // Xử lý khóa ghế và chuyển đến trang thanh toán
+  // Xử lý khóa ghế và chuyển đến thanh toán
   const handleContinue = async () => {
     if (selectedSeats.length === 0) {
       message.warning("Vui lòng chọn ít nhất một ghế");
       return;
     }
-
     setLockingSeats(true);
     try {
-      // Khóa ghế
       await seatApi.lockSeats(selectedSeats);
-      console.log("Đã khóa ghế thành công:", selectedSeats);
-
-      // Lưu thông tin chi tiết hơn vào localStorage
       const selectedSeatsData = selectedSeats
         .map((seatId) => {
           const seat = seats.find((s) => s.id === seatId);
           if (!seat) return null;
-
-          // Tính giá cho từng ghế
-          const priceMultiplier = {
-            STANDARD: 1,
-            VIP: 1.5,
-            COUPLE: 2,
-          };
-
+          const priceMultiplier = { STANDARD: 1, VIP: 1.5, COUPLE: 2 };
           const basePrice = showtimeDetails?.price || 0;
           const multiplier = priceMultiplier[seat.type] || 1;
-
           return {
             id: seatId,
             row: seat.row,
@@ -221,8 +162,6 @@ const SeatSelectionPage = () => {
           };
         })
         .filter(Boolean);
-
-      console.log("Lưu vào localStorage:", selectedSeatsData);
       localStorage.setItem("selectedSeats", JSON.stringify(selectedSeatsData));
       localStorage.setItem("showtimeId", showtimeId);
       localStorage.setItem(
@@ -238,21 +177,12 @@ const SeatSelectionPage = () => {
         })
       );
       localStorage.setItem("totalPrice", totalPrice);
-
-      // Chuyển đến trang thanh toán
       navigate("/booking/payment");
     } catch (error) {
       console.error("Error locking seats:", error);
-
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
-        message.error(error.response.data.message);
-      } else {
-        message.error("Không thể khóa ghế. Vui lòng thử lại sau.");
-      }
+      message.error(
+        error.response?.data?.message || "Không thể khóa ghế. Vui lòng thử lại."
+      );
     } finally {
       setLockingSeats(false);
     }
@@ -261,71 +191,137 @@ const SeatSelectionPage = () => {
   // Nhóm ghế theo hàng
   const groupSeatsByRow = () => {
     const seatsByRow = {};
-
     if (seats && seats.length > 0) {
       seats.forEach((seat) => {
-        if (!seatsByRow[seat.row]) {
-          seatsByRow[seat.row] = [];
-        }
+        if (!seatsByRow[seat.row]) seatsByRow[seat.row] = [];
         seatsByRow[seat.row].push(seat);
       });
     }
-
     return seatsByRow;
   };
 
-  // Render chú thích màu ghế - Đã cải tiến với màu sắc rõ ràng hơn
+  // Chú thích ghế
   const renderSeatLegend = () => (
-    <div className="mt-8 pt-6 border-t border-gray-200">
+    <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-600">
       <div className="text-center mb-6">
-        <h4 className="text-lg font-medium text-text-primary">Chú thích</h4>
+        <h4
+          className={`text-lg font-medium ${
+            theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+          }`}
+        >
+          Chú thích
+        </h4>
       </div>
-
       <div className="flex flex-wrap md:flex-nowrap justify-center gap-4 md:gap-8">
-        {/* Loại ghế */}
-        <div className="w-full md:w-1/2 p-4 bg-light-bg-secondary rounded-lg">
-          <h5 className="text-center font-medium text-text-primary mb-4 pb-2 border-b border-gray-200">
+        <div
+          className={`w-full md:w-1/2 p-4 rounded-lg ${
+            theme === "dark" ? "bg-dark-bg-secondary" : "bg-light-bg-secondary"
+          }`}
+        >
+          <h5
+            className={`text-center font-medium mb-4 pb-2 border-b ${
+              theme === "dark"
+                ? "text-dark-text-primary border-gray-600"
+                : "text-text-primary border-gray-200"
+            }`}
+          >
             Loại ghế
           </h5>
           <div className="flex flex-wrap justify-center gap-6">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 flex items-center justify-center rounded-md bg-blue-100 border-2 border-blue-500">
-                <span className="text-xs text-blue-700 font-bold">A1</span>
+              <div className="w-8 h-8 flex items-center justify-center rounded-md bg-blue-100 border-2 border-blue-500 dark:bg-blue-900 dark:border-blue-400">
+                <span
+                  className={`text-xs font-bold ${
+                    theme === "dark" ? "text-blue-300" : "text-blue-700"
+                  }`}
+                >
+                  A1
+                </span>
               </div>
-              <span className="text-sm text-text-secondary">Ghế thường</span>
+              <span
+                className={`text-sm ${
+                  theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                }`}
+              >
+                Ghế thường
+              </span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 flex items-center justify-center rounded-md bg-amber-100 border-2 border-amber-500">
-                <span className="text-xs text-amber-700 font-bold">B2</span>
+              <div className="w-8 h-8 flex items-center justify-center rounded-md bg-amber-100 border-2 border-amber-500 dark:bg-amber-900 dark:border-amber-400">
+                <span
+                  className={`text-xs font-bold ${
+                    theme === "dark" ? "text-amber-300" : "text-amber-700"
+                  }`}
+                >
+                  B2
+                </span>
               </div>
-              <span className="text-sm text-text-secondary">Ghế VIP</span>
+              <span
+                className={`text-sm ${
+                  theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                }`}
+              >
+                Ghế VIP
+              </span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-16 h-8 flex items-center justify-center rounded-md bg-purple-100 border-2 border-purple-600">
-                <span className="text-xs text-purple-700 font-bold">C3</span>
+              <div className="w-16 h-8 flex items-center justify-center rounded-md bg-purple-100 border-2 border-purple-600 dark:bg-purple-900 dark:border-purple-500">
+                <span
+                  className={`text-xs font-bold ${
+                    theme === "dark" ? "text-purple-300" : "text-purple-700"
+                  }`}
+                >
+                  C3
+                </span>
               </div>
-              <span className="text-sm text-text-secondary">Ghế đôi</span>
+              <span
+                className={`text-sm ${
+                  theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                }`}
+              >
+                Ghế đôi
+              </span>
             </div>
           </div>
         </div>
-
-        {/* Trạng thái ghế */}
-        <div className="w-full md:w-1/2 p-4 bg-light-bg-secondary rounded-lg">
-          <h5 className="text-center font-medium text-text-primary mb-4 pb-2 border-b border-gray-200">
+        <div
+          className={`w-full md:w-1/2 p-4 rounded-lg ${
+            theme === "dark" ? "bg-dark-bg-secondary" : "bg-light-bg-secondary"
+          }`}
+        >
+          <h5
+            className={`text-center font-medium mb-4 pb-2 border-b ${
+              theme === "dark"
+                ? "text-dark-text-primary border-gray-600"
+                : "text-text-primary border-gray-200"
+            }`}
+          >
             Trạng thái ghế
           </h5>
           <div className="flex flex-wrap justify-center gap-6">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 flex items-center justify-center rounded-md bg-primary text-white font-bold">
+              <div className="w-8 h-8 flex items-center justify-center rounded-md bg-red-500 text-white font-bold dark:bg-red-600">
                 <span className="text-xs">A1</span>
               </div>
-              <span className="text-sm text-text-secondary">Đang chọn</span>
+              <span
+                className={`text-sm ${
+                  theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                }`}
+              >
+                Đang chọn
+              </span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 flex items-center justify-center rounded-md bg-gray-600 text-white font-bold">
+              <div className="w-8 h-8 flex items-center justify-center rounded-md bg-gray-600 text-white font-bold dark:bg-gray-700">
                 <span className="text-xs">B2</span>
               </div>
-              <span className="text-sm text-text-secondary">Đã đặt</span>
+              <span
+                className={`text-sm ${
+                  theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                }`}
+              >
+                Đã đặt
+              </span>
             </div>
           </div>
         </div>
@@ -333,20 +329,21 @@ const SeatSelectionPage = () => {
     </div>
   );
 
-  // Render sơ đồ ghế - Đã cải tiến với màu sắc rõ ràng hơn
+  // Sơ đồ ghế
   const renderSeats = () => {
     const seatsByRow = groupSeatsByRow();
     const rows = Object.keys(seatsByRow).sort();
-
     if (rows.length === 0) {
       return (
-        <div className="text-center py-8 text-text-secondary">
+        <div
+          className={`text-center py-8 ${
+            theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+          }`}
+        >
           Không có thông tin ghế
         </div>
       );
     }
-
-    // Xác định số lượng cột lớn nhất
     const maxColumns = Math.max(
       ...rows.map((row) =>
         seatsByRow[row].reduce((max, seat) => {
@@ -355,7 +352,6 @@ const SeatSelectionPage = () => {
         }, 0)
       )
     );
-
     return (
       <div className="overflow-x-auto pb-6 mt-6">
         <div className="mx-auto flex flex-col items-center">
@@ -364,7 +360,13 @@ const SeatSelectionPage = () => {
               className="flex items-center mb-3 justify-center w-full"
               key={row}
             >
-              <div className="w-8 h-8 flex items-center justify-center rounded-full bg-light-bg-secondary text-text-primary font-bold mr-2">
+              <div
+                className={`w-8 h-8 flex items-center justify-center rounded-full ${
+                  theme === "dark"
+                    ? "bg-dark-bg-secondary text-dark-text-primary"
+                    : "bg-light-bg-secondary text-text-primary"
+                } font-bold mr-2`}
+              >
                 {row}
               </div>
               <div
@@ -374,44 +376,27 @@ const SeatSelectionPage = () => {
                 {seatsByRow[row]
                   .sort((a, b) => parseInt(a.column) - parseInt(b.column))
                   .map((seat) => {
-                    // Xác định các class cho ghế
                     let seatClasses =
                       "flex items-center justify-center rounded-md text-xs font-bold transition-all shadow-sm cursor-pointer";
-
-                    // Kích thước ghế
-                    if (seat.type === "COUPLE") {
-                      seatClasses += " w-16 h-8"; // Ghế đôi - đã tăng kích thước
-                    } else {
-                      seatClasses += " w-8 h-8"; // Ghế thường và VIP - đã tăng kích thước
-                    }
-
-                    // Xác định style cho ghế dựa trên trạng thái và loại
-                    if (seat.status === "BOOKED") {
-                      // Ghế đã đặt
+                    seatClasses += seat.type === "COUPLE" ? " w-16 h-8" : " w-8 h-8";
+                    if (seat.status === "BOOKED" || seat.status === "LOCKED") {
                       seatClasses +=
-                        " bg-gray-600 text-white cursor-not-allowed";
-                    } else if (seat.status === "LOCKED") {
-                      // Bỏ qua ghế đang khóa và xử lý như ghế đã đặt
-                      seatClasses +=
-                        " bg-gray-600 text-white cursor-not-allowed";
+                        " bg-gray-600 text-white cursor-not-allowed dark:bg-gray-700";
                     } else if (selectedSeats.includes(seat.id)) {
-                      // Ghế đang chọn
                       seatClasses +=
-                        " bg-primary text-white hover:bg-primary-dark";
+                        " bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700";
                     } else if (seat.status === "AVAILABLE") {
-                      // Ghế khả dụng - Thêm màu nền nhạt để dễ phân biệt
                       if (seat.type === "VIP") {
                         seatClasses +=
-                          " bg-amber-100 text-amber-700 border-2 border-amber-500 hover:bg-amber-200";
+                          " bg-amber-100 text-amber-700 border-2 border-amber-500 hover:bg-amber-200 dark:bg-amber-900 dark:text-amber-300 dark:border-amber-400 dark:hover:bg-amber-800";
                       } else if (seat.type === "COUPLE") {
                         seatClasses +=
-                          " bg-purple-100 text-purple-700 border-2 border-purple-600 hover:bg-purple-200";
+                          " bg-purple-100 text-purple-700 border-2 border-purple-600 hover:bg-purple-200 dark:bg-purple-900 dark:text-purple-300 dark:border-purple-500 dark:hover:bg-purple-800";
                       } else {
                         seatClasses +=
-                          " bg-blue-100 text-blue-700 border-2 border-blue-500 hover:bg-blue-200";
+                          " bg-blue-100 text-blue-700 border-2 border-blue-500 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-400 dark:hover:bg-blue-800";
                       }
                     }
-
                     return (
                       <div
                         key={seat.id}
@@ -431,50 +416,53 @@ const SeatSelectionPage = () => {
     );
   };
 
-  // Hiển thị thông tin các ghế đã chọn - Đã cải tiến với màu sắc phù hợp
+  // Thông tin ghế đã chọn
   const renderSelectedSeatsInfo = () => {
     if (selectedSeats.length === 0)
       return (
-        <div className="flex items-center justify-center h-12 bg-light-bg-secondary rounded-lg">
-          <span className="text-text-secondary italic">Chưa chọn ghế</span>
+        <div
+          className={`flex items-center justify-center h-12 rounded-lg ${
+            theme === "dark" ? "bg-dark-bg-secondary" : "bg-light-bg-secondary"
+          }`}
+        >
+          <span
+            className={`italic ${
+              theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+            }`}
+          >
+            Chưa chọn ghế
+          </span>
         </div>
       );
-
-    // Hệ số giá theo loại ghế
-    const priceMultiplier = {
-      STANDARD: 1,
-      VIP: 1.5,
-      COUPLE: 2,
-    };
-
-    // Lấy giá cơ bản từ showtime
+    const priceMultiplier = { STANDARD: 1, VIP: 1.5, COUPLE: 2 };
     const basePrice = showtimeDetails?.price || 0;
-
     return (
       <div className="flex flex-wrap gap-2">
         {selectedSeats.map((seatId) => {
           const seat = seats.find((s) => s.id === seatId);
           if (!seat) return null;
-
           const multiplier = priceMultiplier[seat.type] || 1;
           const price = basePrice * multiplier;
-
-          // Xác định màu tag dựa trên loại ghế
-          let tagColor;
-          let tagBgClass = "";
-
+          let tagColor, tagBgClass;
           if (seat.type === "VIP") {
-            tagColor = "gold";
-            tagBgClass = "bg-amber-100 border border-amber-500 text-amber-700";
-          } else if (seat.type === "COUPLE") {
-            tagColor = "purple";
+            tagColor = theme === "dark" ? "amber-300" : "gold";
             tagBgClass =
-              "bg-purple-100 border border-purple-600 text-purple-700";
+              theme === "dark"
+                ? "bg-amber-900 border border-amber-400 text-amber-300"
+                : "bg-amber-100 border border-amber-500 text-amber-700";
+          } else if (seat.type === "COUPLE") {
+            tagColor = theme === "dark" ? "purple-300" : "purple";
+            tagBgClass =
+              theme === "dark"
+                ? "bg-purple-900 border border-purple-500 text-purple-300"
+                : "bg-purple-100 border border-purple-600 text-purple-700";
           } else {
-            tagColor = "blue";
-            tagBgClass = "bg-blue-100 border border-blue-500 text-blue-700";
+            tagColor = theme === "dark" ? "blue-300" : "blue";
+            tagBgClass =
+              theme === "dark"
+                ? "bg-blue-900 border border-blue-400 text-blue-300"
+                : "bg-blue-100 border border-blue-500 text-blue-700";
           }
-
           return (
             <Tag
               key={seatId}
@@ -490,17 +478,21 @@ const SeatSelectionPage = () => {
     );
   };
 
-  // Breadcrumb cải tiến
+  // Breadcrumb
   const BreadcrumbNavigation = () => (
     <div className="breadcrumb-container mb-6">
-      <div className="flex items-center py-3 px-4 bg-light-bg-secondary rounded-lg shadow-sm">
-        <div className="flex items-center text-primary">
+      <div
+        className={`flex items-center py-3 px-4 rounded-lg shadow-sm ${
+          theme === "dark" ? "bg-dark-bg-secondary" : "bg-light-bg-secondary"
+        }`}
+      >
+        <div className="flex items-center text-red-500 dark:text-red-400">
           <HomeOutlined className="mr-2" />
-          <a href="/" className="text-primary hover:underline font-medium">
+          <a href="/" className="text-red-500 dark:text-red-400 hover:underline font-medium">
             Trang chủ
           </a>
         </div>
-        <div className="mx-2 text-gray-400">
+        <div className="mx-2 text-gray-400 dark:text-gray-500">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="16"
@@ -511,21 +503,20 @@ const SeatSelectionPage = () => {
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="feather feather-chevron-right"
           >
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </div>
-        <div className="flex items-center text-primary">
+        <div className="flex items-center text-red-500 dark:text-red-400">
           <VideoCameraOutlined className="mr-2" />
           <a
             href="/movies"
-            className="text-primary hover:underline font-medium"
+            className="text-red-500 dark:text-red-400 hover:underline font-medium"
           >
             Phim
           </a>
         </div>
-        <div className="mx-2 text-gray-400">
+        <div className="mx-2 text-gray-400 dark:text-gray-500">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="16"
@@ -536,37 +527,68 @@ const SeatSelectionPage = () => {
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="feather feather-chevron-right"
           >
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </div>
         <div className="flex items-center font-medium">
-          <TagOutlined className="mr-2" />
-          <span className="text-gray-700">Đặt vé - Chọn ghế</span>
+          <TagOutlined className="mr-2 text-red-500 dark:text-red-400" />
+          <span
+            className={`${
+              theme === "dark" ? "text-dark-text-primary" : "text-gray-700"
+            }`}
+          >
+            Đặt vé - Chọn ghế
+          </span>
         </div>
       </div>
     </div>
   );
 
-  // Render màn hình cinema - Đã cải tiến
+  // Màn hình cinema
   const renderScreen = () => (
     <div className="mb-10 relative">
-      <div className="w-full mx-auto h-16 bg-gradient-to-r from-gray-700 via-gray-800 to-gray-700 rounded-t-lg flex items-center justify-center text-white font-medium shadow-lg">
+      <div
+        className={`w-full mx-auto h-16 rounded-t-lg flex items-center justify-center text-white font-medium shadow-lg ${
+          theme === "dark"
+            ? "bg-gradient-to-r from-gray-800 via-gray-900 to-gray-800"
+            : "bg-gradient-to-r from-gray-700 via-gray-800 to-gray-700"
+        }`}
+      >
         MÀN HÌNH
       </div>
-      <div className="w-full mx-auto h-4 bg-gradient-to-b from-gray-500 to-transparent"></div>
+      <div
+        className={`w-full mx-auto h-4 ${
+          theme === "dark"
+            ? "bg-gradient-to-b from-gray-600 to-transparent"
+            : "bg-gradient-to-b from-gray-500 to-transparent"
+        }`}
+      ></div>
       <div className="mt-3 w-full mx-auto flex justify-center">
-        <div className="w-1/2 h-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+        <div
+          className={`w-1/2 h-1 ${
+            theme === "dark"
+              ? "bg-gradient-to-r from-transparent via-gray-500 to-transparent"
+              : "bg-gradient-to-r from-transparent via-gray-300 to-transparent"
+          }`}
+        ></div>
       </div>
     </div>
   );
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-light-bg">
+      <div
+        className={`flex flex-col items-center justify-center min-h-screen ${
+          theme === "dark" ? "bg-dark-bg" : "bg-light-bg"
+        }`}
+      >
         <Spin size="large" />
-        <h4 className="mt-6 text-text-primary font-medium">
+        <h4
+          className={`mt-6 font-medium ${
+            theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+          }`}
+        >
           Đang tải thông tin ghế...
         </h4>
       </div>
@@ -574,20 +596,19 @@ const SeatSelectionPage = () => {
   }
 
   return (
-    <div className="bg-light-bg min-h-screen">
-      {/* Sử dụng container-fluid thay vì max-w-6xl để mở rộng toàn màn hình */}
-      <div className="w-full mx-auto px-4 py-6 pt-24">
-        {/* Breadcrumb cải tiến */}
+    <div className={`min-h-screen ${theme === "dark" ? "bg-dark-bg" : "bg-light-bg"}`}>
+      <div className="w-full mx-auto px-4 py-6">
         <BreadcrumbNavigation />
-
         <Row gutter={[24, 24]}>
-          {/* Thông tin phim - Giảm kích thước cột bên trái */}
           <Col xs={24} lg={6} className="order-1 lg:order-1">
-            <Card className="content-card shadow-md mb-6 border border-border-light">
+            <Card
+              className={`content-card shadow-md mb-6 border ${
+                theme === "dark" ? "border-gray-600 bg-gray-800" : "border-border-light bg-white"
+              }`}
+            >
               {showtimeDetails && showtimeDetails.movie && (
                 <div className="flex flex-col">
                   <div className="flex items-start">
-                    {/* Poster phim */}
                     <div className="w-1/3 mr-4">
                       <img
                         src={
@@ -601,54 +622,82 @@ const SeatSelectionPage = () => {
                         style={{ aspectRatio: "2/3" }}
                       />
                     </div>
-
-                    {/* Thông tin phim */}
                     <div className="w-2/3">
-                      <h3 className="text-lg font-bold text-text-primary mb-3 line-clamp-2">
+                      <h3
+                        className={`text-lg font-bold mb-3 line-clamp-2 ${
+                          theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                        }`}
+                      >
                         {showtimeDetails.movie.title}
                       </h3>
                       <div className="space-y-2 text-sm">
                         <div className="flex items-start">
-                          <span className="font-medium text-text-primary w-20">
-                            Rạp:{" "}
+                          <span
+                            className={`font-medium w-20 ${
+                              theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                            }`}
+                          >
+                            Rạp:
                           </span>
-                          <span className="text-text-secondary flex-1">
+                          <span
+                            className={`flex-1 ${
+                              theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                            }`}
+                          >
                             {showtimeDetails.hall?.cinema?.name}
                           </span>
                         </div>
                         <div className="flex items-start">
-                          <span className="font-medium text-text-primary w-20">
-                            Phòng:{" "}
+                          <span
+                            className={`font-medium w-20 ${
+                              theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                            }`}
+                          >
+                            Phòng:
                           </span>
-                          <span className="text-text-secondary flex-1">
+                          <span
+                            className={`flex-1 ${
+                              theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                            }`}
+                          >
                             {showtimeDetails.hall?.name}
                           </span>
                         </div>
                         <div className="flex items-start">
-                          <span className="font-medium text-text-primary w-20">
-                            Suất chiếu:{" "}
+                          <span
+                            className={`font-medium w-20 ${
+                              theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                            }`}
+                          >
+                            Suất chiếu:
                           </span>
-                          <span className="text-text-secondary flex-1">
-                            {new Date(
-                              showtimeDetails.startTime
-                            ).toLocaleDateString("vi-VN")}
+                          <span
+                            className={`flex-1 ${
+                              theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                            }`}
+                          >
+                            {new Date(showtimeDetails.startTime).toLocaleDateString("vi-VN")}
                           </span>
                         </div>
                         <div className="flex items-start">
-                          <span className="font-medium text-text-primary w-20">
-                            Thời gian:{" "}
+                          <span
+                            className={`font-medium w-20 ${
+                              theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                            }`}
+                          >
+                            Thời gian:
                           </span>
-                          <span className="text-text-secondary flex-1">
-                            {new Date(
-                              showtimeDetails.startTime
-                            ).toLocaleTimeString("vi-VN", {
+                          <span
+                            className={`flex-1 ${
+                              theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                            }`}
+                          >
+                            {new Date(showtimeDetails.startTime).toLocaleTimeString("vi-VN", {
                               hour: "2-digit",
                               minute: "2-digit",
                             })}{" "}
                             -{" "}
-                            {new Date(
-                              showtimeDetails.endTime
-                            ).toLocaleTimeString("vi-VN", {
+                            {new Date(showtimeDetails.endTime).toLocaleTimeString("vi-VN", {
                               hour: "2-digit",
                               minute: "2-digit",
                             })}
@@ -660,42 +709,63 @@ const SeatSelectionPage = () => {
                 </div>
               )}
             </Card>
-
-            {/* Thông tin đặt vé */}
-            <Card className="content-card shadow-md border border-border-light">
+            <Card
+              className={`content-card shadow-md border ${
+                theme === "dark" ? "border-gray-600 bg-gray-800" : "border-border-light bg-white"
+              }`}
+            >
               <div className="space-y-4">
-                <h4 className="text-lg font-bold text-text-primary mb-1">
+                <h4
+                  className={`text-lg font-bold mb-1 ${
+                    theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                  }`}
+                >
                   Thông tin đặt vé
                 </h4>
                 <Divider className="my-3" />
-
                 <div className="space-y-3">
-                  <h4 className="font-medium text-text-primary">
+                  <h4
+                    className={`font-medium ${
+                      theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                    }`}
+                  >
                     Ghế đã chọn:
                   </h4>
                   {renderSelectedSeatsInfo()}
                 </div>
-
-                <div className="flex justify-between items-center p-3 bg-light-bg-secondary rounded-lg">
-                  <span className="font-medium text-text-primary">
+                <div
+                  className={`flex justify-between items-center p-3 rounded-lg ${
+                    theme === "dark" ? "bg-dark-bg-secondary" : "bg-light-bg-secondary"
+                  }`}
+                >
+                  <span
+                    className={`font-medium ${
+                      theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                    }`}
+                  >
                     Số lượng ghế:
                   </span>
-                  <span className="font-bold text-primary">
+                  <span className="font-bold text-red-500 dark:text-red-400">
                     {selectedSeats.length}
                   </span>
                 </div>
-
                 <Divider className="my-4" />
-
-                <div className="flex justify-between items-center bg-primary bg-opacity-5 p-4 rounded-lg">
-                  <span className="font-medium text-text-primary">
+                <div
+                  className={`flex justify-between items-center p-4 rounded-lg ${
+                    theme === "dark" ? "bg-red-500/10" : "bg-red-500/5"
+                  }`}
+                >
+                  <span
+                    className={`font-medium ${
+                      theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                    }`}
+                  >
                     Tổng tiền:
                   </span>
-                  <span className="text-lg font-bold text-primary">
+                  <span className="text-lg font-bold text-red-500 dark:text-red-400">
                     {totalPrice.toLocaleString("vi-VN")}đ
                   </span>
                 </div>
-
                 <Button
                   type="primary"
                   size="large"
@@ -703,35 +773,40 @@ const SeatSelectionPage = () => {
                   onClick={handleContinue}
                   loading={lockingSeats}
                   disabled={selectedSeats.length === 0}
-                  className="bg-button-gradient border-none rounded-lg font-bold h-12 mt-4 hover:bg-button-gradient-hover hover:shadow-button-hover"
+                  className="bg-red-500 border-none rounded-lg font-bold h-12 mt-4 hover:bg-red-600 hover:shadow-button-hover dark:bg-red-500 dark:hover:bg-red-600"
                 >
                   TIẾP TỤC THANH TOÁN
                 </Button>
               </div>
             </Card>
           </Col>
-
-          {/* Sơ đồ ghế */}
           <Col xs={24} lg={16} className="order-2 lg:order-2">
-            <Card className="content-card shadow-md border border-border-light">
-
-              {/* Màn hình - Đã cải tiến */}
+            <Card
+              className={`content-card shadow-md border ${
+                theme === "dark" ? "border-gray-600 bg-gray-800" : "border-border-light bg-white"
+              }`}
+            >
               {renderScreen()}
-
-              {/* Sơ đồ ghế */}
               <div className="flex flex-col items-center">
                 {seats.length > 0 ? (
                   renderSeats()
                 ) : (
-                  <div className="py-12 text-center bg-light-bg-secondary rounded-lg">
-                    <Text type="warning" className="text-lg">
+                  <div
+                    className={`py-12 text-center rounded-lg ${
+                      theme === "dark" ? "bg-dark-bg-secondary" : "bg-light-bg-secondary"
+                    }`}
+                  >
+                    <Text
+                      type="warning"
+                      className={`text-lg ${
+                        theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                      }`}
+                    >
                       Không có thông tin ghế cho suất chiếu này
                     </Text>
                   </div>
                 )}
               </div>
-
-              {/* Chú thích ghế - Đã cải tiến */}
               {renderSeatLegend()}
             </Card>
           </Col>

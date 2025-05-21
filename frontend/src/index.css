@@ -7,106 +7,160 @@
   html {
     @apply bg-light-bg m-0 p-0 w-full h-full font-sans overflow-x-hidden text-text-primary;
   }
-
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    @apply mt-0 font-bold text-text-primary;
+    @apply mt-0 font-bold text-text-primary dark:text-dark-text-primary;
   }
-
   a {
-    @apply no-underline text-primary transition-colors;
+    @apply no-underline text-primary transition-colors dark:text-primary-light;
+  }
+  .dark .page-header {
+    @apply text-white;
+  }
+  .dark .text-gray-700 {
+    @apply text-gray-300;
   }
 }
 
 @layer components {
   .app-container {
-    @apply w-full min-h-screen bg-light-bg;
+    @apply w-full min-h-screen bg-light-bg dark:bg-dark-bg;
   }
-
   .main-content {
-    @apply max-w-6xl w-full mx-auto px-5 box-border;
+    @apply w-full mx-auto box-border;
   }
-
-  /* Compat styling cho Ant Design */
   .ant-btn-primary {
-    @apply bg-primary border-primary;
+    @apply bg-red-500 border-red-500 text-white hover:!bg-red-600 hover:!border-red-600 hover:!text-white active:!bg-red-600 active:!border-red-600 active:!text-white dark:bg-red-500 dark:border-red-500 dark:hover:!bg-red-600 dark:hover:!border-red-600 dark:hover:!text-white dark:active:!bg-red-600 dark:active:!border-red-600 dark:active:!text-white !important;
+  }
+  .btn-primary {
+    @apply bg-red-500 text-white rounded-xl transition-all transform hover:!bg-red-600 hover:!text-white dark:bg-red-500 dark:hover:!bg-red-600 !important;
+  }
+  .ant-btn-default {
+    @apply border-red-500 text-red-500 bg-transparent hover:!bg-red-500 hover:!border-red-500 hover:!text-white active:!bg-red-500 active:!border-red-500 active:!text-white dark:border-red-500 dark:text-red-500 dark:hover:!bg-red-600 dark:hover:!border-red-600 dark:hover:!text-white dark:active:!bg-red-600 dark:active:!border-red-600 dark:active:!text-white !important;
+  }
+  .btn-outline {
+    @apply border border-red-500 text-red-500 bg-transparent rounded-xl transition-all transform hover:!bg-red-500 hover:!text-white hover:!border-red-600 active:!bg-red-500 active:!text-white active:!border-red-600 dark:border-red-500 dark:text-red-500 dark:hover:!bg-red-600 dark:hover:!text-white dark:hover:!border-red-600 dark:active:!bg-red-600 dark:active:!text-white dark:active:!border-red-600 !important;
+  }
+  .ant-btn-text {
+    @apply text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700;
+  }
+  .ant-tabs-card > .ant-tabs-nav .ant-tabs-tab {
+    @apply rounded-t-xl border-0 bg-white/80 backdrop-blur-md transition-all dark:bg-gray-800;
+  }
+  .ant-tabs-card > .ant-tabs-nav .ant-tabs-tab-active {
+    @apply bg-white shadow-md border-b-0 dark:bg-gray-700;
+  }
+  .custom-movie-tabs > .ant-tabs-nav {
+    @apply mb-0;
+  }
+  .custom-movie-tabs > .ant-tabs-nav .ant-tabs-tab {
+    @apply rounded-xl bg-white/90 backdrop-blur-sm shadow-sm border-none mx-1 transition-all duration-300 dark:bg-gray-800;
+  }
+  .custom-movie-tabs > .ant-tabs-nav .ant-tabs-tab-active {
+    @apply bg-white shadow-lg border-none dark:bg-gray-700;
+  }
+  .custom-movie-tabs > .ant-tabs-nav .ant-tabs-ink-bar {
+    @apply hidden;
+  }
+  .custom-movie-tabs > .ant-tabs-nav::before {
+    @apply hidden;
+  }
+  .custom-movie-tabs > .ant-tabs-nav .ant-tabs-nav-wrap {
+    @apply overflow-visible;
+  }
+  .custom-movie-tabs > .ant-tabs-nav .ant-tabs-nav-list {
+    @apply transition-all duration-300;
+  }
+  .ant-input-affix-wrapper {
+    @apply transition-all duration-300 h-14 text-lg font-medium border-0 rounded-xl shadow-lg pl-5;
+  }
+  .ant-input-affix-wrapper:hover,
+  .ant-input-affix-wrapper:focus,
+  .ant-input-affix-wrapper-focused {
+    @apply border-red-500 shadow-xl dark:border-red-500;
+  }
+  .ant-select:not(.ant-select-disabled):hover .ant-select-selector {
+    @apply border-red-500 dark:border-red-500;
   }
 
-  .ant-btn-primary:hover {
-    @apply bg-primary-dark border-primary-dark;
+  .ant-select-focused:not(.ant-select-disabled).ant-select:not(
+      .ant-select-customize-input
+    )
+    .ant-select-selector {
+    @apply border-red-500 shadow-md dark:border-red-500;
+  }
+  .ant-select-selector {
+    @apply bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-100 !important;
+  }
+  .booking-select .ant-select-selector {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap max-w-full w-full !important;
+    max-width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    @apply bg-white text-black dark:bg-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 !important;
   }
 
-  /* Popup Animation */
   .popup-animation {
     @apply animate-popIn;
   }
-
-  /* Shadow Text - Dùng cho văn bản trên hình ảnh */
   .shadow-text {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   }
-
-  /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
   }
-
   ::-webkit-scrollbar-track {
-    @apply bg-light-bg-secondary;
+    @apply bg-light-bg-secondary dark:bg-dark-bg-secondary;
   }
-
   ::-webkit-scrollbar-thumb {
-    @apply bg-primary/50 rounded;
+    @apply bg-red-500/50 rounded dark:bg-red-500/50;
   }
-
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-primary/80;
+    @apply bg-red-500/80 dark:bg-red-500/80;
   }
-
-  /* Header và thanh điều hướng cố định */
-  .header-fixed {
-    @apply fixed top-0 left-0 right-0 z-50 shadow-navbar bg-white w-full;
+  .page-header {
+    @apply relative bg-white rounded-xl shadow-lg p-6 mb-8 dark:bg-gray-800;
   }
-
-  /* Banner padding đủ để không bị đè */
-  .banner-with-padding {
-    @apply pt-16 md:pt-20;
+  .animate-fadeIn {
+    animation: fadeIn 0.5s ease-in;
   }
-
-  /* Card style cho các thành phần */
+  .animate-slideUp {
+    animation: slideUp 0.5s ease-out;
+  }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
   .content-card {
-    @apply bg-white rounded-lg shadow-card transition-all hover:shadow-card-hover border border-border-light;
+    @apply bg-white rounded-xl shadow-card transition-all hover:shadow-card-hover border border-border-light dark:bg-gray-800 dark:border-gray-600;
   }
-
-  /* Button styles */
-  .btn-primary {
-    @apply bg-primary text-white rounded-lg transition-all transform hover:bg-primary-dark hover:shadow-button-hover hover:-translate-y-0.5;
-  }
-
-  .btn-outline {
-    @apply border border-primary text-primary bg-transparent rounded-lg transition-all transform hover:bg-primary hover:text-white hover:shadow-button-hover hover:-translate-y-0.5;
-  }
-
-  /* Form input styles */
   .form-input {
-    @apply border border-border-light rounded-lg px-4 py-2 transition-all focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary;
+    @apply border border-border-light rounded-xl px-4 py-2 transition-all focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:focus:border-red-500 dark:focus:ring-red-500;
   }
-
-  /* Full width containers */
   .full-width-container {
     @apply w-full left-0 right-0;
   }
-
-  /* Banner style */
   .banner-container {
     @apply w-full relative overflow-hidden;
   }
-
-  /* Carousel full screen */
   .ant-carousel,
   .slick-slider,
   .slick-list,
@@ -114,151 +168,693 @@
   .slick-slide > div {
     @apply h-full;
   }
-
   .slick-slide > div {
     @apply w-full;
   }
-
   .trailer-btn {
     @apply relative overflow-hidden;
   }
-
   .trailer-btn::before {
     @apply content-[''] absolute top-0 left-0 w-full h-full bg-white opacity-0 transition-opacity;
     mix-blend-mode: overlay;
   }
-
   .trailer-btn:hover::before {
     @apply opacity-20;
   }
-
-  /* Animation cho dropdown */
   .user-dropdown-overlay {
     animation: slideDownFade 0.2s ease-out;
   }
+  .movie-card-enhanced {
+    @apply h-full relative;
+  }
+  .movie-card-enhanced .movie-rating {
+    @apply absolute top-4 right-4 bg-black/70 text-white font-bold py-1 px-3 rounded-full backdrop-blur-sm z-10;
+  }
+  .movie-card-enhanced .movie-release-date {
+    @apply absolute top-4 left-4 bg-red-500 text-white text-sm font-medium py-1 px-3 rounded-lg backdrop-blur-sm z-10;
+  }
+  .movie-card-enhanced .movie-image-container {
+    @apply overflow-hidden relative;
+  }
+  .movie-card-enhanced .movie-tags {
+    @apply absolute bottom-4 left-0 right-0 flex flex-wrap justify-center gap-2 px-4;
+  }
+  .movie-card-enhanced .movie-tags .tag {
+    @apply bg-black/50 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm;
+  }
+  .movie-grid-container {
+    animation: fadeUp 0.8s ease-out;
+  }
 
-  @keyframes slideDownFade {
+  @keyframes fadeUp {
     from {
       opacity: 0;
-      transform: translateY(-10px);
+      transform: translateY(20px);
     }
     to {
       opacity: 1;
-      transform: translateY(0px);
+      transform: translateY(0);
+    }
+  }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+  @keyframes float-delayed {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-15px);
+    }
+  }
+  @keyframes float-slow {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  .animate-float-delayed {
+    animation: float-delayed 8s ease-in-out infinite;
+    animation-delay: 1s;
+  }
+  .animate-float-slow {
+    animation: float-slow 10s ease-in-out infinite;
+    animation-delay: 2s;
+  }
+  .movie-grid-enter {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  .movie-grid-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: all 0.5s ease-out;
+  }
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .movie-tabs-container {
+    @apply flex-shrink-0 flex justify-center;
+  }
+  .movie-tabs-container .tab-btn-ripple {
+    @apply relative overflow-hidden border-none outline-none;
+    min-width: unset !important;
+  }
+  .movie-tabs-container .tab-btn-ripple span.ripple {
+    @apply absolute rounded-full;
+    transform: scale(0);
+    animation: ripple 0.6s linear;
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+  @keyframes ripple {
+    to {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
+  .movie-tabs-container button:not(.active):hover {
+    @apply bg-gray-300 dark:bg-gray-600;
+  }
+  .animated-gradient {
+    background: linear-gradient(45deg, #fee2e2, #e5e7eb, #fee2e2);
+    background-size: 200% 200%;
+    animation: gradientShift 10s ease infinite;
+  }
+  .dark .animated-gradient {
+    background: linear-gradient(45deg, #7f1d1d, #4b5563, #7f1d1d);
+  }
+  @keyframes gradientShift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+  .ripple-btn {
+    position: relative;
+    overflow: hidden;
+  }
+  .ripple-btn::after {
+    content: "";
+    position: absolute;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    width: 0;
+    height: 0;
+    top: var(--ripple-y, 50%);
+    left: var(--ripple-x, 50%);
+    transform: translate(-50%, -50%);
+    animation: ripple 0.6s linear;
+    pointer-events: none;
+  }
+  .dark .ripple-btn::after {
+    background: rgba(0, 0, 0, 0.3);
+  }
+  @keyframes ripple {
+    to {
+      width: 200px;
+      height: 200px;
+      opacity: 0;
+    }
+  }
+  .custom-header-menu .ant-menu-item,
+  .custom-header-menu .ant-menu-submenu {
+    @apply text-gray-700 dark:text-gray-300 border-b-0;
+  }
+  .custom-header-menu .ant-menu-item:hover,
+  .custom-header-menu .ant-menu-submenu:hover {
+    @apply text-red-500 dark:text-red-400 border-b-0;
+  }
+  .custom-header-menu .ant-menu-item-selected,
+  .custom-header-menu .ant-menu-item-active {
+    @apply text-red-600 border-b-2 border-red-600 dark:text-red-400 dark:border-red-400 !important;
+  }
+  .custom-header-menu .ant-menu-item::after,
+  .custom-header-menu .ant-menu-submenu::after {
+    border-bottom: none !important;
+  }
+  .mobile-menu .ant-menu-item:hover,
+  .mobile-menu .ant-menu-item-selected {
+    @apply text-red-500 dark:text-red-400 !important;
+  }
+  .mobile-menu-button {
+    @apply flex items-center justify-center h-10 w-10 rounded-full bg-transparent transition-all;
+  }
+  .mobile-menu-button:hover {
+    @apply bg-red-100 dark:bg-red-900;
+  }
+  .mobile-menu-button svg {
+    @apply text-gray-700 dark:text-gray-300;
+  }
+  .mobile-menu .ant-menu-item {
+    @apply transition-all duration-300;
+  }
+  .mobile-menu .ant-menu-item a {
+    @apply transition-colors duration-300;
+  }
+  .mobile-menu .ant-menu-item:hover a,
+  .mobile-menu .ant-menu-item-selected a {
+    @apply text-red-500 dark:text-red-400 !important;
+  }
+  .ant-dropdown-menu {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-lg;
+  }
+  .ant-dropdown-menu-item,
+  .ant-dropdown-menu-item a {
+    @apply text-gray-700 dark:!text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors !important;
+  }
+  .ant-dropdown-menu-item:hover,
+  .ant-dropdown-menu-item:hover a {
+    @apply text-gray-900 dark:!text-white !important;
+  }
+  .ant-dropdown-menu-item-selected,
+  .ant-dropdown-menu-item-active {
+    @apply bg-gray-200 dark:bg-gray-600 text-gray-900 dark:!text-white !important;
+  }
+  .ant-dropdown-menu-item.danger,
+  .ant-dropdown-menu-item.danger a {
+    @apply text-red-600 dark:!text-red-400 hover:text-red-700 dark:hover:!text-red-300 !important;
+  }
+  [data-theme="dark"] {
+    .app-container,
+    .main-content,
+    body,
+    html {
+      @apply bg-dark-bg text-dark-text-primary;
+    }
+    .page-header,
+    .bg-white {
+      @apply bg-gray-800;
+    }
+    .text-text-primary {
+      @apply text-dark-text-primary;
+    }
+    .text-text-secondary {
+      @apply text-dark-text-secondary;
+    }
+    .shadow-card {
+      @apply shadow-gray-700;
+    }
+    .shadow-card-hover {
+      @apply shadow-gray-600;
+    }
+    .border-gray-100\/50 {
+      @apply border-gray-600/50;
+    }
+    .bg-light-bg-secondary {
+      @apply bg-dark-bg-secondary;
+    }
+    .form-input {
+      @apply bg-gray-800 border-gray-600 text-dark-text-primary focus:border-red-500 focus:ring-red-500;
+    }
+    .ant-input-affix-wrapper {
+      @apply bg-gray-800 text-gray-100;
+    }
+    .ant-select-selector {
+      @apply bg-gray-800 text-gray-100;
+    }
+    .ant-select-arrow {
+      @apply text-gray-300;
+    }
+    .ant-empty-description {
+      @apply text-dark-text-secondary;
+    }
+    .movie-card-enhanced {
+      @apply bg-gray-800 border-gray-600/50;
+    }
+    .movie-tabs-container .tab-btn-ripple:not(.active) {
+      @apply bg-gray-700 text-white hover:bg-gray-600;
+    }
+    .movie-tabs-container .tab-btn-ripple.active {
+      @apply bg-gradient-to-r from-red-500 to-red-700 text-white shadow-lg;
+    }
+    .movie-tabs-container .tab-btn-ripple {
+      @apply py-3 px-6 text-lg font-semibold;
     }
   }
 
-  /* Styles cho header khi scroll */
-  .header-fixed.h-16 {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  /* Style cho tabItems */
+  .movie-detail-tabs .ant-tabs-tab {
+    @apply text-gray-800 dark:text-white !important;
+  }
+  .movie-detail-tabs .ant-tabs-tab:hover .ant-tabs-tab-btn {
+    @apply text-red-500 dark:text-red-500 !important;
+  }
+  .movie-detail-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+    @apply text-red-500 dark:text-red-500 !important;
+  }
+  .movie-detail-tabs .ant-tabs-ink-bar {
+    @apply hidden !important;
   }
 
-  /* Styles cho modal authentication */
-  .auth-modal .ant-modal-content {
-    border-radius: 16px;
-    overflow: hidden;
+  /* Style cho mô tả phim và tên diễn viên */
+  .movie-detail-tabs .ant-typography {
+    @apply text-gray-800 dark:text-white !important;
+  }
+  .movie-detail-tabs .ant-typography-strong,
+  .movie-detail-tabs .ant-typography-secondary {
+    @apply text-gray-800 dark:text-white !important;
   }
 
-  .auth-modal .ant-modal-body {
-    padding: 24px;
+  /* Style cho thẻ thể loại */
+  .movie-detail-tags .ant-tag {
+    @apply bg-red-500/20 text-black border-red-500/50 dark:text-white !important;
+  }
+  .movie-detail-tags .ant-tag:hover {
+    @apply bg-red-500/30 text-black dark:text-white !important;
   }
 
-  /* Styles cho menu và dropdown */
-  .ant-menu-horizontal {
-    border-bottom: none;
-    line-height: 56px;
+  /* Style cho tab Lịch chiếu & Đặt vé */
+  .booking-select .ant-select-selection-item {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap text-red-500 !important;
+    font-weight: 500 !important;
+  }
+  .booking-date-btn {
+    @apply bg-white text-gray-800 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 hover:bg-red-500 hover:text-white hover:border-red-500 dark:hover:bg-red-600 dark:hover:text-white dark:hover:border-red-600 transition-all duration-300;
   }
 
-  .ant-menu-horizontal > .ant-menu-item::after,
-  .ant-menu-horizontal > .ant-menu-submenu::after {
-    border-bottom: 2px solid var(--ant-primary-color);
+  .booking-date-btn.ant-btn-primary {
+    @apply bg-red-500 border-red-500 text-white hover:bg-red-600 hover:border-red-600 dark:bg-red-500 dark:border-red-500 dark:hover:bg-red-600 dark:hover:border-red-600 !important;
+  }
+  .booking-showtime-card {
+    @apply bg-white text-gray-800 dark:bg-gray-700 dark:text-white border border-gray-200 dark:border-gray-600;
+  }
+  .booking-showtime-card:hover {
+    @apply bg-red-500 text-white dark:bg-red-600 dark:text-white border-red-500 dark:border-red-600;
   }
 
-  .ant-menu-horizontal > .ant-menu-item-active,
-  .ant-menu-horizontal > .ant-menu-item-open,
-  .ant-menu-horizontal > .ant-menu-item-selected,
-  .ant-menu-horizontal > .ant-menu-submenu-active,
-  .ant-menu-horizontal > .ant-menu-submenu-open,
-  .ant-menu-horizontal > .ant-menu-submenu-selected {
-    color: var(--ant-primary-color);
-    border-bottom-color: var(--ant-primary-color);
+  /* Style mới cho Option trong Select */
+  .booking-option-item {
+    @apply w-full max-w-full overflow-hidden;
   }
 
-  .ant-menu-horizontal > .ant-menu-item:hover,
-  .ant-menu-horizontal > .ant-menu-submenu:hover {
-    color: var(--ant-primary-color);
+  .booking-option-item > div {
+    @apply max-w-full overflow-hidden text-ellipsis whitespace-nowrap;
   }
 
-  /* Mobile menu styles */
-  .mobile-menu-drawer .ant-drawer-body {
-    padding: 16px;
+  .booking-select .ant-select-selector {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap max-w-full w-full !important;
+    max-width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    @apply bg-white text-black dark:bg-gray-800 dark:text-gray-100 !important;
   }
 
-  .mobile-menu-drawer .ant-menu {
-    background-color: transparent;
+  .booking-select .ant-select-selection-item {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap text-red-500 !important;
+    font-weight: 500 !important;
   }
 
-  .mobile-menu-drawer .ant-menu-item {
-    padding-left: 12px;
-    margin: 0;
-    height: 48px;
-    line-height: 48px;
-    border-radius: 8px;
+  .booking-select .ant-select-dropdown {
+    @apply bg-white text-black dark:bg-gray-800 dark:text-gray-100 !important;
   }
 
-  .mobile-menu-drawer .ant-menu-item:hover {
-    background-color: rgba(0, 0, 0, 0.04);
+  .booking-select .ant-select-item-option-content {
+    @apply w-full max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-black dark:text-gray-100 !important;
   }
 
-  .mobile-menu-drawer .ant-menu-item-selected {
-    background-color: rgba(231, 26, 15, 0.08);
-    color: #e71a0f;
+  /* Modal styles */
+  .custom-modal .ant-modal-content {
+    background-color: #ffffff !important; /* Light mode */
+    border-radius: 12px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+    border: none !important;
   }
 
-  /* Button styling */
-  .btn-primary {
-    background: linear-gradient(90deg, #e71a0f, #ff3b30);
-    border-color: #e71a0f;
-    transition: all 0.3s ease;
+  [data-theme="dark"] .custom-modal .ant-modal-content {
+    background-color: #1f2937 !important; /* Dark mode */
   }
 
-  .btn-primary:hover {
-    background: linear-gradient(90deg, #c41208, #e71a0f);
-    border-color: #c41208;
-    box-shadow: 0 6px 12px rgba(231, 26, 15, 0.3);
-    transform: translateY(-2px);
+  .custom-modal .ant-modal-header {
+    background-color: transparent !important;
+    border-bottom: none !important;
+    padding: 16px 24px !important;
   }
 
-  .btn-outline {
-    border-color: #e71a0f;
-    color: #e71a0f;
-    transition: all 0.3s ease;
+  .custom-modal .ant-modal-body {
+    background-color: #ffffff !important; /* Light mode */
+    color: #000000 !important;
+    padding: 0 24px 16px 24px !important; /* Đồng bộ với styles.body */
   }
 
-  .btn-outline:hover {
-    background-color: rgba(231, 26, 15, 0.08);
-    border-color: #e71a0f;
-    color: #e71a0f;
-    transform: translateY(-2px);
+  [data-theme="dark"] .custom-modal .ant-modal-body {
+    background-color: #1f2937 !important; /* Dark mode */
+    color: #d1d5db !important;
   }
 
-  /* Avatar styling */
-  .ant-avatar {
-    border: 2px solid transparent;
-    transition: all 0.3s ease;
+  .custom-modal .ant-modal-footer {
+    padding: 16px 24px !important;
   }
 
-  .ant-avatar:hover {
-    border-color: #e71a0f;
+  /* Đảm bảo TextArea có background đúng với theme */
+  .custom-modal .ant-input {
+    color: #000000 !important; /* Light mode text */
+    background-color: #ffffff !important; /* Light mode background */
   }
 
-  /* Custom backdrop blur */
-  .backdrop-blur-md {
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+  [data-theme="dark"] .custom-modal .ant-input {
+    color: #ffffff !important; /* Dark mode text */
+    background-color: #374151 !important; /* Dark mode background */
   }
 
-  .header-spacer {
-    @apply h-16 md:h-20;
+  /* Loại bỏ backdrop-filter để tránh chồng lấp */
+  .custom-modal .ant-modal-wrap {
+    background: rgba(0, 0, 0, 0.5) !important; /* Đơn giản hóa backdrop */
   }
+
+  .ticket-history-card .ant-table-row:hover {
+    background-color: #f3f4f6 !important; /* gray-100 cho light mode */
+  }
+  [data-theme="dark"] .ticket-history-card .ant-table-row:hover {
+    background-color: #000000 !important; /* black cho dark mode, thay gray-900 để tránh bị chìm */
+  }
+
+  [data-theme="dark"] .ticket-history-card .ant-table {
+    @apply text-gray-100 !important;
+  }
+
+  /* Tăng độ tương phản cho phần heading của bảng */
+  [data-theme="dark"] .ticket-history-card .ant-table-thead > tr > th {
+    @apply bg-gray-800 text-white !important;
+    @apply border-b border-gray-700 !important;
+  }
+
+  /* Tăng độ rõ cho phần border giữa các dòng */
+  [data-theme="dark"] .ticket-history-card .ant-table-tbody > tr > td {
+    @apply border-b border-gray-700 !important;
+  }
+
+  /* Điều chỉnh màu text của Tag trạng thái thành trắng */
+  .ticket-history-card .ant-tag {
+    font-weight: 500 !important;
+    opacity: 1 !important;
+    color: #ffffff !important;
+  }
+  .ticket-history-card .ant-tag-green {
+    background-color: #15803d !important; /* green-700 */
+  }
+  [data-theme="dark"] .ticket-history-card .ant-tag-green {
+    background-color: #166534 !important; /* green-800 */
+  }
+  .ticket-history-card .ant-tag-yellow {
+    background-color: #a16207 !important; /* yellow-700 */
+  }
+  [data-theme="dark"] .ticket-history-card .ant-tag-yellow {
+    background-color: #854d0e !important; /* yellow-800 */
+  }
+  .ticket-history-card .ant-tag-red {
+    background-color: #b91c1c !important; /* red-700 */
+  }
+  [data-theme="dark"] .ticket-history-card .ant-tag-red {
+    background-color: #991b1b !important; /* red-800 */
+  }
+  .ticket-history-card .ant-tag-blue {
+    background-color: #1d4ed8 !important; /* blue-700 */
+  }
+  [data-theme="dark"] .ticket-history-card .ant-tag-blue {
+    background-color: #1e40af !important; /* blue-800 */
+  }
+
+  /* Điều chỉnh pagination với viền đỏ chỉ cho số và arrow */
+  /* Điều chỉnh pagination */
+.ticket-history-card .ant-pagination {
+  border: none !important;
+  padding: 0 !important;
+}
+
+/* Style cho các số trong pagination */
+.ticket-history-card .ant-pagination-item {
+  border: none !important; /* Loại bỏ viền đỏ */
+  background: transparent !important;
+  color: #000000 !important; /* Màu đen trong light mode */
+  border-radius: 4px !important;
+  margin: 0 2px !important;
+  transition: background 0.3s, color 0.3s !important;
+}
+
+/* Dark mode: Màu trắng cho text */
+[data-theme="dark"] .ticket-history-card .ant-pagination-item {
+  color: #ffffff !important; /* Màu trắng trong dark mode */
+}
+
+/* Hover cho số */
+.ticket-history-card .ant-pagination-item:hover {
+  background: #ef4444 !important; /* red-500 */
+  color: #ffffff !important; /* Màu trắng khi hover */
+}
+
+/* Dark mode: Hover */
+[data-theme="dark"] .ticket-history-card .ant-pagination-item:hover {
+  background: #f87171 !important; /* red-400 */
+  color: #ffffff !important;
+}
+
+/* Số đang active */
+.ticket-history-card .ant-pagination-item-active {
+  background: #ef4444 !important; /* red-500 */
+  color: #ffffff !important;
+  border: none !important; /* Loại bỏ viền đỏ */
+}
+
+/* Dark mode: Số active */
+[data-theme="dark"] .ticket-history-card .ant-pagination-item-active {
+  background: #f87171 !important; /* red-400 */
+  color: #ffffff !important;
+}
+
+/* Style cho nút Prev và Next */
+.ticket-history-card .ant-pagination-prev,
+.ticket-history-card .ant-pagination-next {
+  color: #000000 !important; /* Màu đen trong light mode */
+  background: transparent !important;
+  border: none !important; /* Loại bỏ viền đỏ */
+  border-radius: 4px !important;
+  padding: 0 8px !important;
+  transition: background 0.3s, color 0.3s !important;
+}
+
+/* Dark mode: Prev và Next */
+[data-theme="dark"] .ticket-history-card .ant-pagination-prev,
+[data-theme="dark"] .ticket-history-card .ant-pagination-next {
+  color: #ffffff !important; /* Màu trắng trong dark mode */
+  background: transparent !important;
+}
+
+/* Hover cho Prev và Next */
+.ticket-history-card .ant-pagination-prev:hover,
+.ticket-history-card .ant-pagination-next:hover {
+  color: #ffffff !important;
+  background: #ef4444 !important; /* red-500 */
+}
+
+/* Dark mode: Hover cho Prev và Next */
+[data-theme="dark"] .ticket-history-card .ant-pagination-prev:hover,
+[data-theme="dark"] .ticket-history-card .ant-pagination-next:hover {
+  background: #f87171 !important; /* red-400 */
+  color: #ffffff !important;
+}
+
+  /* Khôi phục màu card gốc, không làm sáng */
+  .ticket-history-card.ant-card {
+    @apply bg-white dark:bg-gray-800 border-border-light dark:border-gray-600;
+  }
+  .ticket-history-card .ant-card-body {
+    @apply bg-white dark:bg-gray-800;
+  }
+  .ticket-history-card .ant-table {
+    @apply bg-white dark:bg-gray-800;
+  }
+  .ticket-history-card .ant-table-container {
+    @apply bg-white dark:bg-gray-800;
+  }
+
+  .profile-tabs .ant-tabs-tab {
+    color: #d1d5db !important; /* Màu text mặc định trong dark mode */
+  }
+
+  .profile-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: #dc2626 !important; /* Màu đỏ khi active */
+    text-decoration: none !important; /* Bỏ underline */
+  }
+
+  .profile-tabs .ant-tabs-ink-bar {
+    display: none !important; /* Ẩn đường kẻ dưới */
+  }
+
+  /* Light mode */
+  [data-theme="light"] .profile-tabs .ant-tabs-tab {
+    color: #4b5563 !important; /* Màu text đậm hơn trong light mode */
+  }
+
+  [data-theme="light"] .profile-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: #dc2626 !important; /* Màu đỏ khi active */
+  }
+
+  [data-theme="light"] .profile-tabs .ant-tabs-tab:hover .ant-tabs-tab-btn {
+    color: #dc2626 !important; /* Màu đỏ khi hover */
+  }
+
+  [data-theme="light"] .profile-tabs {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08); /* Shadow nhẹ trong light mode */
+  }
+
+  [data-theme="light"] .rounded-xl {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  }
+
+  /* Dark mode */
+  [data-theme="dark"] .profile-tabs .ant-tabs-tab {
+    color: #d1d5db !important; /* Màu text sáng trong dark mode */
+  }
+
+  [data-theme="dark"] .profile-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: #f87171 !important; /* Màu đỏ nhạt hơn trong dark mode để nổi bật */
+  }
+
+  [data-theme="dark"] .profile-tabs .ant-tabs-tab:hover .ant-tabs-tab-btn {
+    color: #f87171 !important; /* Màu đỏ nhạt khi hover */
+  }
+
+  [data-theme="dark"] .profile-tabs {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2); /* Shadow đậm trong dark mode */
+  }
+
+  [data-theme="dark"] .rounded-xl {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  /* Đảm bảo shadow cho ProfileHeader */
+  .compact-header {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  }
+
+  [data-theme="light"] .compact-header {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Style cho LoadingSpinner */
+.loading-spinner {
+  border: 4px solid #ef4444 !important; /* red-500 trong light mode */
+  border-top: 4px solid transparent !important;
+  border-radius: 9999px !important; /* rounded-full */
+  width: 3rem !important; /* w-12 */
+  height: 3rem !important; /* h-12 */
+  animation: spin 1s linear infinite !important;
+}
+
+/* Dark mode */
+[data-theme="dark"] .loading-spinner {
+  border-color: #f87171 !important; /* red-400 trong dark mode */
+}
+
+/* Đảm bảo animation spin hoạt động */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+:root {
+  --ant-primary-color: #e71a0f;
+  --ant-primary-color-hover: #c41208;
+  --ant-primary-color-active: #a30806;
+  --ant-menu-item-selected-color: #e71a0f;
+  --ant-menu-item-active-color: #e71a0f;
+  --ant-menu-highlight-color: #e71a0f;
+  --ant-menu-item-selected-bg: transparent;
+}
+
+.dark {
+  --ant-primary-color: #f87171;
+  --ant-primary-color-hover: #ef4444;
+  --ant-primary-color-active: #dc2626;
+  --ant-menu-item-selected-color: #f87171;
+  --ant-menu-item-active-color: #f87171;
+  --ant-menu-highlight-color: #f87171;
+}
+
+.ant-menu {
+  --ant-menu-item-active-border-width: 2px;
+  --ant-menu-horizontal-line-height: 46px;
+  --ant-menu-item-color: #333333;
+}
+
+.dark .ant-menu {
+  --ant-menu-item-color: #d1d5db;
 }

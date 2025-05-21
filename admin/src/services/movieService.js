@@ -10,6 +10,12 @@ import {
 // Hàm hỗ trợ lấy thông tin chi tiết phim
 export const getMovie = async (id) => {
   try {
+    // Kiểm tra xem id có phải là số hoặc chuỗi số hợp lệ không
+    if (!id || isNaN(parseInt(id))) {
+      console.error("ID không hợp lệ:", id);
+      throw new Error(`ID không hợp lệ: ${id}`);
+    }
+
     const response = await fetch(`${apiUrl}/movies/${id}`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -84,6 +90,12 @@ export const createMovie = async (movieData) => {
 // Hàm cập nhật phim
 export const updateMovie = async (id, movieData) => {
   try {
+    // Kiểm tra xem id có phải là số hoặc chuỗi số hợp lệ không
+    if (!id || isNaN(parseInt(id))) {
+      console.error("ID không hợp lệ cho việc cập nhật:", id);
+      throw new Error(`ID không hợp lệ cho việc cập nhật: ${id}`);
+    }
+
     // Đảm bảo không gửi id trong phần thân của dữ liệu cập nhật
     const { id: dataId, _id, ...dataWithoutId } = movieData;
 
@@ -162,6 +174,12 @@ const movieService = {
   },
 
   getOne: async (id) => {
+    // Kiểm tra xem id có phải là số hoặc chuỗi số hợp lệ không
+    if (!id || isNaN(parseInt(id))) {
+      console.error("Lỗi trong getOne: ID không hợp lệ:", id);
+      throw new Error(`ID không hợp lệ: ${id}`);
+    }
+
     const { json } = await httpClient(`${apiUrl}/movies/${id}`);
 
     // Xử lý trường hợp API trả về cấu trúc { data: {...} }
@@ -211,11 +229,23 @@ const movieService = {
   },
 
   update: async (id, data) => {
+    // ID kiểm tra
+    if (!id || isNaN(parseInt(id))) {
+      console.error("ID không hợp lệ trong update:", id);
+      throw new Error(`ID không hợp lệ trong update: ${id}`);
+    }
+    
     const result = await updateMovie(id, data);
     return { data: result };
   },
 
   delete: async (id) => {
+    // Kiểm tra ID trước khi xóa
+    if (!id || isNaN(parseInt(id))) {
+      console.error("ID không hợp lệ trong delete:", id);
+      throw new Error(`ID không hợp lệ trong delete: ${id}`);
+    }
+    
     const { json } = await httpClient(`${apiUrl}/movies/${id}`, {
       method: "DELETE",
     });
@@ -223,14 +253,20 @@ const movieService = {
   },
 
   deleteMany: async (ids) => {
-    const promises = ids.map((id) =>
+    // Kiểm tra tất cả ID trước khi xóa
+    const validIds = ids.filter(id => id && !isNaN(parseInt(id)));
+    if (validIds.length !== ids.length) {
+      console.error("Một số ID không hợp lệ trong deleteMany:", ids);
+    }
+    
+    const promises = validIds.map((id) =>
       httpClient(`${apiUrl}/movies/${id}`, {
         method: "DELETE",
       })
     );
 
     await Promise.all(promises);
-    return { data: ids };
+    return { data: validIds };
   },
 };
 

@@ -171,6 +171,12 @@ export const formatCurrency = (amount) => {
   }).format(amount);
 };
 
+// Format date and time
+export const formatDateTime = (dateString) => {
+  if (!dateString) return '-';
+  return dayjs(dateString).tz(VIETNAM_TIMEZONE).format('DD/MM/YYYY HH:mm:ss');
+};
+
 export {
   VIETNAM_TIMEZONE,
   buildFormData,

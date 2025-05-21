@@ -2,6 +2,10 @@
 import { checkAuth } from "./httpClient";
 import movieService from "./movieService";
 import genreService from "./genreService";
+import userService from "./userService";
+import cinemaService from "./cinemaService";
+import hallService from "./hallService";
+import paymentService from "./paymentService";
 import showtimeService from "./showtimeService";
 import promotionService from "./promotionService";
 import concessionCategoryService from "./concessionCategoryService";
@@ -23,6 +27,10 @@ const routeToService = (resource, method, params) => {
   checkAuth();
 
   switch (resource) {
+    case "cinemas":
+      return cinemaService[method](params);
+    case "halls":
+      return hallService[method](params);
     case "movies":
       return movieService[method](params);
     case "genres":
@@ -42,6 +50,10 @@ const routeToService = (resource, method, params) => {
       return concessionOrderService[method](params);
     case "tickets":
       return ticketService[method](params);
+    case "payments":
+      return paymentService[method](params);
+    case "users":
+      return userService[method](params);
     default:
       // Xử lý các resource khác bằng phương pháp mặc định
       return null;

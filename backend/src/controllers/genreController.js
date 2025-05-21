@@ -3,10 +3,40 @@ const prisma = require('../../prisma/prisma');
 
 // Lấy tất cả thể loại
 exports.getAllGenres = async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.perPage) || 10;
+  const search = req.query.search || '';
+
   try {
-    const genres = await prisma.genre.findMany();
-    res.json(genres);
+    const [genres, total] = await Promise.all([      prisma.genre.findMany({
+        skip: (page - 1) * perPage,
+        take: perPage,
+        where: {
+          name: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        orderBy: {
+          id: 'asc',
+        },
+      }),
+      prisma.genre.count({
+        where: {
+          name: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      }),
+    ]);
+
+    res.json({
+      data: genres,
+      total,
+    });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Lỗi khi lấy danh sách thể loại' });
   }
 };

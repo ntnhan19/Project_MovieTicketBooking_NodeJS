@@ -52,3 +52,5 @@ export const concessionComboApi = {
     }
   }
 };
+
+export default concessionComboApi;

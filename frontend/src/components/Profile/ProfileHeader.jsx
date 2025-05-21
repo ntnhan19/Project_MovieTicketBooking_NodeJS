@@ -60,9 +60,10 @@ const ProfileHeader = ({ user }) => {
 
   return (
     <div 
-      className="relative w-full bg-cover bg-center pt-12 pb-24" 
+      className="relative w-full bg-cover bg-center pt-6 pb-12" 
       style={{ 
-        background: 'linear-gradient(135deg, rgba(231, 26, 15, 0.95) 0%, rgba(255, 59, 48, 0.85) 100%)'
+        background: 'linear-gradient(135deg, rgba(231, 26, 15, 0.95) 0%, rgba(255, 59, 48, 0.85) 100%)',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)', // Shadow mặc định (có thể điều chỉnh bằng theme)
       }}
     >
       <div className="max-w-6xl mx-auto px-4">
@@ -118,30 +119,15 @@ const ProfileHeader = ({ user }) => {
                 <span>Thành viên từ: {formatDate(user.createdAt) || 'Không có thông tin'}</span>
               </div>
             </div>
-            
-            <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
-              {user.role && (
-                <Tag color="gold" className="rounded-full px-3 py-1">{user.role}</Tag>
-              )}
-              
-              {/* Có thể thêm các tag khác ở đây */}
-              <Tag color="green" className="rounded-full px-3 py-1">
-                Thành viên thường
-              </Tag>
-              
-              <Tag color="blue" className="rounded-full px-3 py-1">
-                0 Điểm
-              </Tag>
-            </div>
           </div>
         </div>
       </div>
       
       {/* Trang trí */}
-      <div className="absolute bottom-0 left-0 right-0 h-16 bg-white" 
+      <div className="absolute bottom-0 left-0 right-0 h-8 bg-white" 
            style={{ clipPath: 'polygon(0 100%, 100% 100%, 100% 0, 0 100%)' }}>
       </div>
-      <div className="absolute bottom-0 left-0 right-0 h-16 bg-white" 
+      <div className="absolute bottom-0 left-0 right-0 h-8 bg-white" 
            style={{ clipPath: 'polygon(0 100%, 100% 100%, 0 0, 0 100%)' }}>
       </div>
     </div>

@@ -21,6 +21,9 @@ model User {
   concessionOrders ConcessionOrder[]
   reviews          Review[]
   tickets          Ticket[]
+  resetToken          String?           
+  resetTokenExpires   DateTime?         
+  resetTokenCreatedAt DateTime?
 }
 
 model Genre {
@@ -35,6 +38,7 @@ model Movie {
   description String
   releaseDate DateTime
   poster      String
+  bannerImage String?
   duration    Int        @default(90)
   director    String     @default("")
   mainActors  String     @default("")

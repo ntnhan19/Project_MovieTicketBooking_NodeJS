@@ -6,7 +6,7 @@ import { vi } from "date-fns/locale";
 import { showtimeService } from "../../services/showtimeService";
 import Pagination from "../Common/Pagination";
 import { debounce } from "lodash";
-import { apiUrl } from "../../services/httpClient"; 
+import { apiUrl } from "../../services/httpClient";
 
 const ShowtimeList = () => {
   const navigate = useNavigate();
@@ -24,7 +24,7 @@ const ShowtimeList = () => {
   const [halls, setHalls] = useState([]);
   const [cinemas, setCinemas] = useState([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
-  const perPage = 10;
+  const perPage = 10; // Thêm biến perPage
 
   // Tải danh sách suất chiếu
   const fetchShowtimes = async () => {
@@ -36,7 +36,7 @@ const ShowtimeList = () => {
         : filter;
 
       const response = await showtimeService.getList({
-        pagination: { page: currentPage, perPage },
+        pagination: { page: currentPage, perPage: perPage },
         sort: { field: sortField, order: sortOrder },
         filter: filterWithSearch,
       });
@@ -85,11 +85,6 @@ const ShowtimeList = () => {
           }),
         ]);
 
-      console.log("Dữ liệu phim nhận được:", moviesResponse); // Debug
-      console.log("Dữ liệu phòng chiếu nhận được:", hallsResponse); // Debug
-      console.log("Dữ liệu rạp nhận được:", cinemasResponse); // Debug
-
-      // Xử lý đúng cấu trúc API response
       setMovies(moviesResponse.data || moviesResponse || []);
       setHalls(hallsResponse.data || hallsResponse || []);
       setCinemas(cinemasResponse.data || cinemasResponse || []);
@@ -195,7 +190,6 @@ const ShowtimeList = () => {
       (m) => m.id === movieId || m.id === Number(movieId)
     );
     if (!movie) {
-      console.log(`Không tìm thấy phim với ID: ${movieId}`, movies); // Debug
       return "---";
     }
     return movie.title || movie.name || "---";
@@ -206,7 +200,6 @@ const ShowtimeList = () => {
     if (!hallId) return "---";
     const hall = halls.find((h) => h.id === hallId || h.id === Number(hallId));
     if (!hall) {
-      console.log(`Không tìm thấy phòng chiếu với ID: ${hallId}`, halls); // Debug
       return "---";
     }
     return hall.name || "---";
@@ -222,7 +215,6 @@ const ShowtimeList = () => {
 
     const cinemaId = hall.cinemaId;
     if (!cinemaId) {
-      console.log(`Không có cinemaId trong phòng chiếu: ${hallId}`, hall); // Debug
       return "---";
     }
 
@@ -230,7 +222,6 @@ const ShowtimeList = () => {
       (c) => c.id === cinemaId || c.id === Number(cinemaId)
     );
     if (!cinema) {
-      console.log(`Không tìm thấy rạp với ID: ${cinemaId}`, cinemas); // Debug
       return "---";
     }
     return cinema.name || "---";
@@ -242,75 +233,118 @@ const ShowtimeList = () => {
     return new Intl.NumberFormat("vi-VN").format(price) + " VND";
   };
 
-  return (
-    <div className="bg-white dark:bg-background-paper-dark rounded-lg shadow-card p-6 animate-fadeIn">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
-          Quản lý suất chiếu
-        </h1>
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
-        {/* Thanh công cụ */}
-        <div className="flex items-center space-x-4">
-          <Link
-            to="/showtimes/create"
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-300"
+  return (
+    <div className="px-4 py-6 sm:px-6 lg:px-8 animate-fadeIn">
+      <div className="sm:flex sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
+            Danh sách suất chiếu
+          </h1>
+          <p className="mt-1 text-sm text-text-secondary dark:text-text-secondary-dark">
+            Tổng số: {totalItems} suất chiếu
+          </p>
+        </div>
+        <div className="mt-4 sm:mt-0">
+          <button
+            onClick={() => navigate("/showtimes/create")}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-300"
           >
+            <svg
+              className="-ml-1 mr-2 h-5 w-5"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
+                clipRule="evenodd"
+              />
+            </svg>
             Thêm suất chiếu mới
-          </Link>
+          </button>
         </div>
       </div>
 
-      {/* Filter và Search */}
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="flex flex-wrap gap-4">
-          <div className="flex-grow max-w-md">
+      {/* Filters */}
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 pb-6">
+        <div className="md:col-span-1">
+          <label htmlFor="search-input" className="sr-only">
+            Tìm kiếm
+          </label>
+          <div className="relative rounded-md shadow-sm">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg
+                className="h-5 w-5 text-text-secondary dark:text-text-secondary-dark"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
             <input
-              id="search-input"
               type="text"
+              id="search-input"
               placeholder="Tìm kiếm suất chiếu..."
-              className="w-full px-3 py-2 border border-border dark:border-border-dark rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-background-paper-dark text-text-primary dark:text-text-primary-dark"
               onChange={handleSearchChange}
+              className="block w-full pl-10 pr-3 py-2 border border-border dark:border-border-dark rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-background-paper-dark text-text-primary dark:text-text-primary-dark"
             />
           </div>
-
-          <div className="flex space-x-2">
-            <select
-              className="px-3 py-2 border border-border dark:border-border-dark rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-background-paper-dark text-text-primary dark:text-text-primary-dark"
-              onChange={(e) => handleFilterByMovie(e.target.value)}
-              value={filter.movieId || "all"}
-              disabled={loadingRelated || movies.length === 0}
-            >
-              <option value="all">Tất cả phim</option>
-              {movies.map((movie) => (
-                <option key={movie.id} value={movie.id}>
-                  {movie.title || movie.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="px-3 py-2 border border-border dark:border-border-dark rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-background-paper-dark text-text-primary dark:text-text-primary-dark"
-              onChange={(e) => handleFilterByHall(e.target.value)}
-              value={filter.hallId || "all"}
-              disabled={loadingRelated || halls.length === 0}
-            >
-              <option value="all">Tất cả phòng chiếu</option>
-              {halls.map((hall) => (
-                <option key={hall.id} value={hall.id}>
-                  {hall.name} ({getCinemaName(hall.id)})
-                </option>
-              ))}
-            </select>
-
-            <button
-              onClick={handleClearFilters}
-              className="px-3 py-2 bg-gray-100 dark:bg-secondary-dark/20 text-text-primary dark:text-text-primary-dark hover:bg-gray-200 dark:hover:bg-secondary-dark/30 rounded-md transition-colors duration-300"
-            >
-              Xóa bộ lọc
-            </button>
-          </div>
         </div>
+        
+        <div>
+          <select
+            className="block w-full pl-3 pr-10 py-2 border border-border dark:border-border-dark rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-background-paper-dark text-text-primary dark:text-text-primary-dark"
+            onChange={(e) => handleFilterByMovie(e.target.value)}
+            value={filter.movieId || "all"}
+            disabled={loadingRelated || movies.length === 0}
+          >
+            <option value="all">Tất cả phim</option>
+            {movies.map((movie) => (
+              <option key={movie.id} value={movie.id}>
+                {movie.title || movie.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <div>
+          <select
+            className="block w-full pl-3 pr-10 py-2 border border-border dark:border-border-dark rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-background-paper-dark text-text-primary dark:text-text-primary-dark"
+            onChange={(e) => handleFilterByHall(e.target.value)}
+            value={filter.hallId || "all"}
+            disabled={loadingRelated || halls.length === 0}
+          >
+            <option value="all">Tất cả phòng chiếu</option>
+            {halls.map((hall) => (
+              <option key={hall.id} value={hall.id}>
+                {hall.name} ({getCinemaName(hall.id)})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      
+      <div className="mb-4">
+        <button
+          onClick={handleClearFilters}
+          className="px-3 py-2 bg-gray-100 dark:bg-secondary-dark/20 text-text-primary dark:text-text-primary-dark hover:bg-gray-200 dark:hover:bg-secondary-dark/30 rounded-md transition-colors duration-300"
+        >
+          Xóa bộ lọc
+        </button>
       </div>
 
       {/* Error Message */}
@@ -328,12 +362,8 @@ const ShowtimeList = () => {
       )}
 
       {/* Table */}
-      {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
-        </div>
-      ) : showtimes.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 dark:bg-secondary-dark/10 rounded-lg">
+      {showtimes.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-background-paper-dark rounded-lg shadow-card">
           <svg
             className="mx-auto h-12 w-12 text-text-secondary dark:text-text-secondary-dark"
             fill="none"
@@ -345,11 +375,14 @@ const ShowtimeList = () => {
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="mt-2 text-text-secondary dark:text-text-secondary-dark">
-            Không tìm thấy suất chiếu nào.
+          <h3 className="mt-2 text-lg font-medium text-text-primary dark:text-text-primary-dark">
+            Không tìm thấy suất chiếu
+          </h3>
+          <p className="mt-1 text-sm text-text-secondary dark:text-text-secondary-dark">
+            Không có suất chiếu nào phù hợp với tiêu chí tìm kiếm của bạn.
           </p>
           <Link
             to="/showtimes/create"
@@ -359,396 +392,362 @@ const ShowtimeList = () => {
           </Link>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border dark:divide-border-dark">
-            <thead>
-              <tr>
-                <th
-                  className="px-4 py-3 text-left text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort("id")}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>ID</span>
-                    {sortField === "id" && (
-                      <span>
-                        {sortOrder === "ASC" ? (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 15l7-7 7 7"
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </th>
-                <th
-                  className="px-4 py-3 text-left text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort("movieId")}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Phim</span>
-                    {sortField === "movieId" && (
-                      <span>
-                        {sortOrder === "ASC" ? (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 15l7-7 7 7"
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </th>
-                <th
-                  className="px-4 py-3 text-left text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort("hallId")}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Phòng chiếu</span>
-                    {sortField === "hallId" && (
-                      <span>
-                        {sortOrder === "ASC" ? (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 15l7-7 7 7"
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider">
-                  Rạp
-                </th>
-                <th
-                  className="px-4 py-3 text-left text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort("startTime")}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Thời gian bắt đầu</span>
-                    {sortField === "startTime" && (
-                      <span>
-                        {sortOrder === "ASC" ? (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 15l7-7 7 7"
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </th>
-                <th
-                  className="px-4 py-3 text-left text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort("endTime")}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Thời gian kết thúc</span>
-                    {sortField === "endTime" && (
-                      <span>
-                        {sortOrder === "ASC" ? (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 15l7-7 7 7"
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </th>
-                <th
-                  className="px-4 py-3 text-left text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort("price")}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Giá vé</span>
-                    {sortField === "price" && (
-                      <span>
-                        {sortOrder === "ASC" ? (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 15l7-7 7 7"
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider">
-                  Thao tác
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border dark:divide-border-dark">
-              {showtimes.map((showtime) => (
-                <tr
-                  key={showtime.id}
-                  className="hover:bg-gray-50 dark:hover:bg-secondary-dark/10"
-                >
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-text-primary dark:text-text-primary-dark">
-                    {showtime.id}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-text-primary dark:text-text-primary-dark">
-                    <Link
-                      to={`/showtimes/${showtime.id}`}
-                      className="hover:text-primary dark:hover:text-primary-light transition-colors duration-300"
-                    >
-                      {getMovieTitle(showtime.movieId)}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-text-primary dark:text-text-primary-dark">
-                    {getHallName(showtime.hallId)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-text-primary dark:text-text-primary-dark">
-                    {getCinemaName(showtime.hallId)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-text-primary dark:text-text-primary-dark">
-                    {formatDateTime(showtime.startTime)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-text-primary dark:text-text-primary-dark">
-                    {formatDateTime(showtime.endTime)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-text-primary dark:text-text-primary-dark">
-                    {formatPrice(showtime.price)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-text-primary dark:text-text-primary-dark">
-                    <div className="flex justify-center space-x-2">
+        <>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-border dark:divide-border-dark bg-white dark:bg-background-paper-dark shadow-card rounded-lg">
+              <thead>
+                <tr>
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort("id")}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>ID</span>
+                      {sortField === "id" && (
+                        <span>
+                          {sortOrder === "ASC" ? (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 15l7-7 7 7"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort("movieId")}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Phim</span>
+                      {sortField === "movieId" && (
+                        <span>
+                          {sortOrder === "ASC" ? (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 15l7-7 7 7"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort("hallId")}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Phòng chiếu</span>
+                      {sortField === "hallId" && (
+                        <span>
+                          {sortOrder === "ASC" ? (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 15l7-7 7 7"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider">
+                    Rạp
+                  </th>
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort("startTime")}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Thời gian bắt đầu</span>
+                      {sortField === "startTime" && (
+                        <span>
+                          {sortOrder === "ASC" ? (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 15l7-7 7 7"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort("price")}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Giá vé</span>
+                      {sortField === "price" && (
+                        <span>
+                          {sortOrder === "ASC" ? (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 15l7-7 7 7"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-text-secondary dark:text-text-secondary-dark uppercase tracking-wider">
+                    Thao tác
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border dark:divide-border-dark">
+                {showtimes.map((showtime) => (
+                  <tr
+                    key={showtime.id}
+                    className="hover:bg-gray-50 dark:hover:bg-secondary-dark/10"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <Link
                         to={`/showtimes/${showtime.id}`}
-                        className="text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary-light"
-                        title="Xem chi tiết"
+                        className="text-primary hover:text-primary-dark hover:underline font-medium"
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-                        </svg>
+                        {showtime.id}
                       </Link>
-                      <Link
-                        to={`/showtimes/${showtime.id}/edit`}
-                        className="text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary-light"
-                        title="Chỉnh sửa"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-text-primary dark:text-text-primary-dark">
+                        {getMovieTitle(showtime.movieId)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-text-primary dark:text-text-primary-dark">
+                        {getHallName(showtime.hallId)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-text-primary dark:text-text-primary-dark">
+                        {getCinemaName(showtime.hallId)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-text-primary dark:text-text-primary-dark">
+                        {formatDateTime(showtime.startTime)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-text-primary dark:text-text-primary-dark">
+                        {formatPrice(showtime.price)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end space-x-2">
+                        <Link
+                          to={`/showtimes/${showtime.id}`}
+                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-200"
+                          title="Xem chi tiết"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(showtime.id)}
-                        className="text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
-                        title="Xóa"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                            />
+                          </svg>
+                        </Link>
+                        <Link
+                          to={`/showtimes/${showtime.id}/edit`}
+                          className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200"
+                          title="Chỉnh sửa"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(showtime.id)}
+                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"
+                          title="Xóa"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-      {/* Pagination */}
-      {!loading && showtimes.length > 0 && (
-        <div className="mt-6">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            totalItems={totalItems}
-            itemsPerPage={perPage}
-          />
-        </div>
+          {/* Pagination */}
+          {!loading && showtimes.length > 0 && (
+            <div className="mt-6">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={totalItems}
+                itemsPerPage={perPage}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

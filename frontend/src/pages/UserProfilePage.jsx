@@ -1,29 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Tabs, Spin } from 'antd';
-import { 
-  UserOutlined, 
-  HistoryOutlined, 
+import {
+  UserOutlined,
+  HistoryOutlined,
   CalendarOutlined,
   SettingOutlined,
   StarOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
-import ProfileHeader from '../components/profile/ProfileHeader';
-import PersonalInfoCard from '../components/profile/PersonalInfoCard';
-import PasswordChangeCard from '../components/profile/PasswordChangeCard';
-import TicketHistoryCard from '../components/profile/TicketHistoryCard';
-import LoyaltyCard from '../components/profile/LoyaltyCard';
+import { ThemeContext } from '../context/ThemeContext';
+import ProfileHeader from '../components/Profile/ProfileHeader';
+import PersonalInfoCard from '../components/Profile/PersonalInfoCard';
+import PasswordChangeCard from '../components/Profile/PasswordChangeCard';
+import TicketHistoryCard from '../components/Profile/TicketHistoryCard';
+import LoyaltyCard from '../components/Profile/LoyaltyCard';
 
 const UserProfilePage = () => {
-  // Sử dụng custom hook useAuth để lấy thông tin người dùng
   const { user } = useAuth();
+  const { theme } = useContext(ThemeContext);
   const [activeTab, setActiveTab] = useState('1');
-  
-  // Nếu không có user, hiển thị thông báo loading
+
   if (!user) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <Spin size="large" tip="Đang tải thông tin người dùng..." />
+      <div
+        className={`flex flex-col items-center justify-center min-h-screen ${
+          theme === 'dark' ? 'bg-dark-bg' : 'bg-light-bg'
+        }`}
+      >
+        <Spin size="large" />
+        <span
+          className={`mt-4 font-medium ${
+            theme === 'dark' ? 'text-dark-text-secondary' : 'text-text-secondary'
+          }`}
+        >
+          Đang tải thông tin người dùng...
+        </span>
       </div>
     );
   }
@@ -38,11 +49,11 @@ const UserProfilePage = () => {
         </span>
       ),
       children: (
-        <div className="space-y-6">
+        <div className="space-y-6 p-4">
           <PersonalInfoCard user={user} />
           <PasswordChangeCard />
         </div>
-      )
+      ),
     },
     {
       key: '2',
@@ -52,7 +63,7 @@ const UserProfilePage = () => {
           <span className="hidden sm:inline">Lịch sử đặt vé</span>
         </span>
       ),
-      children: <TicketHistoryCard />
+      children: <TicketHistoryCard />,
     },
     {
       key: '3',
@@ -62,7 +73,7 @@ const UserProfilePage = () => {
           <span className="hidden sm:inline">Điểm thưởng</span>
         </span>
       ),
-      children: <LoyaltyCard user={user} />
+      children: <LoyaltyCard user={user} />,
     },
     {
       key: '4',
@@ -73,29 +84,39 @@ const UserProfilePage = () => {
         </span>
       ),
       children: (
-        <div className="p-6">
-          {/* Phần cài đặt thêm của người dùng nếu cần */}
-          <div className="text-center text-gray-500">
-            <p>Tính năng đang phát triển</p>
-          </div>
+        <div
+          className={`p-6 text-center ${
+            theme === 'dark' ? 'text-dark-text-secondary' : 'text-text-secondary'
+          }`}
+        >
+          <p>Tính năng đang phát triển</p>
         </div>
-      )
-    }
+      ),
+    },
   ];
 
   return (
-    <div className="bg-light-bg min-h-screen pb-12 animate-fadeIn">
-      {/* Header phần thông tin profile */}
-      <ProfileHeader user={user} />
-      
-      {/* Content tabs */}
-      <div className="max-w-6xl mx-auto px-4 -mt-10">
-        <div className="bg-white rounded-xl shadow-card overflow-hidden">
-          <Tabs 
-            activeKey={activeTab} 
+    <div
+      className={`min-h-screen animate-fadeIn ${
+        theme === 'dark' ? 'bg-dark-bg' : 'bg-light-bg'
+      } pb-12 pt-8 px-4`}
+    >
+      <div className="max-w-6xl mx-auto">
+        <ProfileHeader user={user} className="compact-header" />
+        <div
+          className={`rounded-xl shadow-lg overflow-hidden mt-4 ${
+            theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
+          } border`}
+        >
+          <Tabs
+            activeKey={activeTab}
             onChange={setActiveTab}
             className="profile-tabs"
-            tabBarStyle={{ padding: '0 16px', borderBottom: '1px solid #f0f0f0' }}
+            tabBarStyle={{
+              padding: '0 16px',
+              borderBottom: theme === 'dark' ? '1px solid #4b5563' : '1px solid #d1d5db', // Màu border đậm hơn trong light mode
+              backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff',
+            }}
             items={tabItems}
           />
         </div>

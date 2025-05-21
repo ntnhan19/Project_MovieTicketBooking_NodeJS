@@ -13,6 +13,7 @@ import {
   HomeIcon,
   TicketIcon,
   ChevronRightIcon,
+  CreditCardIcon, // Thêm CreditCardIcon
 } from '@heroicons/react/24/outline';
 
 const Sidebar = ({ open, darkMode }) => {
@@ -92,6 +93,28 @@ const Sidebar = ({ open, darkMode }) => {
             {open && <span className="ml-3">Dashboard</span>}
           </NavLink>
           
+          {/* Payment Link */}
+          <NavLink
+            to="/payments"
+            className={({ isActive }) => `
+              ${isActive 
+                ? `${darkMode 
+                    ? 'bg-secondary-dark text-primary-light' 
+                    : 'bg-primary bg-opacity-10 text-primary'
+                  } font-medium`
+                : `${darkMode 
+                    ? 'text-gray-300 hover:bg-secondary-dark' 
+                    : 'text-gray-700 hover:bg-gray-100'
+                  }`
+              }
+              group flex items-center px-3 py-2.5 rounded-lg text-sm transition-colors duration-150 ease-in-out
+              ${!open && 'justify-center'}
+            `}
+          >
+            <CreditCardIcon className={`h-5 w-5 ${!open && 'mx-auto'}`} />
+            {open && <span className="ml-3">Payments</span>}
+          </NavLink>
+
           {/* Resources */}
           {filteredResources.map((name) => {
             const resource = resources[name];

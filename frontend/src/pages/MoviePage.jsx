@@ -1,142 +1,76 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import { ThemeContext } from "../context/ThemeContext";
+import useMovies from "../hooks/useMovies";
+import MovieList from "../components/Movies/MovieList";
 import {
-  Tabs,
-  Spin,
-  Empty,
-  Pagination,
+  Skeleton,
   Input,
   Select,
-  Drawer,
+  Carousel,
+  Empty,
+  Modal,
+  Tooltip,
   Badge,
-  Skeleton,
 } from "antd";
 import {
   SearchOutlined,
-  FilterOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
   SortAscendingOutlined,
-  StarOutlined,
-  ClockCircleOutlined,
-  GlobalOutlined,
   CloseOutlined,
+  ArrowUpOutlined,
+  ClockCircleOutlined,
+  ArrowDownOutlined,
+  StarOutlined,
   FireFilled,
   CalendarOutlined,
 } from "@ant-design/icons";
-import useMovies from "../hooks/useMovies";
-import MovieList from "../components/Movies/MovieList";
-import { genreApi } from "../api/genreApi";
 
 const { Option } = Select;
 
 const MoviePage = () => {
-  // Lấy dữ liệu phim từ custom hook
   const { nowShowing, comingSoon, loading } = useMovies();
-
-  // State cho việc lọc và hiển thị
+  const { theme } = useContext(ThemeContext);
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("nowShowing");
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredMovies, setFilteredMovies] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [moviesPerPage] = useState(8); // Số phim hiển thị trên một trang
-  const [genre, setGenre] = useState("all");
   const [sortBy, setSortBy] = useState("latest");
-  const [genres, setGenres] = useState([]);
-  const [loadingGenres, setLoadingGenres] = useState(true);
-
-  // State cho responsive
-  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [setIsFilterDrawerOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [selectedMovie, setSelectedMovie] = useState(null);
+  const [bannerMovies, setBannerMovies] = useState([]);
 
-  // Fetch danh sách thể loại từ API
-  useEffect(() => {
-    const fetchGenres = async () => {
-      try {
-        setLoadingGenres(true);
-        const response = await genreApi.getAllGenres();
-        if (response && Array.isArray(response)) {
-          // Thêm option "Tất cả thể loại" vào đầu danh sách
-          setGenres([
-            { id: "all", name: "Tất cả thể loại" },
-            ...response
-          ]);
-        } else {
-          console.error("Dữ liệu thể loại không hợp lệ:", response);
-          setGenres([{ id: "all", name: "Tất cả thể loại" }]);
-        }
-      } catch (error) {
-        console.error("Lỗi khi lấy danh sách thể loại:", error);
-        setGenres([{ id: "all", name: "Tất cả thể loại" }]);
-      } finally {
-        setLoadingGenres(false);
-      }
-    };
-
-    fetchGenres();
-  }, []);
-
-  // Dùng để kiểm tra responsive
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Xử lý khi tab thay đổi
-  const handleTabChange = (key) => {
-    setActiveTab(key);
-    setCurrentPage(1); // Reset về trang đầu tiên khi chuyển tab
-    setSearchTerm(""); // Reset tìm kiếm
-    setGenre("all"); // Reset bộ lọc thể loại
-    setSortBy("latest"); // Reset sắp xếp
-  };
-
-  // Xử lý tìm kiếm
-  const handleSearch = (e) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1); // Reset về trang đầu tiên khi tìm kiếm
-  };
-
-  // Xử lý chọn thể loại
-  const handleGenreChange = (value) => {
-    setGenre(value);
-    setCurrentPage(1); // Reset về trang đầu tiên khi thay đổi thể loại
-  };
-
-  // Xử lý sắp xếp
-  const handleSortChange = (value) => {
-    setSortBy(value);
-  };
-
-  // Lọc và cập nhật danh sách phim hiển thị
   useEffect(() => {
-    let movies = activeTab === "nowShowing" ? nowShowing : comingSoon;
-    
-    if (!movies) return;
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 300);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
-    // Lọc theo từ khóa tìm kiếm
+  useEffect(() => {
+    const allMovies = [...(nowShowing || []), ...(comingSoon || [])];
+    const fixedBannerMovies = allMovies
+      .filter((movie) => movie.bannerImage)
+      .slice(0, 6);
+    setBannerMovies(fixedBannerMovies);
+
+    let movies = activeTab === "nowShowing" ? nowShowing : comingSoon;
+    if (!movies) return;
     if (searchTerm) {
       movies = movies.filter((movie) =>
         movie.title.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
-    // Lọc theo thể loại
-    if (genre && genre !== "all") {
-      movies = movies.filter(
-        (movie) =>
-          movie.genres &&
-          movie.genres.some((g) => {
-            const genreId = typeof g === "object" ? g.id : g;
-            return genreId === genre;
-          })
-      );
-    }
-
-    // Sắp xếp
     switch (sortBy) {
       case "latest":
         movies = [...movies].sort(
@@ -152,7 +86,7 @@ const MoviePage = () => {
         movies = [...movies].sort((a, b) => a.title.localeCompare(b.title));
         break;
       case "name-desc":
-        movies = [...movies].sort((a, b) => b.title.localeCompare(a.title));
+        movies = [...movies].sort((a, b) => b.title.localeCompare(b.title));
         break;
       case "rating-desc":
         movies = [...movies].sort((a, b) => (b.rating || 0) - (a.rating || 0));
@@ -160,355 +94,517 @@ const MoviePage = () => {
       default:
         break;
     }
-
     setFilteredMovies(movies);
-  }, [activeTab, nowShowing, comingSoon, searchTerm, genre, sortBy]);
+  }, [activeTab, nowShowing, comingSoon, searchTerm, sortBy]);
 
-  // Phân trang
-  const indexOfLastMovie = currentPage * moviesPerPage;
-  const indexOfFirstMovie = indexOfLastMovie - moviesPerPage;
-  const currentMovies = filteredMovies.slice(
-    indexOfFirstMovie,
-    indexOfLastMovie
-  );
-
-  // Xử lý thay đổi trang
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-    // Scroll to top khi đổi trang
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+  const handleTabChange = (key) => {
+    setActiveTab(key);
+    setSearchTerm("");
+    setSortBy("latest");
+    setIsFilterDrawerOpen(false);
+    const createRipple = (event) => {
+      const button = event.currentTarget;
+      button.style.setProperty(
+        "--ripple-x",
+        `${event.clientX - button.getBoundingClientRect().left}px`
+      );
+      button.style.setProperty(
+        "--ripple-y",
+        `${event.clientY - button.getBoundingClientRect().top}px`
+      );
+    };
+    const buttonElement = document.getElementById(`tab-${key}`);
+    if (buttonElement) {
+      const rect = buttonElement.getBoundingClientRect();
+      const event = {
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height / 2,
+        currentTarget: buttonElement,
+      };
+      createRipple(event);
+    }
   };
 
-  // Reset bộ lọc
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleSortChange = (value) => {
+    setSortBy(value);
+  };
+
+  const handleRipple = (e) => {
+    const btn = e.currentTarget;
+    btn.style.setProperty(
+      "--ripple-x",
+      `${e.clientX - btn.getBoundingClientRect().left}px`
+    );
+    btn.style.setProperty(
+      "--ripple-y",
+      `${e.clientY - btn.getBoundingClientRect().top}px`
+    );
+  };
+
   const resetFilters = () => {
     setSearchTerm("");
-    setGenre("all");
     setSortBy("latest");
-    setCurrentPage(1);
     if (isMobile) {
       setIsFilterDrawerOpen(false);
     }
   };
 
-  // Render bộ lọc
-  const renderFilters = () => (
-    <div className="filter-container">
-      {/* Ô tìm kiếm */}
-      <div className="filter-item w-full mb-4">
-        <label className="block text-sm font-medium text-text-secondary mb-2">
-          Tìm kiếm
-        </label>
-        <Input
-          placeholder="Nhập tên phim..."
-          prefix={<SearchOutlined className="text-gray-400" />}
-          value={searchTerm}
-          onChange={handleSearch}
-          className="h-12 rounded-lg shadow-sm border-gray-200 hover:border-primary focus:border-primary"
-          allowClear
-        />
-      </div>
+  const getNowShowingCount = () => {
+    return nowShowing ? nowShowing.length : 0;
+  };
 
-      {/* Lọc theo thể loại */}
-      <div className="filter-item w-full mb-4">
-        <label className="block text-sm font-medium text-text-secondary mb-2">
-          Thể loại
-        </label>
-        {loadingGenres ? (
-          <Skeleton.Input active size="large" className="w-full h-12" />
-        ) : (
-          <Select
-            placeholder="Chọn thể loại"
-            value={genre}
-            onChange={handleGenreChange}
-            className="w-full h-12"
-            suffixIcon={<GlobalOutlined className="text-primary" />}
-            popupClassName="rounded-lg shadow-card"
-            optionFilterProp="children"
-          >
-            {genres.map((g) => (
-              <Option key={g.id} value={g.id}>
-                {g.name}
-              </Option>
-            ))}
-          </Select>
-        )}
-      </div>
+  const getComingSoonCount = () => {
+    return comingSoon ? comingSoon.length : 0;
+  };
 
-      {/* Sắp xếp */}
-      <div className="filter-item w-full mb-4">
-        <label className="block text-sm font-medium text-text-secondary mb-2">
-          Sắp xếp theo
-        </label>
-        <Select
-          value={sortBy}
-          onChange={handleSortChange}
-          className="w-full h-12"
-          suffixIcon={<SortAscendingOutlined className="text-primary" />}
-          popupClassName="rounded-lg shadow-card"
-        >
-          <Option value="latest">
-            <div className="flex items-center">
-              <ClockCircleOutlined className="mr-2 text-primary" />
-              Mới nhất
-            </div>
-          </Option>
-          <Option value="oldest">
-            <div className="flex items-center">
-              <ClockCircleOutlined className="mr-2 text-text-secondary" />
-              Cũ nhất
-            </div>
-          </Option>
-          <Option value="name-asc">
-            <div className="flex items-center">
-              <ArrowUpOutlined className="mr-2 text-green-500" />
-              Tên A-Z
-            </div>
-          </Option>
-          <Option value="name-desc">
-            <div className="flex items-center">
-              <ArrowDownOutlined className="mr-2 text-blue-500" />
-              Tên Z-A
-            </div>
-          </Option>
-          <Option value="rating-desc">
-            <div className="flex items-center">
-              <StarOutlined className="mr-2 text-yellow-500" />
-              Đánh giá cao nhất
-            </div>
-          </Option>
-        </Select>
-      </div>
-
-      {/* Nút reset filter */}
-      <div className="filter-item w-full">
-        <button
-          onClick={resetFilters}
-          className="w-full py-3 px-6 bg-light-bg-secondary hover:bg-gray-200 text-text-primary font-medium rounded-lg transition-all flex items-center justify-center"
-        >
-          <CloseOutlined className="mr-2" />
-          Đặt lại bộ lọc
-        </button>
-      </div>
-    </div>
-  );
+  const handleBannerClick = (movieId) => {
+    navigate(`/movies/${movieId}`);
+  };
 
   return (
-    <div className="main-content pb-16 animate-fadeIn">
-      {/* Header phần trang phim - Đã chỉnh sửa để nhỏ gọn hơn */}
-      <div className="movie-page-header py-8 md:py-12 bg-gradient-to-r from-primary-dark via-primary to-primary-light relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/images/pattern-bg.png')] opacity-20"></div>
-        <div className="container mx-auto relative z-10 px-4">
-          <h1 className="text-3xl md:text-4xl font-bold text-white text-center drop-shadow-sm">
-            Phim Chiếu Rạp
-          </h1>
-          <div className="h-1 w-16 bg-white mx-auto mt-3 rounded-full"></div>
-          <p className="text-center text-white text-opacity-90 mt-4 max-w-xl mx-auto leading-relaxed px-4 text-sm md:text-base">
-            Khám phá những bộ phim mới nhất và hấp dẫn nhất đang chiếu và sắp
-            chiếu tại rạp
-          </p>
-        </div>
-      </div>
-
-      {/* Phần chính của trang */}
-      <div className="container max-w-7xl mx-auto mt-8 px-4">
-        {/* Tab phim đang chiếu và sắp chiếu */}
-        <div className="movie-tabs mb-6">
-          <Tabs
-            activeKey={activeTab}
-            onChange={handleTabChange}
-            type="card"
-            className="custom-tabs"
-            centered
-            items={[
-              {
-                key: "nowShowing",
-                label: (
-                  <div className="px-4 py-2 font-medium text-base md:text-lg flex items-center">
-                    <FireFilled className="mr-2 text-primary" />
-                    Phim Đang Chiếu
-                  </div>
-                ),
-              },
-              {
-                key: "comingSoon",
-                label: (
-                  <div className="px-4 py-2 font-medium text-base md:text-lg flex items-center">
-                    <CalendarOutlined className="mr-2 text-primary" />
-                    Phim Sắp Chiếu
-                  </div>
-                ),
-              },
-            ]}
-          />
-        </div>
-
-        {/* Container cho bộ lọc và danh sách phim */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Bộ lọc desktop */}
-          <div className="hidden lg:block">
-            <div className="sticky top-24 bg-white rounded-xl shadow-card p-5 border border-gray-100 hover:shadow-card-hover transition-all">
-              <h3 className="text-lg font-bold mb-5 pb-2 border-b border-gray-100 flex items-center">
-                <FilterOutlined className="mr-2 text-primary" /> Bộ lọc
-              </h3>
-              {renderFilters()}
+    <div
+      className={`main-content py-8 px-4 md:px-6 lg:px-8 max-w-7xl mx-auto ${
+        theme === "dark" ? "bg-gray-900" : "bg-white"
+      }`}
+    >
+      <div className="container mx-auto">
+        <div className="page-header relative bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 overflow-hidden">
+          <div className="absolute inset-0 animated-gradient rounded-xl opacity-50"></div>
+          <div className="flex flex-col gap-6 mb-4 text-center relative z-10">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-red-600 to-gray-800 bg-clip-text text-transparent drop-shadow-md animate-slideUp dark:text-white">
+              Danh Sách Phim
+            </h1>
+            <div className="text-gray-600 text-sm italic animate-fadeIn dark:text-gray-300">
+              Khám phá các bộ phim hot nhất tuần này! 🎬
             </div>
           </div>
-
-          {/* Bộ lọc mobile */}
-          {isMobile && (
-            <div className="filter-button-container mb-4">
-              <button
-                onClick={() => setIsFilterDrawerOpen(true)}
-                className="w-full py-3 bg-white shadow-card rounded-lg flex items-center justify-center font-medium text-text-primary hover:shadow-card-hover transition-all"
-              >
-                <FilterOutlined className="mr-2 text-primary" /> Bộ lọc
-                {(searchTerm || genre !== "all" || sortBy !== "latest") && (
-                  <Badge count="!" className="ml-2" />
-                )}
-              </button>
-
-              <Drawer
-                title={
-                  <div className="flex items-center text-lg font-bold">
-                    <FilterOutlined className="mr-2 text-primary" /> Bộ lọc phim
-                  </div>
-                }
-                placement="right"
-                onClose={() => setIsFilterDrawerOpen(false)}
-                open={isFilterDrawerOpen}
-                width={300}
-                className="filter-drawer"
-                closeIcon={<CloseOutlined className="text-lg" />}
-                footer={
-                  <div className="flex justify-between">
-                    <button
-                      onClick={resetFilters}
-                      className="flex-1 mr-2 py-2 px-4 bg-gray-100 text-text-primary rounded-lg"
-                    >
-                      Đặt lại
-                    </button>
-                    <button
-                      onClick={() => setIsFilterDrawerOpen(false)}
-                      className="flex-1 ml-2 py-2 px-4 bg-primary text-white rounded-lg"
-                    >
-                      Áp dụng
-                    </button>
-                  </div>
-                }
-              >
-                {renderFilters()}
-              </Drawer>
+          <div className="flex flex-col gap-4 relative z-10">
+            <div
+              className={`text-gray-700 text-lg flex items-center justify-center gap-2 animate-fadeIn ${
+                theme === "dark" ? "text-gray-300" : "text-gray-700"
+              }`}
+            >
+              {loading ? (
+                <Skeleton.Input active size="small" className="w-24" />
+              ) : (
+                <>
+                  <span className="font-semibold text-red-600">
+                    {filteredMovies.length}
+                  </span>{" "}
+                  <span>phim</span>
+                  <span
+                    className={`${
+                      theme === "dark" ? "text-gray-300" : "text-gray-500"
+                    }`}
+                  >
+                    {searchTerm ? "được tìm thấy" : "hiện có"}
+                  </span>
+                  {(searchTerm || sortBy !== "latest") && (
+                    <span className="ml-2 text-sm">
+                      {searchTerm && (
+                        <span className="ml-1">
+                          (đang lọc theo từ khóa "{searchTerm}")
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </>
+              )}
             </div>
-          )}
-
-          {/* Danh sách phim */}
-          <div className="lg:col-span-3">
-            {/* Hiển thị kết quả tìm kiếm */}
-            <div className="flex justify-between items-center mb-6 bg-white rounded-lg p-3 shadow-sm">
-              <div className="text-text-secondary">
-                {loading ? (
-                  <Skeleton.Input active size="small" className="w-24" />
-                ) : (
-                  <>
-                    <span className="font-medium">{filteredMovies.length}</span>{" "}
-                    phim tìm thấy
-                    {(searchTerm || genre !== "all" || sortBy !== "latest") && (
-                      <span className="ml-2 text-sm">
-                        (đang lọc
-                        {searchTerm && <span className="ml-1">theo từ khóa</span>}
-                        {genre !== "all" && <span className="ml-1">theo thể loại</span>}
-                        {sortBy !== "latest" && <span className="ml-1">và sắp xếp</span>})
-                      </span>
-                    )}
-                  </>
+            <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+              <div className="flex-grow relative">
+                <Input
+                  placeholder="Tìm kiếm phim..."
+                  prefix={
+                    <SearchOutlined
+                      className={`text-xl ${
+                        theme === "dark" ? "text-gray-100" : "text-gray-600"
+                      }`}
+                    />
+                  }
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className={`h-14 rounded-xl shadow-lg border-0 text-lg font-medium ${
+                    theme === "dark"
+                      ? "text-gray-100 bg-gray-800"
+                      : "text-gray-800 bg-gray-200"
+                  } hover:border-red-500 focus:border-red-500 focus:shadow-xl transition-all pl-5`}
+                  allowClear={{
+                    clearIcon: (
+                      <CloseOutlined
+                        className={`${
+                          theme === "dark"
+                            ? "text-gray-300 hover:text-gray-100"
+                            : "text-gray-500 hover:text-gray-800"
+                        }`}
+                      />
+                    ),
+                  }}
+                  size="large"
+                />
+                {searchTerm && (
+                  <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
+                    <Badge
+                      count={filteredMovies.length}
+                      className="bg-red-600 text-white"
+                    />
+                  </div>
                 )}
               </div>
-
-              {/* Sort select mobile/tablet */}
-              {isMobile && (
+              <div className="flex items-center">
                 <Select
                   value={sortBy}
                   onChange={handleSortChange}
-                  className="w-44"
-                  suffixIcon={<SortAscendingOutlined />}
-                  bordered={true}
-                  size="middle"
-                  options={[
-                    { value: "latest", label: "Mới nhất" },
-                    { value: "oldest", label: "Cũ nhất" },
-                    { value: "name-asc", label: "Tên A-Z" },
-                    { value: "name-desc", label: "Tên Z-A" },
-                    { value: "rating-desc", label: "Đánh giá cao" },
-                  ]}
-                />
-              )}
-            </div>
-
-            {/* Hiển thị phim */}
-            <div className="movies-list min-h-[500px]">
-              {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                  {[...Array(8)].map((_, index) => (
-                    <div key={index} className="bg-white rounded-lg overflow-hidden shadow-card border border-gray-100">
-                      <Skeleton.Image active className="w-full h-64" />
-                      <div className="p-4">
-                        <Skeleton active paragraph={{ rows: 1 }} />
-                        <Skeleton.Button active size="large" className="w-full mt-4" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : currentMovies.length > 0 ? (
-                <>
-                  <MovieList movies={currentMovies} />
-
-                  {/* Phân trang */}
-                  {filteredMovies.length > moviesPerPage && (
-                    <div className="pagination-container flex justify-center mt-10">
-                      <Pagination
-                        current={currentPage}
-                        pageSize={moviesPerPage}
-                        total={filteredMovies.length}
-                        onChange={handlePageChange}
-                        showSizeChanger={false}
-                        className="custom-pagination"
-                      />
-                    </div>
-                  )}
-                </>
-              ) : (
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description={
-                    <div className="text-center">
-                      <p className="text-lg text-text-secondary mb-2">
-                        {searchTerm || genre !== "all"
-                          ? "Không tìm thấy phim phù hợp với bộ lọc"
-                          : activeTab === "nowShowing"
-                          ? "Không có phim đang chiếu"
-                          : "Không có phim sắp chiếu"}
-                      </p>
-                      {(searchTerm || genre !== "all" || sortBy !== "latest") && (
-                        <button
-                          onClick={resetFilters}
-                          className="mt-4 py-2 px-6 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all shadow-button hover:shadow-button-hover"
-                        >
-                          <CloseOutlined className="mr-2" />
-                          Đặt lại bộ lọc
-                        </button>
-                      )}
-                    </div>
+                  className={`min-w-52 h-12 rounded-xl transition-all hover:shadow-xl ${
+                    theme === "dark"
+                      ? "bg-gray-800 text-gray-100"
+                      : "bg-gray-200 text-gray-800"
+                  }`}
+                  size="large"
+                  suffixIcon={
+                    <SortAscendingOutlined
+                      className={`${
+                        theme === "dark" ? "text-gray-100" : "text-gray-600"
+                      } dark:text-gray-300`}
+                    />
                   }
-                  className="py-16"
-                />
-              )}
+                  popupClassName="rounded-xl shadow-card dark:bg-gray-800 dark:text-white"
+                  dropdownStyle={{
+                    borderRadius: "12px",
+                    backgroundColor: "var(--antd-background, #fff)",
+                    color: "var(--antd-color-text, #000)",
+                  }}
+                >
+                  <Option value="latest">
+                    <div className="flex items-center">
+                      <ClockCircleOutlined
+                        className={`mr-2 ${
+                          theme === "dark" ? "text-gray-100" : "text-gray-600"
+                        } dark:text-gray-300`}
+                      />
+                      Mới nhất
+                    </div>
+                  </Option>
+                  <Option value="oldest">
+                    <div className="flex items-center">
+                      <ClockCircleOutlined
+                        className={`mr-2 ${
+                          theme === "dark" ? "text-gray-100" : "text-gray-600"
+                        } dark:text-gray-300`}
+                      />
+                      Cũ nhất
+                    </div>
+                  </Option>
+                  <Option value="name-asc">
+                    <div className="flex items-center">
+                      <ArrowUpOutlined
+                        className={`mr-2 ${
+                          theme === "dark" ? "text-gray-100" : "text-gray-600"
+                        } dark:text-gray-300`}
+                      />
+                      Tên A-Z
+                    </div>
+                  </Option>
+                  <Option value="name-desc">
+                    <div className="flex items-center">
+                      <ArrowDownOutlined
+                        className={`mr-2 ${
+                          theme === "dark" ? "text-gray-100" : "text-gray-600"
+                        } dark:text-gray-300`}
+                      />
+                      Tên Z-A
+                    </div>
+                  </Option>
+                  <Option value="rating-desc">
+                    <div className="flex items-center">
+                      <StarOutlined
+                        className={`mr-2 ${
+                          theme === "dark" ? "text-gray-100" : "text-gray-600"
+                        } dark:text-gray-300`}
+                      />
+                      Đánh giá cao nhất
+                    </div>
+                  </Option>
+                </Select>
+                {(searchTerm || sortBy !== "latest") && (
+                  <Tooltip title="Đặt lại bộ lọc">
+                    <button
+                      onClick={(e) => {
+                        handleRipple(e);
+                        resetFilters();
+                      }}
+                      className={`ml-2 h-12 w-12 flex items-center justify-center rounded-xl shadow-lg transition-all hover:shadow-xl ripple-btn ${
+                        theme === "dark"
+                          ? "bg-gray-800 text-gray-100 hover:bg-gray-700"
+                          : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                      }`}
+                    >
+                      <CloseOutlined
+                        className={`${
+                          theme === "dark" ? "text-gray-100" : "text-gray-600"
+                        } dark:text-gray-300`}
+                      />
+                    </button>
+                  </Tooltip>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col md:flex-row md:items-center gap-4 mt-4 justify-center relative z-10">
+            <div className="movie-tabs-container">
+              <div className="flex bg-gray-100 dark:bg-gray-700 rounded-xl p-1 border border-gray-200 dark:border-gray-600">
+                <button
+                  id="tab-nowShowing"
+                  onClick={(e) => {
+                    handleRipple(e);
+                    handleTabChange("nowShowing");
+                  }}
+                  aria-label="Xem phim đang chiếu"
+                  aria-selected={activeTab === "nowShowing"}
+                  className={`tab-btn-ripple flex items-center justify-center gap-2 py-3 px-6 rounded-xl text-lg font-semibold transition-all duration-200 z-10 ripple-btn ${
+                    activeTab === "nowShowing"
+                      ? "bg-gradient-to-r from-red-600 to-red-800 dark:from-red-500 dark:to-red-700 text-white shadow-lg"
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
+                  }`}
+                >
+                  <FireFilled
+                    className={`text-xl ${
+                      activeTab === "nowShowing"
+                        ? "text-white animate-pulse"
+                        : "text-red-600 dark:text-gray-200"
+                    }`}
+                  />
+                  <span>Đang Chiếu</span>
+                  {!loading && getNowShowingCount() > 0 && (
+                    <span
+                      className={`flex items-center justify-center w-6 h-6 text-sm font-bold rounded-full ${
+                        activeTab === "nowShowing"
+                          ? "bg-white text-red-600"
+                          : "bg-red-600 dark:bg-red-500 text-white"
+                      }`}
+                    >
+                      {getNowShowingCount()}
+                    </span>
+                  )}
+                </button>
+                <button
+                  id="tab-comingSoon"
+                  onClick={(e) => {
+                    handleRipple(e);
+                    handleTabChange("comingSoon");
+                  }}
+                  aria-label="Xem phim sắp chiếu"
+                  aria-selected={activeTab === "comingSoon"}
+                  className={`tab-btn-ripple flex items-center justify-center gap-2 py-3 px-6 rounded-xl text-lg font-semibold transition-all duration-200 z-10 ripple-btn ${
+                    activeTab === "comingSoon"
+                      ? "bg-gradient-to-r from-red-600 to-red-800 dark:from-red-500 dark:to-red-700 text-white shadow-lg"
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
+                  }`}
+                >
+                  <CalendarOutlined
+                    className={`text-xl ${
+                      activeTab === "comingSoon"
+                        ? "text-white animate-pulse"
+                        : "text-red-600 dark:text-gray-200"
+                    }`}
+                  />
+                  <span>Sắp Chiếu</span>
+                  {!loading && getComingSoonCount() > 0 && (
+                    <span
+                      className={`flex items-center justify-center w-6 h-6 text-sm font-bold rounded-full ${
+                        activeTab === "comingSoon"
+                          ? "bg-white text-red-600"
+                          : "bg-red-600 dark:bg-red-500 text-white"
+                      }`}
+                    >
+                      {getComingSoonCount()}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
+        {bannerMovies.length > 0 && (
+          <Carousel
+            autoplay
+            autoplaySpeed={3000}
+            className="mb-8 rounded-xl overflow-hidden dark:bg-gray-800"
+          >
+            {bannerMovies.map((movie) => (
+              <div
+                key={movie.id}
+                className="relative h-64 cursor-pointer"
+                onClick={() => handleBannerClick(movie.id)}
+              >
+                <img
+                  src={
+                    movie.bannerImage ||
+                    movie.poster ||
+                    "https://via.placeholder.com/1200x300"
+                  }
+                  alt={movie.title}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </Carousel>
+        )}
+        <div className="movies-list min-h-[500px]">
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              {[...Array(8)].map((_, index) => (
+                <div
+                  key={index}
+                  className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-card border border-gray-100 dark:border-gray-600/50 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover"
+                >
+                  <Skeleton.Image active className="w-full h-[450px]" />
+                  <div className="p-5">
+                    <Skeleton active paragraph={{ rows: 1 }} />
+                    <div className="flex gap-2 mt-4">
+                      <Skeleton.Button active size="large" className="flex-1" />
+                      <Skeleton.Button active size="large" className="flex-1" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredMovies.length > 0 ? (
+            <div className="movie-grid-container animate-fadeIn">
+              <MovieList
+                movies={filteredMovies}
+                maxDisplay={1000}
+                showTrailerButton={true}
+                showTicketButton={true}
+                cardClassName="movie-card-enhanced h-full bg-white dark:bg-gray-800 rounded-xl shadow-card overflow-hidden transform transition-all duration-300 hover:-translate-y-2 hover:shadow-card-hover border border-gray-100/50 dark:border-gray-600/50"
+                imageClassName="w-full h-[450px] object-cover object-center transition-transform duration-500 hover:scale-105"
+                contentClassName="p-5"
+                titleClassName="text-xl font-bold mb-2 line-clamp-1 dark:text-white"
+                buttonContainerClassName="flex gap-3 mt-4"
+                trailerButtonClassName="btn-primary ripple-btn py-3 px-4 rounded-lg font-medium flex-1 flex items-center justify-center"
+                ticketButtonClassName="btn-outline ripple-btn py-3 px-4 rounded-lg font-medium flex-1 flex items-center justify-center"
+                gridClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
+              />
+            </div>
+          ) : (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={
+                <div
+                  className={`text-center py-16 ${
+                    theme === "dark" ? "bg-gray-800" : "bg-white"
+                  }`}
+                >
+                  <div className="mb-6 text-6xl opacity-50 dark:text-gray-300">
+                    🎬
+                  </div>
+                  <p className="text-xl text-text-secondary dark:text-gray-300 mb-4">
+                    {searchTerm
+                      ? "Không tìm thấy phim phù hợp với từ khóa"
+                      : activeTab === "nowShowing"
+                      ? "Không có phim đang chiếu"
+                      : "Không có phim sắp chiếu"}
+                  </p>
+                  {searchTerm && (
+                    <p className="text-base text-text-secondary dark:text-gray-300 mb-4">
+                      Thử tìm kiếm với từ khóa khác hoặc xem phim đang chiếu!
+                    </p>
+                  )}
+                  {(searchTerm || sortBy !== "latest") && (
+                    <button
+                      onClick={(e) => {
+                        handleRipple(e);
+                        resetFilters();
+                      }}
+                      className="mt-4 py-3 px-8 btn-primary ripple-btn text-white rounded-xl hover:bg-primary-dark transition-all shadow-button hover:shadow-button-hover"
+                    >
+                      <CloseOutlined className="mr-2" />
+                      Đặt lại bộ lọc
+                    </button>
+                  )}
+                </div>
+              }
+              className="py-16"
+            />
+          )}
+        </div>
+        <Modal
+          open={!!selectedMovie}
+          onCancel={() => setSelectedMovie(null)}
+          footer={null}
+          title={
+            <span className="text-2xl dark:text-white">
+              {selectedMovie?.title}
+            </span>
+          }
+          className="rounded-xl"
+          bodyStyle={{
+            backgroundColor:
+              theme === "dark" ? "#1f2a44" : "var(--antd-background, #fff)",
+            color: "var(--antd-color-text, #000)",
+          }}
+        >
+          <div
+            className={`dark:bg-gray-800 dark:text-gray-300 p-4 rounded-xl ${
+              theme === "dark" ? "bg-gray-800" : "bg-white"
+            }`}
+          >
+            {selectedMovie?.image && (
+              <img
+                src={selectedMovie.image}
+                alt={selectedMovie.title}
+                className="w-full h-48 object-cover rounded-xl mb-4"
+              />
+            )}
+            <p className="text-lg mb-4">
+              {selectedMovie?.description || "Không có mô tả."}
+            </p>
+            <p className="mb-4">
+              <strong>Ngày phát hành:</strong> {selectedMovie?.releaseDate}
+            </p>
+            <p className="mb-4">
+              <strong>Đánh giá:</strong>{" "}
+              {selectedMovie?.rating
+                ? `${selectedMovie.rating}/10`
+                : "Chưa có đánh giá"}
+            </p>
+            <div className="flex gap-4">
+              <button
+                className="btn-primary ripple-btn py-2 px-4 rounded-lg flex-1"
+                onClick={(e) => {
+                  handleRipple(e); /* Logic mở trailer nếu có */
+                }}
+              >
+                Xem trailer
+              </button>
+              <button
+                className="btn-outline ripple-btn py-2 px-4 rounded-lg flex-1"
+                onClick={(e) => {
+                  handleRipple(e); /* Logic đặt vé */
+                }}
+              >
+                Đặt vé
+              </button>
+            </div>
+          </div>
+        </Modal>
       </div>
+      {showBackToTop && (
+        <button
+          onClick={(e) => {
+            handleRipple(e);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          className="fixed bottom-8 right-8 bg-primary dark:bg-red-500 text-white p-4 rounded-full shadow-lg hover:bg-primary-dark dark:hover:bg-red-600 transition-all ripple-btn"
+        >
+          <ArrowUpOutlined className="text-xl" />
+        </button>
+      )}
     </div>
   );
 };

@@ -105,8 +105,11 @@ const vnpayReturn = async (req, res) => {
     const result = await vnpayService.processVNPayReturn(vnpayData);
 
     if (result.success) {
+      // Lấy thông tin payment đã được cập nhật với transactionId
+      const payment = await paymentService.getPaymentById(result.paymentId);
+      
       return res.redirect(
-        `${process.env.FRONTEND_URL}/booking/payment?paymentId=${result.paymentId}&status=success`
+        `${process.env.FRONTEND_URL}/booking/payment?paymentId=${result.paymentId}&status=success&transactionId=${payment.transactionId || result.transactionId}`
       );
     } else {
       return res.redirect(
@@ -359,14 +362,163 @@ const simulatePaymentSuccess = async (req, res) => {
   }
 };
 
+/**
+ * Lấy danh sách thanh toán cho admin (GET /api/payments)
+ */
+const getPayments = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      perPage = 10,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      status,
+      method,
+      search,
+      startDate,
+      endDate,
+    } = req.query;
+
+    // Xây dựng điều kiện where
+    const where = {};
+    
+    if (status) {
+      where.status = status;
+    }
+    
+    if (method) {
+      where.method = method;
+    }
+
+    if (search) {
+      where.OR = [
+        { transactionId: { contains: search, mode: 'insensitive' } },
+        { appTransId: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (startDate) {
+      where.createdAt = {
+        ...where.createdAt,
+        gte: new Date(startDate),
+      };
+    }
+
+    if (endDate) {
+      where.createdAt = {
+        ...where.createdAt,
+        lte: new Date(endDate),
+      };
+    }
+
+    // Lấy tổng số payment theo điều kiện
+    const total = await prisma.payment.count({ where });
+
+    // Lấy danh sách payment
+    const payments = await prisma.payment.findMany({
+      where,
+      skip: (Number(page) - 1) * Number(perPage),
+      take: Number(perPage),
+      orderBy: {
+        [sortBy]: sortOrder.toLowerCase(),
+      },
+      include: {
+        tickets: {
+          select: {
+            id: true,
+            status: true,
+            price: true,
+          },
+        },
+        concessionOrders: {
+          select: {
+            id: true,
+            status: true,
+            totalAmount: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      data: payments,
+      total,
+      page: Number(page),
+      perPage: Number(perPage),
+    });
+  } catch (error) {
+    console.error("Error in getPayments:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * Lấy thống kê thanh toán cho admin (GET /api/payments/statistics)
+ */
+const getPaymentStatistics = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    const where = {};
+    if (startDate) {
+      where.createdAt = {
+        ...where.createdAt,
+        gte: new Date(startDate),
+      };
+    }
+    if (endDate) {
+      where.createdAt = {
+        ...where.createdAt,
+        lte: new Date(endDate),
+      };
+    }
+
+    const [totalTransactions, methodStats, statusStats] = await Promise.all([
+      // Tổng số giao dịch
+      prisma.payment.count({ where }),
+
+      // Thống kê theo phương thức thanh toán
+      prisma.payment.groupBy({
+        by: ["method"],
+        where,
+        _count: true,
+        _sum: {
+          amount: true,
+        },
+      }),
+
+      // Thống kê theo trạng thái
+      prisma.payment.groupBy({
+        by: ["status"],
+        where,
+        _count: true,
+        _sum: {
+          amount: true,
+        },
+      }),
+    ]);
+
+    res.json({
+      totalTransactions,
+      methodStats,
+      statusStats,
+    });
+  } catch (error) {
+    console.error("Error in getPaymentStatistics:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
   createPayment,
-  getPaymentById,
-  getPaymentByTicketId,
-  updatePaymentStatus,
-  paymentWebhook,
-  simulatePaymentSuccess,
   vnpayReturn,
   vnpayIPN,
+  updatePaymentStatus,
+  paymentWebhook,
+  getPaymentById,
+  getPaymentByTicketId,
   checkVNPayStatus,
+  simulatePaymentSuccess,
+  getPayments,
+  getPaymentStatistics
 };

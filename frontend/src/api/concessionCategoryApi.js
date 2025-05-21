@@ -60,3 +60,5 @@ export const concessionCategoryApi = {
     }
   }
 };
+
+export default concessionCategoryApi;
