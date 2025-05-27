@@ -21,7 +21,8 @@ router.post('/', paymentController.createPayment);
 router.get('/:id', paymentController.getPaymentById);
 router.get('/ticket/:ticketId', paymentController.getPaymentByTicketId);
 router.get('/:id/check-vnpay-status', paymentController.checkVNPayStatus);
-router.patch('/:id/status', paymentController.updatePaymentStatus); // User có thể hủy thanh toán của mình
+router.patch('/:id/status', paymentController.updatePaymentStatus);
+router.post('/:id/cancel', paymentController.cancelPayment);
 
 // Routes chỉ dành cho admin
 router.put('/:id/status', authorizeRoles('ADMIN'), paymentController.updatePaymentStatus);

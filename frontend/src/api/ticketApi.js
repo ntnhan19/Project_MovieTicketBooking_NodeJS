@@ -1,16 +1,16 @@
-// frontend/src/api/ticketApi.js
 import axiosInstance from "./axiosInstance";
 
 export const ticketApi = {
   // Tạo vé mới
   createTicket: async (ticketData) => {
     try {
-      // Đảm bảo dữ liệu được định dạng đúng trước khi gửi
       const payload = {
-        userId: parseInt(ticketData.userId) || parseInt(localStorage.getItem("userId")),
+        userId:
+          parseInt(ticketData.userId) ||
+          parseInt(sessionStorage.getItem("userId")),
         showtimeId: parseInt(ticketData.showtimeId),
         seats: Array.isArray(ticketData.seats)
-          ? ticketData.seats.map((seatId) => 
+          ? ticketData.seats.map((seatId) =>
               typeof seatId === "number" ? seatId : parseInt(seatId)
             )
           : [],
@@ -25,7 +25,15 @@ export const ticketApi = {
       return response.data;
     } catch (error) {
       console.error("Lỗi khi tạo vé:", error);
-      throw error;
+      if (error.response?.status === 400) {
+        throw new Error(
+          error.response.data.message ||
+            "Không thể tạo vé: Ghế không khả dụng hoặc dữ liệu không hợp lệ"
+        );
+      } else if (error.response?.status === 500) {
+        throw new Error("Lỗi máy chủ khi tạo vé. Vui lòng thử lại sau.");
+      }
+      throw new Error("Không thể tạo vé. Vui lòng kiểm tra lại.");
     }
   },
 
@@ -40,11 +48,31 @@ export const ticketApi = {
     }
   },
 
+  // Lấy vé theo seatId và userId
+  getTicketBySeatId: async (seatId, userId) => {
+    try {
+      const response = await axiosInstance.get(`/tickets/seat/${seatId}`, {
+        params: { userId, status: "PENDING" },
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Lỗi khi lấy vé cho ghế ${seatId}:`, error);
+      if (error.response?.status === 404) {
+        return null; // Không tìm thấy vé, trả về null thay vì ném lỗi
+      } else if (error.response?.status === 500) {
+        throw new Error("Lỗi máy chủ khi lấy thông tin vé.");
+      }
+      throw new Error(`Không thể lấy vé cho ghế ${seatId}. Vui lòng thử lại.`);
+    }
+  },
+
   // Lấy danh sách vé của người dùng đang đăng nhập (bao gồm thông tin chi tiết)
   getMyTickets: async () => {
     try {
-      const userId = localStorage.getItem("userId");
-      const response = await axiosInstance.get(`/tickets/user/${userId}?includeDetails=true`);
+      const userId = sessionStorage.getItem("userId");
+      const response = await axiosInstance.get(
+        `/tickets/user/${userId}?includeDetails=true`
+      );
       return response.data;
     } catch (error) {
       console.error("Lỗi khi lấy danh sách vé:", error);
@@ -68,7 +96,7 @@ export const ticketApi = {
     try {
       const response = await axiosInstance.put(`/tickets/update-payment`, {
         ticketIds,
-        paymentId
+        paymentId,
       });
       return response.data;
     } catch (error) {
@@ -81,120 +109,91 @@ export const ticketApi = {
   cancelTicket: async (ticketId) => {
     try {
       const response = await axiosInstance.put(`/tickets/${ticketId}/status`, {
-        status: 'CANCELLED'
+        status: "CANCELLED",
       });
       return response.data;
     } catch (error) {
-      console.error('Lỗi khi hủy vé:', error);
-      throw error;
+      console.error("Lỗi khi hủy vé:", error);
+      if (error.response?.status === 400) {
+        throw new Error(
+          error.response.data.message || "Dữ liệu không hợp lệ khi hủy vé."
+        );
+      } else if (error.response?.status === 404) {
+        throw new Error("Không tìm thấy vé để hủy.");
+      } else if (error.response?.status === 500) {
+        throw new Error("Lỗi máy chủ khi hủy vé.");
+      }
+      throw new Error("Không thể hủy vé. Vui lòng thử lại.");
     }
   },
-  
+
   // Cập nhật trạng thái nhiều vé cùng lúc
   updateTicketsStatus: async (ticketIds, status) => {
+    const validStatuses = ["PENDING", "CONFIRMED", "USED", "CANCELLED"];
+    if (!validStatuses.includes(status)) {
+      throw new Error("Trạng thái vé không hợp lệ");
+    }
+
     try {
       const response = await axiosInstance.put(`/tickets/batch-status`, {
         ticketIds,
-        status
+        status,
       });
+      if (response.data.count === 0) {
+        console.warn("Không có vé nào được cập nhật trạng thái.");
+      }
       return response.data;
     } catch (error) {
-      console.error('Lỗi khi cập nhật trạng thái vé:', error);
-      throw error;
+      console.error("Lỗi khi cập nhật trạng thái vé:", error);
+      if (error.response?.status === 400) {
+        throw new Error(
+          error.response.data.message ||
+            "Dữ liệu không hợp lệ khi cập nhật trạng thái vé."
+        );
+      } else if (error.response?.status === 500) {
+        throw new Error("Lỗi máy chủ khi cập nhật trạng thái vé.");
+      }
+      throw new Error("Không thể cập nhật trạng thái vé. Vui lòng thử lại.");
     }
   },
 
   // Áp dụng mã khuyến mãi cho vé
   applyPromotion: async (ticketId, promotionCode) => {
     try {
-      const response = await axiosInstance.post(`/tickets/${ticketId}/promotion`, {
-        promotionCode
-      });
+      const response = await axiosInstance.post(
+        `/tickets/${ticketId}/promotion`,
+        {
+          promotionCode,
+        }
+      );
       return response.data;
     } catch (error) {
-      console.error('Lỗi khi áp dụng mã khuyến mãi:', error);
+      console.error("Lỗi khi áp dụng mã khuyến mãi:", error);
       throw error;
     }
   },
 
-  // Lấy danh sách ghế theo suất chiếu
-  getSeatsByShowtime: async (showtimeId) => {
-    try {
-      const response = await axiosInstance.get(`/tickets/showtime/${showtimeId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Lỗi khi lấy danh sách ghế:', error);
-      throw error;
-    }
-  },
-
-  // Khóa ghế tạm thời (15 phút)
-  lockSeat: async (seatId) => {
-    try {
-      const response = await axiosInstance.post(`/tickets/lock/${seatId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Lỗi khi khóa ghế:', error);
-      throw error;
-    }
-  },
-
-  // Mở khóa ghế
-  unlockSeat: async (seatId) => {
-    try {
-      const response = await axiosInstance.post(`/tickets/unlock/${seatId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Lỗi khi mở khóa ghế:', error);
-      throw error;
-    }
-  },
-
-  // Tạo QR code cho vé - Phương thức mới dựa vào thông tin vé hiện có
+  // Tạo QR code cho vé
   generateTicketQR: async (ticketId) => {
     try {
-      // Đầu tiên, lấy chi tiết vé từ API
-      const ticket = await ticketApi.getTicketById(ticketId);
-      
-      // Nếu vé không tồn tại hoặc không có showtime, trả về lỗi
-      if (!ticket || !ticket.showtime) {
-        throw new Error('Không thể tạo mã QR: Thiếu thông tin vé');
-      }
-      
-      // Lấy thông tin cần thiết từ vé
-      const { showtime, seat } = ticket;
-      const cinema = showtime.hall.cinema;
-      const movie = showtime.movie;
-      
-      // Tạo dữ liệu QR theo cùng định dạng như phía client
-      const qrData = JSON.stringify({
-        ticketCode: `T${ticket.id}`,
-        movieTitle: movie.title,
-        cinema: cinema.name,
-        hall: showtime.hall.name,
-        time: new Date(showtime.startTime).toLocaleTimeString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        date: new Date(showtime.startTime).toLocaleDateString("vi-VN"),
-        seat: `${seat.row}${seat.column || seat.number}`
-      });
-      
-      return qrData;
-    } catch (error) {
-      console.error('Lỗi khi tạo QR code cho vé:', error);
-      throw error;
-    }
-  },
-  
-  // Xác thực vé (sử dụng khi quét QR)
-  validateTicket: async (ticketId) => {
-    try {
-      const response = await axiosInstance.put(`/tickets/${ticketId}/validate`);
+      const response = await axiosInstance.get(`/tickets/${ticketId}/qr`);
       return response.data;
     } catch (error) {
-      console.error('Lỗi khi xác thực vé:', error);
-      throw error;
+      console.error("Lỗi khi tạo mã QR:", error);
+      throw new Error("Không thể tạo mã QR");
+    }
+  },
+
+  // Xác thực mã QR của vé
+  validateTicketQR: async (qrData) => {
+    try {
+      const response = await axiosInstance.post("/tickets/validate-qr", {
+        qrData,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Lỗi khi xác thực mã QR:", error);
+      throw new Error(error.response?.data?.message || "Xác thực thất bại");
     }
   },
 
@@ -202,12 +201,11 @@ export const ticketApi = {
     try {
       const [ticket, payment] = await Promise.all([
         axiosInstance.get(`/tickets/${ticketId}`),
-        axiosInstance.get(`/payments/ticket/${ticketId}`)
+        axiosInstance.get(`/payments/ticket/${ticketId}`),
       ]);
-      
       return {
         ticket: ticket.data,
-        payment: payment.data
+        payment: payment.data,
       };
     } catch (error) {
       console.error("Lỗi khi lấy thông tin vé và thanh toán:", error);
@@ -215,24 +213,21 @@ export const ticketApi = {
     }
   },
 
-  // Lấy thông tin nhiều vé kèm payment
   getTicketsWithPayment: async (ticketIds) => {
     try {
       const tickets = await Promise.all(
-        ticketIds.map(id => axiosInstance.get(`/tickets/${id}`))
+        ticketIds.map((id) => axiosInstance.get(`/tickets/${id}`))
       );
-      
-      // Lấy payment từ ticket đầu tiên
-      const payment = await axiosInstance.get(`/payments/ticket/${ticketIds[0]}`);
-      
+      const payment = await axiosInstance.get(
+        `/payments/ticket/${ticketIds[0]}`
+      );
       return {
-        tickets: tickets.map(response => response.data),
-        payment: payment.data
+        tickets: tickets.map((response) => response.data),
+        payment: payment.data,
       };
     } catch (error) {
       console.error("Lỗi khi lấy thông tin vé và thanh toán:", error);
       throw error;
     }
-  }
+  },
 };
-

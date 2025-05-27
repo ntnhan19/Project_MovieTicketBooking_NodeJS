@@ -58,10 +58,10 @@
     @apply mb-0;
   }
   .custom-movie-tabs > .ant-tabs-nav .ant-tabs-tab {
-    @apply rounded-xl bg-white/90 backdrop-blur-sm shadow-sm border-none mx-1 transition-all duration-300 dark:bg-gray-800;
+    @apply bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl mx-2 transition-all duration-300;
   }
   .custom-movie-tabs > .ant-tabs-nav .ant-tabs-tab-active {
-    @apply bg-white shadow-lg border-none dark:bg-gray-700;
+    @apply bg-gradient-to-r from-red-500 to-red-700 text-white shadow-lg rounded-t-xl;
   }
   .custom-movie-tabs > .ant-tabs-nav .ant-tabs-ink-bar {
     @apply hidden;
@@ -649,82 +649,82 @@
 
   /* Điều chỉnh pagination với viền đỏ chỉ cho số và arrow */
   /* Điều chỉnh pagination */
-.ticket-history-card .ant-pagination {
-  border: none !important;
-  padding: 0 !important;
-}
+  .ticket-history-card .ant-pagination {
+    border: none !important;
+    padding: 0 !important;
+  }
 
-/* Style cho các số trong pagination */
-.ticket-history-card .ant-pagination-item {
-  border: none !important; /* Loại bỏ viền đỏ */
-  background: transparent !important;
-  color: #000000 !important; /* Màu đen trong light mode */
-  border-radius: 4px !important;
-  margin: 0 2px !important;
-  transition: background 0.3s, color 0.3s !important;
-}
+  /* Style cho các số trong pagination */
+  .ticket-history-card .ant-pagination-item {
+    border: none !important; /* Loại bỏ viền đỏ */
+    background: transparent !important;
+    color: #000000 !important; /* Màu đen trong light mode */
+    border-radius: 4px !important;
+    margin: 0 2px !important;
+    transition: background 0.3s, color 0.3s !important;
+  }
 
-/* Dark mode: Màu trắng cho text */
-[data-theme="dark"] .ticket-history-card .ant-pagination-item {
-  color: #ffffff !important; /* Màu trắng trong dark mode */
-}
+  /* Dark mode: Màu trắng cho text */
+  [data-theme="dark"] .ticket-history-card .ant-pagination-item {
+    color: #ffffff !important; /* Màu trắng trong dark mode */
+  }
 
-/* Hover cho số */
-.ticket-history-card .ant-pagination-item:hover {
-  background: #ef4444 !important; /* red-500 */
-  color: #ffffff !important; /* Màu trắng khi hover */
-}
+  /* Hover cho số */
+  .ticket-history-card .ant-pagination-item:hover {
+    background: #ef4444 !important; /* red-500 */
+    color: #ffffff !important; /* Màu trắng khi hover */
+  }
 
-/* Dark mode: Hover */
-[data-theme="dark"] .ticket-history-card .ant-pagination-item:hover {
-  background: #f87171 !important; /* red-400 */
-  color: #ffffff !important;
-}
+  /* Dark mode: Hover */
+  [data-theme="dark"] .ticket-history-card .ant-pagination-item:hover {
+    background: #f87171 !important; /* red-400 */
+    color: #ffffff !important;
+  }
 
-/* Số đang active */
-.ticket-history-card .ant-pagination-item-active {
-  background: #ef4444 !important; /* red-500 */
-  color: #ffffff !important;
-  border: none !important; /* Loại bỏ viền đỏ */
-}
+  /* Số đang active */
+  .ticket-history-card .ant-pagination-item-active {
+    background: #ef4444 !important; /* red-500 */
+    color: #ffffff !important;
+    border: none !important; /* Loại bỏ viền đỏ */
+  }
 
-/* Dark mode: Số active */
-[data-theme="dark"] .ticket-history-card .ant-pagination-item-active {
-  background: #f87171 !important; /* red-400 */
-  color: #ffffff !important;
-}
+  /* Dark mode: Số active */
+  [data-theme="dark"] .ticket-history-card .ant-pagination-item-active {
+    background: #f87171 !important; /* red-400 */
+    color: #ffffff !important;
+  }
 
-/* Style cho nút Prev và Next */
-.ticket-history-card .ant-pagination-prev,
-.ticket-history-card .ant-pagination-next {
-  color: #000000 !important; /* Màu đen trong light mode */
-  background: transparent !important;
-  border: none !important; /* Loại bỏ viền đỏ */
-  border-radius: 4px !important;
-  padding: 0 8px !important;
-  transition: background 0.3s, color 0.3s !important;
-}
+  /* Style cho nút Prev và Next */
+  .ticket-history-card .ant-pagination-prev,
+  .ticket-history-card .ant-pagination-next {
+    color: #000000 !important; /* Màu đen trong light mode */
+    background: transparent !important;
+    border: none !important; /* Loại bỏ viền đỏ */
+    border-radius: 4px !important;
+    padding: 0 8px !important;
+    transition: background 0.3s, color 0.3s !important;
+  }
 
-/* Dark mode: Prev và Next */
-[data-theme="dark"] .ticket-history-card .ant-pagination-prev,
-[data-theme="dark"] .ticket-history-card .ant-pagination-next {
-  color: #ffffff !important; /* Màu trắng trong dark mode */
-  background: transparent !important;
-}
+  /* Dark mode: Prev và Next */
+  [data-theme="dark"] .ticket-history-card .ant-pagination-prev,
+  [data-theme="dark"] .ticket-history-card .ant-pagination-next {
+    color: #ffffff !important; /* Màu trắng trong dark mode */
+    background: transparent !important;
+  }
 
-/* Hover cho Prev và Next */
-.ticket-history-card .ant-pagination-prev:hover,
-.ticket-history-card .ant-pagination-next:hover {
-  color: #ffffff !important;
-  background: #ef4444 !important; /* red-500 */
-}
+  /* Hover cho Prev và Next */
+  .ticket-history-card .ant-pagination-prev:hover,
+  .ticket-history-card .ant-pagination-next:hover {
+    color: #ffffff !important;
+    background: #ef4444 !important; /* red-500 */
+  }
 
-/* Dark mode: Hover cho Prev và Next */
-[data-theme="dark"] .ticket-history-card .ant-pagination-prev:hover,
-[data-theme="dark"] .ticket-history-card .ant-pagination-next:hover {
-  background: #f87171 !important; /* red-400 */
-  color: #ffffff !important;
-}
+  /* Dark mode: Hover cho Prev và Next */
+  [data-theme="dark"] .ticket-history-card .ant-pagination-prev:hover,
+  [data-theme="dark"] .ticket-history-card .ant-pagination-next:hover {
+    background: #f87171 !important; /* red-400 */
+    color: #ffffff !important;
+  }
 
   /* Khôi phục màu card gốc, không làm sáng */
   .ticket-history-card.ant-card {
@@ -802,6 +802,26 @@
 
   [data-theme="light"] .compact-header {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .sticky-col {
+    @apply sticky top-0 z-10; /* Đặt vị trí sticky và giữ trên cùng */
+    max-height: calc(
+      100vh - 100px
+    ); /* Giới hạn chiều cao để tránh che khuất footer (có thể điều chỉnh) */
+    overflow-y: auto; /* Cho phép cuộn nội dung bên trong nếu quá dài */
+  }
+
+  .booking-page-container {
+    @apply min-h-screen w-full mx-auto;
+  }
+
+  .price-text {
+    color: #ffffff !important;
+    background: linear-gradient(90deg, #e71a0f, #dc2626);
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-weight: bold;
   }
 }
 

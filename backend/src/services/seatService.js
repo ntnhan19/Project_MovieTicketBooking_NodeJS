@@ -1,124 +1,168 @@
-// backend/src/services/seatService.js
-const prisma = require('../../prisma/prisma');
+const prisma = require("../../prisma/prisma");
 
 // Lấy tất cả ghế của một suất chiếu
 const getSeatsByShowtime = async (showtimeId) => {
   return await prisma.seat.findMany({
     where: { showtimeId },
-    orderBy: [
-      { row: 'asc' },
-      { column: 'asc' }
-    ]
+    orderBy: [{ row: "asc" }, { column: "asc" }],
+    select: {
+      id: true,
+      row: true,
+      column: true,
+      status: true,
+      type: true,
+      showtimeId: true,
+      lockedBy: true,
+      lockedAt: true,
+    },
   });
 };
 
 // Cập nhật thông tin ghế
 const updateSeat = async (id, { status, type }) => {
   const seat = await prisma.seat.findUnique({
-    where: { id }
+    where: { id },
   });
 
   if (!seat) {
-    throw new Error('Seat not found');
+    throw new Error("Seat not found");
   }
 
   return await prisma.seat.update({
     where: { id },
     data: {
       status: status || seat.status,
-      type: type || seat.type
-    }
-  });
-};
-
-// Khóa nhiều ghế tạm thời
-const lockMultipleSeats = async (seatIds, userId) => {
-  const seats = await prisma.seat.findMany({
-    where: {
-      id: { in: seatIds }
-    }
-  });
-
-  const notAvailableSeats = seats.filter(seat => seat.status !== 'AVAILABLE');
-  if (notAvailableSeats.length > 0) {
-    throw new Error('Some seats are not available');
-  }
-
-  await prisma.seat.updateMany({
-    where: {
-      id: { in: seatIds }
+      type: type || seat.type,
     },
-    data: {
-      status: 'LOCKED',
-      // lockedBy: userId,
-      // lockedAt: new Date()
-    }
   });
-
-  return { message: 'Seats locked successfully', seatIds };
 };
 
-// Mở khóa một ghế nếu nó đang bị khóa
-const unlockSeatIfLocked = async (seatId) => {
+// Thêm hàm gia hạn khóa ghế
+const renewSeatLock = async (seatId, userId) => {
   const seat = await prisma.seat.findUnique({
-    where: { id: seatId }
+    where: { id: seatId },
   });
 
   if (!seat) {
-    throw new Error('Seat not found');
+    throw new Error("Seat not found");
   }
 
-  if (seat.status === 'LOCKED') {
+  if (seat.status !== "LOCKED" || seat.lockedBy !== userId) {
+    throw new Error("Seat is not locked by you or not locked");
+  }
+
+  // Gia hạn khóa thêm 5 phút
+  await prisma.seat.update({
+    where: { id: seatId },
+    data: {
+      lockedAt: new Date(),
+    },
+  });
+
+  return { message: "Seat lock renewed successfully", seatId };
+};
+
+// Khóa nhiều ghế tạm thời hoặc gia hạn khóa ghế
+const lockMultipleSeats = async (seatIds, userId) => {
+  return await prisma.$transaction(async (tx) => {
+    const seats = await tx.seat.findMany({
+      where: { id: { in: seatIds } },
+    });
+
+    const notAvailableSeats = seats.filter(
+      (seat) =>
+        seat.status === "BOOKED" ||
+        (seat.status === "LOCKED" && seat.lockedBy !== userId)
+    );
+    if (notAvailableSeats.length > 0) {
+      throw new Error(
+        `Seats ${notAvailableSeats
+          .map((s) => `${s.row}${s.column}`)
+          .join(", ")} are not available or locked by another user`
+      );
+    }
+
+    if (seats.length !== seatIds.length) {
+      throw new Error("Some seats were not found");
+    }
+
+    const lockedAt = new Date();
+    await tx.seat.updateMany({
+      where: { id: { in: seatIds } },
+      data: {
+        status: "LOCKED",
+        lockedBy: userId,
+        lockedAt: lockedAt,
+      },
+    });
+
+    return {
+      message: "Seats locked successfully",
+      seatIds,
+      lockedAt,
+    };
+  });
+};
+
+// Mở khóa một ghế nếu nó đang bị khóa
+const unlockSeatIfLocked = async (seatId, userId) => {
+  const seat = await prisma.seat.findUnique({
+    where: { id: seatId },
+  });
+
+  if (!seat) {
+    throw new Error("Seat not found");
+  }
+
+  // Kiểm tra thời gian khóa (5 phút = 300000ms)
+  const lockExpirationTime = new Date(Date.now() - 5 * 60 * 1000);
+  if (
+    seat.status === "LOCKED" &&
+    (seat.lockedBy === userId || seat.lockedAt < lockExpirationTime)
+  ) {
     return await prisma.seat.update({
       where: { id: seatId },
       data: {
-        status: 'AVAILABLE',
-        // lockedBy: null,
-        // lockedAt: null
-      }
+        status: "AVAILABLE",
+        lockedBy: null,
+        lockedAt: null,
+      },
     });
   }
 
-  return seat; // Trả về seat hiện tại nếu không cần unlock
+  return seat;
 };
 
 // Mở khóa nhiều ghế
-const unlockMultipleSeats = async (seatIds) => {
-  // Truy vấn tất cả ghế được yêu cầu
+const unlockMultipleSeats = async (seatIds, userId) => {
   const seats = await prisma.seat.findMany({
-    where: {
-      id: { in: seatIds }
-    }
+    where: { id: { in: seatIds } },
   });
 
-  // Lọc ra các ghế đang trong trạng thái LOCKED
-  const lockedSeats = seats.filter(seat => seat.status === 'LOCKED');
-  
-  // Nếu không có ghế nào đang được khóa, trả về kết quả thành công mà không cần ném lỗi
+  const lockExpirationTime = new Date(Date.now() - 5 * 60 * 1000);
+  const lockedSeats = seats.filter(
+    (seat) =>
+      seat.status === "LOCKED" &&
+      (seat.lockedBy === userId || seat.lockedAt < lockExpirationTime)
+  );
+
   if (lockedSeats.length === 0) {
-    return { 
-      message: 'No locked seats to unlock', 
-      seatIds: [] 
-    };
+    return { message: "No locked seats to unlock", seatIds: [] };
   }
 
-  // Chỉ mở khóa những ghế thực sự đang bị khóa
-  const lockedSeatIds = lockedSeats.map(seat => seat.id);
+  const lockedSeatIds = lockedSeats.map((seat) => seat.id);
   await prisma.seat.updateMany({
-    where: {
-      id: { in: lockedSeatIds },
-      status: 'LOCKED'
-    },
+    where: { id: { in: lockedSeatIds }, status: "LOCKED" },
     data: {
-      status: 'AVAILABLE',
-      // lockedBy: null,
-      // lockedAt: null
-    }
+      status: "AVAILABLE",
+      lockedBy: null,
+      lockedAt: null,
+    },
   });
 
-  return { 
-    message: 'Seats unlocked successfully', 
-    seatIds: lockedSeatIds 
+  return {
+    message: "Seats unlocked successfully",
+    seatIds: lockedSeatIds,
   };
 };
 
@@ -132,62 +176,69 @@ const getSeatById = async (id) => {
           movie: true,
           hall: {
             include: {
-              cinema: true
-            }
-          }
-        }
-      }
-    }
+              cinema: true,
+            },
+          },
+        },
+      },
+    },
   });
 };
 
 // Lấy layout ghế theo phòng
 const getSeatLayoutByHall = async (hallId) => {
   const hall = await prisma.hall.findUnique({
-    where: { id: hallId }
+    where: { id: hallId },
   });
 
   if (!hall) {
-    throw new Error('Hall not found');
+    throw new Error("Hall not found");
   }
 
-  // Trả về cấu trúc layout ghế của phòng này
   return {
     hallId,
     name: hall.name,
     rows: hall.rows,
     columns: hall.columns,
-    totalSeats: hall.totalSeats
+    totalSeats: hall.totalSeats,
   };
 };
 
-// Tạo ghế cho suất chiếu - Có thể giữ nguyên trong showtimeService
+// Tạo ghế cho suất chiếu
 const generateSeats = async (showtimeId, hall) => {
+  const showtime = await prisma.showtime.findUnique({
+    where: { id: showtimeId },
+    select: { price: true },
+  });
+
+  if (!showtime) {
+    throw new Error("Showtime not found");
+  }
+
+  const basePrice = showtime.price || 0;
+  const priceMultiplier = { STANDARD: 1, VIP: 1.5, COUPLE: 2 };
+
   const seats = [];
   for (let r = 0; r < hall.rows; r++) {
-    const rowLetter = String.fromCharCode(65 + r); // A, B, C, ...
+    const rowLetter = String.fromCharCode(65 + r);
     for (let c = 1; c <= hall.columns; c++) {
-      // Có thể xác định loại ghế (VIP, COUPLE) dựa trên vị trí
-      let seatType = 'STANDARD';
-      
-      // Ví dụ: hàng giữa là ghế VIP
+      let seatType = "STANDARD";
       const middleRowStart = Math.floor(hall.rows / 4);
-      const middleRowEnd = Math.floor(hall.rows * 3 / 4);
+      const middleRowEnd = Math.floor((hall.rows * 3) / 4);
       if (r >= middleRowStart && r <= middleRowEnd) {
-        seatType = 'VIP';
+        seatType = "VIP";
       }
-      
-      // Ví dụ: hàng cuối là ghế đôi (COUPLE)
       if (r === hall.rows - 1) {
-        seatType = 'COUPLE';
+        seatType = "COUPLE";
       }
-      
+      const multiplier = priceMultiplier[seatType] || 1;
       seats.push({
         showtimeId,
         row: rowLetter,
         column: c.toString(),
-        status: 'AVAILABLE',
-        type: seatType
+        status: "AVAILABLE",
+        type: seatType,
+        price: basePrice * multiplier,
       });
     }
   }
@@ -195,13 +246,54 @@ const generateSeats = async (showtimeId, hall) => {
   return await prisma.seat.createMany({ data: seats });
 };
 
+// Dọn dẹp ghế khóa quá hạn
+const cleanupExpiredLocks = async (io) => {
+  try {
+    const lockExpirationTime = new Date(Date.now() - 5 * 60 * 1000); // 5 phút trước
+    const expiredSeats = await prisma.seat.findMany({
+      where: {
+        status: "LOCKED",
+        lockedAt: { lte: lockExpirationTime },
+      },
+    });
+
+    if (expiredSeats.length > 0) {
+      const seatIds = expiredSeats.map((seat) => seat.id);
+      await prisma.seat.updateMany({
+        where: { id: { in: seatIds }, status: "LOCKED" },
+        data: {
+          status: "AVAILABLE",
+          lockedBy: null,
+          lockedAt: null,
+        },
+      });
+
+      // Phát sự kiện WebSocket cho từng ghế được mở khóa
+      expiredSeats.forEach((seat) => {
+        io.to(`showtime:${seat.showtimeId}`).emit("seatUpdate", {
+          seatId: seat.id,
+          status: "AVAILABLE",
+          lockedBy: null,
+          triggeredBy: "system",
+        });
+      });
+
+      console.log(`Unlocked ${expiredSeats.length} expired seats`);
+    }
+  } catch (error) {
+    console.error("Error cleaning up expired seat locks:", error);
+  }
+};
+
 module.exports = {
   getSeatsByShowtime,
   updateSeat,
   lockMultipleSeats,
-  unlockMultipleSeats,
   unlockSeatIfLocked,
+  unlockMultipleSeats,
   getSeatById,
   getSeatLayoutByHall,
-  generateSeats
+  generateSeats,
+  cleanupExpiredLocks,
+  renewSeatLock
 };

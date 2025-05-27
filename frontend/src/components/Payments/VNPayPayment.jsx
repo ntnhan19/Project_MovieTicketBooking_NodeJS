@@ -8,11 +8,14 @@ import {
   Typography,
   Alert,
   Form,
-  Space,
+  message,
   Divider,
   Image,
 } from "antd";
 import { paymentApi } from "../../api/paymentApi";
+import { concessionOrderApi } from "../../api/concessionOrderApi";
+import { seatApi } from "../../api/seatApi";
+import { ticketApi } from "../../api/ticketApi";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -43,6 +46,9 @@ const VNPayPayment = ({
   const pendingTimeoutRef = useRef(null);
   const paymentChecked = useRef(false);
   const currentPaymentId = useRef(null);
+  const [userId, setUserId] = useState(
+    parseInt(sessionStorage.getItem("userId")) || null
+  );
 
   useEffect(() => {
     const cleanup = () => {
@@ -260,18 +266,53 @@ const VNPayPayment = ({
       setLoading(true);
       processingRequest.current = true;
       const result = await paymentApi.handleVNPayResult(callbackSearchParams);
-      setPaymentResult(result);
-      if (result.success) {
+      let concessionOrders = [];
+
+      if (result.payment?.concessionOrderIds?.length > 0) {
+        const orderId = result.payment.concessionOrderIds[0];
+        try {
+          const order = await concessionOrderApi.getUserOrderById(orderId);
+          concessionOrders = [
+            {
+              id: order.id,
+              items: order.items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                type: item.type,
+              })),
+              totalAmount: order.totalAmount,
+            },
+          ];
+        } catch (error) {
+          console.error("Lỗi khi lấy chi tiết đơn bắp nước:", error);
+        }
+      }
+
+      const updatedResult = {
+        ...result,
+        payment: {
+          ...result.payment,
+          concessionOrders,
+        },
+      };
+
+      setPaymentResult(updatedResult);
+      if (updatedResult.success) {
         setStatus("success");
         paymentChecked.current = true;
-        onPaymentComplete(true, result);
-      } else if (result.statusData && result.statusData.responseCode === "24") {
+        onPaymentComplete(true, updatedResult);
+      } else if (
+        updatedResult.statusData &&
+        updatedResult.statusData.responseCode === "24"
+      ) {
         setStatus("error");
         setError("Bạn đã hủy giao dịch thanh toán");
         paymentChecked.current = true;
-        onPaymentComplete(false, result);
-      } else if (result.pendingSync) {
-        const paymentId = result.paymentId || currentPaymentId.current;
+        onPaymentComplete(false, updatedResult);
+      } else if (updatedResult.pendingSync) {
+        const paymentId = updatedResult.paymentId || currentPaymentId.current;
         if (paymentId) {
           setRetryCount(0);
           processingRequest.current = false;
@@ -281,13 +322,13 @@ const VNPayPayment = ({
         } else {
           setStatus("error");
           setError("Không thể xác định trạng thái thanh toán");
-          onPaymentComplete(false, result);
+          onPaymentComplete(false, updatedResult);
         }
       } else {
         setStatus("error");
-        setError(result.message || "Thanh toán thất bại");
+        setError(updatedResult.message || "Thanh toán thất bại");
         paymentChecked.current = true;
-        onPaymentComplete(false, result);
+        onPaymentComplete(false, updatedResult);
       }
     } catch (error) {
       const paymentId = currentPaymentId.current;
@@ -326,18 +367,81 @@ const VNPayPayment = ({
   };
 
   const handleCancel = async () => {
-    try {
-      setLoading(true);
-      let paymentId = payment?.id || currentPaymentId.current;
-      if (paymentId) {
-        await paymentApi.cancelPayment(paymentId);
-        paymentApi.clearPaymentCache();
+    const confirmCancel = window.confirm(
+      "Bạn có chắc muốn quay lại? Bạn sẽ được chuyển về chọn phương thức thanh toán khác."
+    );
+    if (!confirmCancel) return;
+
+    const seatIds = JSON.parse(
+      sessionStorage.getItem(`selectedSeats_${userId}`) || "[]"
+    ).map((seat) => seat.id);
+
+    if (seatIds.length > 0) {
+      try {
+        // Kiểm tra trạng thái ghế
+        const seats = await Promise.all(
+          seatIds.map((seatId) => seatApi.getSeatById(seatId))
+        );
+        const unavailableSeats = seats.filter(
+          (seat) =>
+            seat.status === "BOOKED" ||
+            (seat.status === "LOCKED" && seat.lockedBy !== userId)
+        );
+
+        if (unavailableSeats.length > 0) {
+          // Kiểm tra vé PENDING liên quan đến ghế
+          const ticketIdsToCancel = [];
+          for (const seat of unavailableSeats) {
+            try {
+              const ticket = await ticketApi.getTicketBySeatId(seat.id, userId);
+              if (ticket && ticket.status === "PENDING" && ticket.userId === userId) {
+                ticketIdsToCancel.push(ticket.id);
+              }
+            } catch (error) {
+              console.warn(`Không tìm thấy vé cho ghế ${seat.id}:`, error);
+              // Bỏ qua nếu không tìm thấy vé
+            }
+          }
+
+          if (ticketIdsToCancel.length > 0) {
+            await ticketApi.updateTicketsStatus(ticketIdsToCancel, "CANCELLED");
+            await seatApi.unlockSeats(seatIds);
+          }
+
+          sessionStorage.removeItem(`selectedSeats_${userId}`);
+          sessionStorage.removeItem(`seatLockTime_${userId}`);
+          sessionStorage.removeItem(`ticketIds_${userId}`);
+          message.error(
+            "Một số ghế không còn khả dụng. Vui lòng chọn lại ghế."
+          );
+          onBack();
+          return;
+        }
+
+        // Gia hạn khóa ghế
+        await Promise.all(
+          seatIds.map((seatId) => seatApi.renewSeatLock(seatId))
+        );
+        sessionStorage.setItem(`seatLockTime_${userId}`, Date.now().toString());
+      } catch (error) {
+        console.error("Lỗi gia hạn khóa ghế:", error);
+        try {
+          await seatApi.unlockSeats(seatIds);
+        } catch (unlockError) {
+          console.error("Lỗi mở khóa ghế:", unlockError);
+        }
+        sessionStorage.removeItem(`selectedSeats_${userId}`);
+        sessionStorage.removeItem(`seatLockTime_${userId}`);
+        sessionStorage.removeItem(`ticketIds_${userId}`);
+        message.error(
+          "Không thể gia hạn thời gian giữ ghế. Vui lòng chọn lại."
+        );
+        onBack();
+        return;
       }
-      onBack();
-    } catch {
-      setError("Không thể hủy thanh toán");
-      setLoading(false);
     }
+
+    onBack();
   };
 
   const startVNPayPayment = async () => {
@@ -348,17 +452,19 @@ const VNPayPayment = ({
         setLoading(false);
         return;
       }
-      if (payment && payment.paymentUrl) {
+      if (payment.paymentUrl) {
         currentPaymentId.current = payment.id;
         window.location.href = payment.paymentUrl;
         return;
       }
+      const concessionOrderId = localStorage.getItem("concessionOrderId");
       const paymentData = {
         ticketIds:
           payment.ticketIds ||
           (Array.isArray(payment.ticketId)
             ? payment.ticketId
             : [payment.ticketId]),
+        concessionOrderIds: concessionOrderId ? [concessionOrderId] : [],
         method: "VNPAY",
       };
       const result = await paymentApi.processPayment(paymentData);
@@ -370,7 +476,14 @@ const VNPayPayment = ({
       }
     } catch (error) {
       setStatus("error");
-      setError(error.message || "Không thể bắt đầu quá trình thanh toán VNPay");
+      let errorMessage = "Không thể bắt đầu quá trình thanh toán VNPay";
+      if (error.response?.status === 409) {
+        errorMessage = "Thanh toán đã tồn tại. Vui lòng kiểm tra lại.";
+      } else if (error.response?.status === 400) {
+        errorMessage =
+          error.response?.data?.message || "Dữ liệu thanh toán không hợp lệ";
+      }
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -379,7 +492,9 @@ const VNPayPayment = ({
     return (
       <Card
         className={`p-8 content-card shadow-md border ${
-          theme === "dark" ? "border-gray-600 bg-gray-800" : "border-border-light bg-white"
+          theme === "dark"
+            ? "border-gray-600 bg-gray-800"
+            : "border-border-light bg-white"
         }`}
       >
         <div className="flex flex-col items-center justify-center py-8">
@@ -420,7 +535,9 @@ const VNPayPayment = ({
     return (
       <Card
         className={`p-8 content-card shadow-md border ${
-          theme === "dark" ? "border-gray-600 bg-gray-800" : "border-border-light bg-white"
+          theme === "dark"
+            ? "border-gray-600 bg-gray-800"
+            : "border-border-light bg-white"
         }`}
       >
         <Result
@@ -450,7 +567,9 @@ const VNPayPayment = ({
             <Title
               level={5}
               className={`mb-3 ${
-                theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                theme === "dark"
+                  ? "text-dark-text-primary"
+                  : "text-text-primary"
               }`}
             >
               Chi tiết giao dịch
@@ -530,7 +649,9 @@ const VNPayPayment = ({
     return (
       <Card
         className={`p-8 content-card shadow-md border ${
-          theme === "dark" ? "border-gray-600 bg-gray-800" : "border-border-light bg-white"
+          theme === "dark"
+            ? "border-gray-600 bg-gray-800"
+            : "border-border-light bg-white"
         }`}
       >
         <Result
@@ -552,6 +673,37 @@ const VNPayPayment = ({
       </Card>
     );
   }
+
+  const calculateTicketTotal = (tickets) => {
+    let ticketTotal = 0;
+    if (tickets && Array.isArray(tickets)) {
+      tickets.forEach((ticket) => {
+        let amount = ticket.price || 0;
+        if (ticket.promotion) {
+          if (ticket.promotion.type === "PERCENTAGE") {
+            amount = amount * (1 - ticket.promotion.discount / 100);
+          } else if (ticket.promotion.type === "FIXED") {
+            amount = Math.max(0, amount - ticket.promotion.discount);
+          }
+        }
+        ticketTotal += Math.max(0, amount);
+      });
+    }
+    return Math.round(ticketTotal * 100) / 100;
+  };
+
+  const calculateConcessionTotal = (concessionOrders) => {
+    let concessionTotal = 0;
+    if (concessionOrders && Array.isArray(concessionOrders)) {
+      concessionOrders.forEach((order) => {
+        concessionTotal += order.totalAmount || 0;
+      });
+    }
+    return Math.round(concessionTotal * 100) / 100;
+  };
+
+  const ticketTotal = calculateTicketTotal(payment?.tickets);
+  const concessionTotal = calculateConcessionTotal(payment?.concessionOrders);
 
   return (
     <div
@@ -584,7 +736,9 @@ const VNPayPayment = ({
       >
         <Card
           className={`content-card p-6 mb-6 shadow-md border ${
-            theme === "dark" ? "border-gray-600 bg-gray-800" : "border-border-light bg-white"
+            theme === "dark"
+              ? "border-gray-600 bg-gray-800"
+              : "border-border-light bg-white"
           }`}
         >
           <div className="w-full">
@@ -606,14 +760,18 @@ const VNPayPayment = ({
                 <div className="flex-grow">
                   <Text
                     className={`font-medium text-base mb-1 ${
-                      theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                      theme === "dark"
+                        ? "text-dark-text-primary"
+                        : "text-text-primary"
                     }`}
                   >
                     VNPay
                   </Text>
                   <Text
                     className={`text-sm ${
-                      theme === "dark" ? "text-dark-text-secondary" : "text-gray-500"
+                      theme === "dark"
+                        ? "text-dark-text-secondary"
+                        : "text-gray-500"
                     }`}
                   >
                     Thanh toán an toàn qua cổng VNPay
@@ -642,7 +800,9 @@ const VNPayPayment = ({
                 <Title
                   level={5}
                   className={`mb-2 ${
-                    theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                    theme === "dark"
+                      ? "text-dark-text-primary"
+                      : "text-text-primary"
                   }`}
                 >
                   Thông tin thanh toán
@@ -651,13 +811,17 @@ const VNPayPayment = ({
                   <div>
                     <Text
                       type="secondary"
-                      className={theme === "dark" ? "text-dark-text-secondary" : ""}
+                      className={
+                        theme === "dark" ? "text-dark-text-secondary" : ""
+                      }
                     >
                       Mã thanh toán:
                     </Text>{" "}
                     <Text
                       strong
-                      className={theme === "dark" ? "text-dark-text-primary" : ""}
+                      className={
+                        theme === "dark" ? "text-dark-text-primary" : ""
+                      }
                     >
                       {payment.id}
                     </Text>
@@ -665,13 +829,53 @@ const VNPayPayment = ({
                   <div>
                     <Text
                       type="secondary"
-                      className={theme === "dark" ? "text-dark-text-secondary" : ""}
+                      className={
+                        theme === "dark" ? "text-dark-text-secondary" : ""
+                      }
                     >
-                      Số tiền:
+                      Tiền ghế:
                     </Text>{" "}
                     <Text
                       strong
-                      className={theme === "dark" ? "text-dark-text-primary" : ""}
+                      className={
+                        theme === "dark" ? "text-dark-text-primary" : ""
+                      }
+                    >
+                      {ticketTotal.toLocaleString("vi-VN")} VNĐ
+                    </Text>
+                  </div>
+                  <div>
+                    <Text
+                      type="secondary"
+                      className={
+                        theme === "dark" ? "text-dark-text-secondary" : ""
+                      }
+                    >
+                      Tiền bắp nước:
+                    </Text>{" "}
+                    <Text
+                      strong
+                      className={
+                        theme === "dark" ? "text-dark-text-primary" : ""
+                      }
+                    >
+                      {concessionTotal.toLocaleString("vi-VN")} VNĐ
+                    </Text>
+                  </div>
+                  <div>
+                    <Text
+                      type="secondary"
+                      className={
+                        theme === "dark" ? "text-dark-text-secondary" : ""
+                      }
+                    >
+                      Tổng số tiền:
+                    </Text>{" "}
+                    <Text
+                      strong
+                      className={
+                        theme === "dark" ? "text-dark-text-primary" : ""
+                      }
                     >
                       {payment.amount?.toLocaleString("vi-VN")} VNĐ
                     </Text>
@@ -680,13 +884,17 @@ const VNPayPayment = ({
                     <div className="col-span-2">
                       <Text
                         type="secondary"
-                        className={theme === "dark" ? "text-dark-text-secondary" : ""}
+                        className={
+                          theme === "dark" ? "text-dark-text-secondary" : ""
+                        }
                       >
                         Nội dung:
                       </Text>{" "}
                       <Text
                         strong
-                        className={theme === "dark" ? "text-dark-text-primary" : ""}
+                        className={
+                          theme === "dark" ? "text-dark-text-primary" : ""
+                        }
                       >
                         {payment.description}
                       </Text>
@@ -700,7 +908,9 @@ const VNPayPayment = ({
               <Title
                 level={5}
                 className={`mb-2 ${
-                  theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                  theme === "dark"
+                    ? "text-dark-text-primary"
+                    : "text-text-primary"
                 }`}
               >
                 Các bước thanh toán:
@@ -708,13 +918,23 @@ const VNPayPayment = ({
               <div className="mb-2 flex items-start">
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${
-                    theme === "dark" ? "bg-blue-400 text-dark-bg" : "bg-blue-600 text-white"
+                    theme === "dark"
+                      ? "bg-blue-400 text-dark-bg"
+                      : "bg-blue-600 text-white"
                   }`}
                 >
-                  <Text className={theme === "dark" ? "text-dark-bg" : "text-white"}>1</Text>
+                  <Text
+                    className={theme === "dark" ? "text-dark-bg" : "text-white"}
+                  >
+                    1
+                  </Text>
                 </div>
                 <Text
-                  className={theme === "dark" ? "text-dark-text-primary" : "text-text-primary"}
+                  className={
+                    theme === "dark"
+                      ? "text-dark-text-primary"
+                      : "text-text-primary"
+                  }
                 >
                   Nhấn "Tiếp tục thanh toán" để chuyển đến cổng VNPay
                 </Text>
@@ -722,13 +942,23 @@ const VNPayPayment = ({
               <div className="mb-2 flex items-start">
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${
-                    theme === "dark" ? "bg-blue-400 text-dark-bg" : "bg-blue-600 text-white"
+                    theme === "dark"
+                      ? "bg-blue-400 text-dark-bg"
+                      : "bg-blue-600 text-white"
                   }`}
                 >
-                  <Text className={theme === "dark" ? "text-dark-bg" : "text-white"}>2</Text>
+                  <Text
+                    className={theme === "dark" ? "text-dark-bg" : "text-white"}
+                  >
+                    2
+                  </Text>
                 </div>
                 <Text
-                  className={theme === "dark" ? "text-dark-text-primary" : "text-text-primary"}
+                  className={
+                    theme === "dark"
+                      ? "text-dark-text-primary"
+                      : "text-text-primary"
+                  }
                 >
                   Chọn phương thức thanh toán trên cổng VNPay
                 </Text>
@@ -736,13 +966,23 @@ const VNPayPayment = ({
               <div className="mb-2 flex items-start">
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${
-                    theme === "dark" ? "bg-blue-400 text-dark-bg" : "bg-blue-600 text-white"
+                    theme === "dark"
+                      ? "bg-blue-400 text-dark-bg"
+                      : "bg-blue-600 text-white"
                   }`}
                 >
-                  <Text className={theme === "dark" ? "text-dark-bg" : "text-white"}>3</Text>
+                  <Text
+                    className={theme === "dark" ? "text-dark-bg" : "text-white"}
+                  >
+                    3
+                  </Text>
                 </div>
                 <Text
-                  className={theme === "dark" ? "text-dark-text-primary" : "text-text-primary"}
+                  className={
+                    theme === "dark"
+                      ? "text-dark-text-primary"
+                      : "text-text-primary"
+                  }
                 >
                   Hoàn tất giao dịch và quay lại trang web
                 </Text>
@@ -758,6 +998,7 @@ const VNPayPayment = ({
                 ? "border-gray-600 text-dark-text-primary hover:bg-gray-700"
                 : "border-gray-300 text-text-primary hover:bg-gray-100"
             }`}
+            loading={loading}
           >
             Quay lại
           </Button>

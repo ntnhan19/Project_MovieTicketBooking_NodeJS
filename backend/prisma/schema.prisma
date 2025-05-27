@@ -88,6 +88,8 @@ model Seat {
   column     String
   status     SeatStatus
   type       SeatType   @default(STANDARD)
+  lockedBy   Int?       // ID của người dùng khóa ghế
+  lockedAt   DateTime?  // Thời điểm khóa ghế
   showtime   Showtime   @relation(fields: [showtimeId], references: [id])
   tickets    Ticket[]
 }
@@ -98,9 +100,10 @@ model Ticket {
   showtimeId       Int
   seatId           Int
   price            Float
-  status           String
+  status           TicketStatus      @default(PENDING)
   promotionId      Int?
   paymentId        Int?
+  qrCode           String?
   concessionOrders ConcessionOrder[]
   payment          Payment?          @relation(fields: [paymentId], references: [id])
   promotion        Promotion?        @relation(fields: [promotionId], references: [id])
@@ -209,6 +212,7 @@ model ConcessionOrder {
   orderType   OrderType             @default(STANDALONE) // Thêm trường này
   totalAmount Float
   paymentId   Int?
+  qrCode      String?
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @default(now()) @updatedAt
   payment     Payment?              @relation(fields: [paymentId], references: [id])
@@ -256,8 +260,6 @@ enum PaymentMethod {
 enum OrderStatus {
   PENDING
   PAID
-  PREPARING
-  READY
   COMPLETED
   CANCELLED
 }
@@ -282,4 +284,11 @@ enum SeatType {
 enum PromoType {
   PERCENTAGE
   FIXED
+}
+
+enum TicketStatus {
+  PENDING
+  CONFIRMED
+  USED
+  CANCELLED
 }

@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { BookingProvider } from "./context/BookingContext";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { App as AntApp } from "antd"; // Import App từ Ant Design
 
 // Pages
 import HomePage from "./pages/HomePage";
@@ -33,75 +34,77 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <BookingProvider>
-          <div className="app-container min-h-screen flex flex-col">
-            <AppHeader className="fixed top-0 left-0 right-0 z-50" />
-            <main className="main-content-wrapper flex-grow">
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<HomePage />} />
-                <Route path="/movies" element={<MoviePage />} />
-                <Route path="/movies/:id" element={<MovieDetailPage />} />
-                <Route path="/promotions" element={<PromotionPage />} />
-                <Route path="/promotions/:id" element={<PromotionDetails />} />
-                <Route path="/concessions" element={<ConcessionPage />} />
-                <Route path="/concessions/:id" element={<ConcessionPage />} />
-                <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-                <Route path="/unauthorized" element={<UnauthorizedPage />} />
-                <Route path="/verify-email/:token" element={<EmailVerificationPage />} />
+          <AntApp> {/* Bọc toàn bộ ứng dụng bằng AntApp */}
+            <div className="app-container min-h-screen flex flex-col">
+              <AppHeader className="fixed top-0 left-0 right-0 z-50" />
+              <main className="main-content-wrapper flex-grow">
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/movies" element={<MoviePage />} />
+                  <Route path="/movies/:id" element={<MovieDetailPage />} />
+                  <Route path="/promotions" element={<PromotionPage />} />
+                  <Route path="/promotions/:id" element={<PromotionDetails />} />
+                  <Route path="/concessions" element={<ConcessionPage />} />
+                  <Route path="/concessions/:id" element={<ConcessionPage />} />
+                  <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+                  <Route path="/unauthorized" element={<UnauthorizedPage />} />
+                  <Route path="/verify-email/:token" element={<EmailVerificationPage />} />
 
-                {/* Protected Routes */}
-                <Route
-                  path="/booking"
-                  element={
-                    <PrivateRoute>
-                      <BookingPage />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/booking/seats/:showtimeId"
-                  element={
-                    <PrivateRoute>
-                      <SeatSelectionPage />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/booking/payment"
-                  element={
-                    <PrivateRoute>
-                      <PaymentPage />
-                    </PrivateRoute>
-                  }
-                />
+                  {/* Protected Routes */}
+                  <Route
+                    path="/booking"
+                    element={
+                      <PrivateRoute>
+                        <BookingPage />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/booking/seats/:showtimeId"
+                    element={
+                      <PrivateRoute>
+                        <SeatSelectionPage />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/booking/payment"
+                    element={
+                      <PrivateRoute>
+                        <PaymentPage />
+                      </PrivateRoute>
+                    }
+                  />
 
-                {/* User Routes */}
-                <Route
-                  path="/user/profile"
-                  element={
-                    <PrivateRoute>
-                      <UserProfilePage />
-                    </PrivateRoute>
-                  }
-                />
+                  {/* User Routes */}
+                  <Route
+                    path="/user/profile"
+                    element={
+                      <PrivateRoute>
+                        <UserProfilePage />
+                      </PrivateRoute>
+                    }
+                  />
 
-                {/* Admin Routes */}
-                <Route
-                  path="/admin/*"
-                  element={
-                    <PrivateRoute allowedRoles={["admin"]}>
-                      <Navigate to="http://localhost:3001" replace />
-                    </PrivateRoute>
-                  }
-                />
+                  {/* Admin Routes */}
+                  <Route
+                    path="/admin/*"
+                    element={
+                      <PrivateRoute allowedRoles={["admin"]}>
+                        <Navigate to="http://localhost:3001" replace />
+                      </PrivateRoute>
+                    }
+                  />
 
-                {/* Fallback Route */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </main>
-            <Footer />
-            <AuthModal />
-          </div>
+                  {/* Fallback Route */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </main>
+              <Footer />
+              <AuthModal />
+            </div>
+          </AntApp>
         </BookingProvider>
       </AuthProvider>
     </ThemeProvider>

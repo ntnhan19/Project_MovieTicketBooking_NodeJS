@@ -1,6 +1,6 @@
 // admin/src/services/ticketService.js
-import { apiUrl, httpClient, checkAuth } from './httpClient';
-import { processApiResponse, processManyResponse } from './utils';
+import { apiUrl, httpClient, checkAuth } from "./httpClient";
+import { processApiResponse, processManyResponse } from "./utils";
 
 const ticketService = {
   /**
@@ -10,14 +10,14 @@ const ticketService = {
    * @param {Object} options.sort - Thông tin sắp xếp
    * @param {Object} options.filter - Thông tin lọc (status, fromDate, toDate, searchTerm)
    * @returns {Promise<Object>} Danh sách vé và metadata
-   */    getList: async ({ pagination, sort, filter }) => {
+   */ getList: async ({ pagination, sort, filter }) => {
     try {
       const { page, perPage } = pagination || { page: 1, perPage: 10 };
       const { field, order } = sort || {};
-      
+
       const query = {
         page,
-        limit: perPage
+        limit: perPage,
       };
 
       // Thêm các điều kiện lọc
@@ -31,16 +31,18 @@ const ticketService = {
       if (field) query._sort = field;
       if (order) query._order = order;
 
-      const { json } = await httpClient(`${apiUrl}/tickets?${new URLSearchParams(query)}`);
+      const { json } = await httpClient(
+        `${apiUrl}/tickets?${new URLSearchParams(query)}`
+      );
 
       return {
         data: {
           data: json.data || [],
-          total: json.total || 0
-        }
+          total: json.total || 0,
+        },
       };
     } catch (error) {
-      console.error('Error fetching tickets:', error);
+      console.error("Error fetching tickets:", error);
       throw error;
     }
   },
@@ -55,7 +57,7 @@ const ticketService = {
 
     // Xử lý trường hợp API trả về cấu trúc { data: {...} }
     const data = json.data || json;
-    
+
     return { data };
   },
 
@@ -67,7 +69,7 @@ const ticketService = {
   getMany: async (ids) => {
     const query = ids.map((id) => `id=${id}`).join("&");
     const { json } = await httpClient(`${apiUrl}/tickets?${query}`);
-    
+
     const resultData = processManyResponse(json);
     return { data: resultData };
   },
@@ -171,7 +173,7 @@ const ticketService = {
   getTicketsByUser: async (userId, { pagination, sort, filter } = {}) => {
     const { page, perPage } = pagination || { page: 1, perPage: 10 };
     const { field, order } = sort || {};
-    
+
     const query = {
       page,
       limit: perPage,
@@ -183,7 +185,9 @@ const ticketService = {
       query._order = order;
     }
 
-    const url = `${apiUrl}/tickets/user/${userId}?${new URLSearchParams(query)}`;
+    const url = `${apiUrl}/tickets/user/${userId}?${new URLSearchParams(
+      query
+    )}`;
     const { json, headers } = await httpClient(url);
 
     return processApiResponse(json, headers);
@@ -262,7 +266,7 @@ const ticketService = {
     const query = new URLSearchParams(filter);
     const { blob } = await httpClient(`${apiUrl}/tickets/export?${query}`, {
       method: "GET",
-      responseType: 'blob',
+      responseType: "blob",
     });
 
     return blob;
@@ -295,7 +299,7 @@ const ticketService = {
     });
 
     return { data: json };
-  }
+  },
 };
 
 export default ticketService;

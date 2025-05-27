@@ -1,282 +1,261 @@
-//frontend/src/pages/BookingPage.jsx
-import React, { useState, useEffect } from "react";
-import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import {
-  Card,
-  Steps,
-  Button,
-  Row,
-  Col,
-  Typography,
-  Divider,
-  Form,
-  message,
-  Spin,
-  Space,
-  Tag,
-} from "antd";
-import {
-  ShoppingCartOutlined,
-  UserOutlined,
-  CreditCardOutlined,
-  CheckCircleOutlined,
-  ArrowLeftOutlined,
-  ArrowRightOutlined,
-} from "@ant-design/icons";
-import { movieApi } from "../api/movieApi";
-import { ticketApi } from "../api/ticketApi";
-import SeatSelection from "../components/Payments/SeatSelectionPage";
-import PaymentMethod from "./PaymentPage";
-import CustomerInfoForm from "../components/Payments/CustomerInfoForm";
+import React, { useState, useContext, useCallback } from "react";
+import { ThemeContext } from "../context/ThemeContext";
+import { Card, Row, Col, Spin, Typography, Divider, App } from "antd"; // Thêm import App
+import { HomeOutlined, VideoCameraOutlined, TagOutlined } from "@ant-design/icons";
+import QuickBookingForm from "../components/common/QuickBookingForm";
+import moment from "moment";
 
 const { Title, Text } = Typography;
 
 const BookingPage = () => {
-  const { id } = useParams();
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const { theme } = useContext(ThemeContext);
+  const { notification } = App.useApp(); // Lấy notification từ App.useApp
+  const [loading] = useState(false);
+  const [selectedData, setSelectedData] = useState({
+    movie: null,
+    cinema: null,
+    date: null,
+    showtime: null,
+  });
 
-  const cinema = searchParams.get("cinema");
-  const date = searchParams.get("date");
-  const time = searchParams.get("time");
+  const handleSelectionChange = useCallback((data) => {
+    setSelectedData({
+      movie: data.movie || null,
+      cinema: data.cinema || null,
+      date: data.date || null,
+      showtime: data.showtime || null,
+    });
+  }, []);
 
-  const [currentStep, setCurrentStep] = useState(0);
-  const [movie, setMovie] = useState(null);
-  const [selectedSeats, setSelectedSeats] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  const [paymentComplete, setPaymentComplete] = useState(false);
-  const [bookingReference, setBookingReference] = useState("");
-  const [form] = Form.useForm();
-
-  // Giá vé và phí (VND)
-  const ticketPrice = 90000;
-  const serviceFee = 10000;
-
-  useEffect(() => {
-    const fetchMovieData = async () => {
-      try {
-        setLoading(true);
-        // Kiểm tra id có tồn tại và hợp lệ không
-        if (!id) {
-          message.error("ID phim không hợp lệ!");
-          navigate("/"); // Điều hướng về trang chủ hoặc trang phim
-          return;
-        }
-
-        const movieData = await movieApi.getMovieById(id);
-        setMovie(movieData);
-      } catch (error) {
-        console.error("Không thể tải thông tin phim:", error);
-        message.error("Không thể tải thông tin phim. Vui lòng thử lại sau!");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMovieData();
-  }, [id, navigate]);
-
-  const handleSeatSelection = (seats) => {
-    setSelectedSeats(seats);
-  };
-
-  const calculateTotal = () => {
-    return selectedSeats.length * ticketPrice + serviceFee;
-  };
-
-  const handleNext = () => {
-    if (currentStep === 0 && selectedSeats.length === 0) {
-      message.warning("Vui lòng chọn ít nhất một ghế.");
-      return;
-    }
-
-    if (currentStep === 1) {
-      form
-        .validateFields()
-        .then(() => {
-          setCurrentStep(currentStep + 1);
-        })
-        .catch(() => {
-          message.error("Vui lòng điền đầy đủ thông tin");
-        });
-      return;
-    }
-
-    setCurrentStep(currentStep + 1);
-  };
-
-  const handlePrev = () => {
-    setCurrentStep(currentStep - 1);
-  };
-
-  const handlePayment = async (paymentMethod) => {
-    try {
-      setPaymentLoading(true);
-
-      // Lấy thông tin từ form
-      const userInfo = form.getFieldsValue();
-
-      // Tạo object booking
-      const bookingData = {
-        movieId: id,
-        cinema: cinema,
-        showDate: date,
-        showTime: time,
-        seats: selectedSeats,
-        customerInfo: userInfo,
-        paymentMethod: paymentMethod,
-        amount: calculateTotal(),
-      };
-
-      // Gọi API đặt vé
-      const response = await ticketApi.createBooking(bookingData);
-
-      // Lưu mã đặt vé để hiển thị
-      setBookingReference(
-        response.bookingId ||
-          response.id ||
-          "BK-" + Math.floor(Math.random() * 1000000)
-      );
-      setPaymentComplete(true);
-      message.success("Đặt vé thành công!");
-    } catch (error) {
-      console.error("Lỗi khi đặt vé:", error);
-      message.error("Đã xảy ra lỗi khi đặt vé. Vui lòng thử lại!");
-    } finally {
-      setPaymentLoading(false);
-    }
-  };
-
-  const steps = [
-    {
-      title: "Chọn ghế",
-      icon: <ShoppingCartOutlined />,
-      content: (
-        <SeatSelection
-          onSelectSeats={handleSeatSelection}
-          selectedSeats={selectedSeats}
-        />
-      ),
-    },
-    {
-      title: "Thông tin",
-      icon: <UserOutlined />,
-      content: <CustomerInfoForm form={form} />,
-    },
-    {
-      title: "Thanh toán",
-      icon: <CreditCardOutlined />,
-      content: (
-        <PaymentMethod onPayment={handlePayment} loading={paymentLoading} />
-      ),
-    },
-    {
-      title: "Hoàn tất",
-      icon: <CheckCircleOutlined />,
-      content: paymentComplete ? (
-        <div className="booking-success">
-          <div className="booking-success-content">
-            <CheckCircleOutlined className="success-icon" />
-            <Title level={2}>Đặt vé thành công!</Title>
-            <Text className="booking-reference">
-              Mã đặt vé: {bookingReference}
-            </Text>
-            <Text className="booking-info">
-              Vui lòng kiểm tra email để xem chi tiết.
-            </Text>
-
-            <Space className="action-buttons" size="middle">
-              <Button type="primary" size="large" onClick={() => navigate("/")}>
-                Về trang chủ
-              </Button>
-              <Button
-                size="large"
-                onClick={() => navigate("/profile/bookings")}
-              >
-                Xem lịch sử đặt vé
-              </Button>
-            </Space>
-          </div>
-        </div>
-      ) : (
-        <div className="payment-processing">
-          <Spin size="large" tip="Đang xử lý thanh toán..." />
-        </div>
-      ),
-    },
-  ];
-
-  if (loading && !movie) {
+  const formatShowtime = (showtime) => {
+    if (!showtime) return "";
     return (
-      <div style={{ textAlign: "center" }}>
-        <Spin size="large" />
-        <div style={{ marginTop: "10px" }}>Đang tải thông tin...</div>
-      </div>
+      moment(showtime.startTime).format("HH:mm") +
+      ` - ${showtime.hallName || showtime.hall?.name || "Unknown Hall"}`
     );
-  }
+  };
+
+  const BreadcrumbNavigation = () => (
+    <div className="breadcrumb-container mb-6">
+      <div
+        className={`flex items-center py-3 px-4 rounded-lg shadow-sm ${
+          theme === "dark" ? "bg-dark-bg-secondary" : "bg-light-bg-secondary"
+        }`}
+      >
+        <div className="flex items-center text-red-500 dark:text-red-400">
+          <HomeOutlined className="mr-2" />
+          <a href="/" className="text-red-500 dark:text-red-400 hover:underline font-medium">
+            Trang chủ
+          </a>
+        </div>
+        <div className="mx-2 text-gray-400 dark:text-gray-500">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+        <div className="flex items-center text-red-500 dark:text-red-400">
+          <VideoCameraOutlined className="mr-2" />
+          <a
+            href="/movies"
+            className="text-red-500 dark:text-red-400 hover:underline font-medium"
+          >
+            Phim
+          </a>
+        </div>
+        <div className="mx-2 text-gray-400 dark:text-gray-500">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+        <div className="flex items-center font-medium">
+          <TagOutlined className="mr-2 text-red-500 dark:text-red-400" />
+          <span
+            className={`${
+              theme === "dark" ? "text-dark-text-primary" : "text-gray-700"
+            }`}
+          >
+            Đặt vé
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="booking-page-container">
-      <Card variant="borderless" className="booking-card">
-        {movie && (
-          <Row gutter={[24, 24]}>
-            <Col xs={24} sm={8} md={6}>
-              <div className="movie-poster">
-                <img src={movie.poster || movie.image} alt={movie.title} />
-              </div>
-            </Col>
-            <Col xs={24} sm={16} md={18}>
-              <Title level={2}>{movie.title}</Title>
-
-              <Space size="large" wrap className="movie-info">
-                <div className="info-item">
-                  <Text strong>Rạp:</Text> <Tag color="blue">{cinema}</Tag>
-                </div>
-                <div className="info-item">
-                  <Text strong>Ngày:</Text> <Tag color="purple">{date}</Tag>
-                </div>
-                <div className="info-item">
-                  <Text strong>Giờ chiếu:</Text> <Tag color="green">{time}</Tag>
-                </div>
-              </Space>
-
-              <Divider />
-
-              <Steps current={currentStep} className="booking-steps">
-                {steps.map((item) => (
-                  <Steps.Step
-                    key={item.title}
-                    title={item.title}
-                    icon={item.icon}
-                  />
-                ))}
-              </Steps>
-            </Col>
-          </Row>
-        )}
-
-        <div className="steps-content">{steps[currentStep].content}</div>
-
-        {currentStep < 3 && (
-          <div className="steps-action">
-            {currentStep > 0 && (
-              <Button icon={<ArrowLeftOutlined />} onClick={handlePrev}>
-                Quay lại
-              </Button>
-            )}
-            <Button
-              type="primary"
-              onClick={handleNext}
-              icon={
-                currentStep === steps.length - 2 ? null : <ArrowRightOutlined />
-              }
+    <div className={`min-h-screen ${theme === "dark" ? "bg-dark-bg" : "bg-light-bg"}`}>
+      <div className="w-full mx-auto px-4 py-6 max-w-7xl">
+        <BreadcrumbNavigation />
+        <Row gutter={[24, 24]}>
+          <Col xs={24} lg={8} className="order-1 lg:order-1">
+            <div className="sticky top-24 z-40">
+              <Card
+                className={`content-card shadow-md mb-6 border ${
+                  theme === "dark" ? "border-gray-600 bg-gray-800" : "border-border-light bg-white"
+                }`}
+              >
+                {selectedData.movie && selectedData.cinema && selectedData.date && selectedData.showtime ? (
+                  <div className="flex flex-col">
+                    <div className="flex items-start">
+                      <div className="w-1/3 mr-4">
+                        <img
+                          src={
+                            selectedData.movie.poster ||
+                            selectedData.movie.posterUrl ||
+                            selectedData.movie.image ||
+                            "/fallback.jpg"
+                          }
+                          alt={selectedData.movie.title}
+                          className="w-full rounded-lg shadow-sm object-cover"
+                          style={{ aspectRatio: "2/3" }}
+                        />
+                      </div>
+                      <div className="w-2/3">
+                        <h3
+                          className={`text-lg font-bold mb-3 line-clamp-2 ${
+                            theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                          }`}
+                        >
+                          {selectedData.movie.title || "Unknown Movie"}
+                        </h3>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-start">
+                            <span
+                              className={`font-medium w-20 ${
+                                theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                              }`}
+                            >
+                              Rạp:
+                            </span>
+                            <span
+                              className={`flex-1 ${
+                                theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                              }`}
+                            >
+                              {selectedData.cinema?.name || "Unknown Cinema"}
+                            </span>
+                          </div>
+                          <div className="flex items-start">
+                            <span
+                              className={`font-medium w-20 ${
+                                theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                              }`}
+                            >
+                              Phòng:
+                            </span>
+                            <span
+                              className={`flex-1 ${
+                                theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                              }`}
+                            >
+                              {selectedData.showtime?.hallName || selectedData.showtime?.hall?.name || "Unknown Hall"}
+                            </span>
+                          </div>
+                          <div className="flex items-start">
+                            <span
+                              className={`font-medium w-20 ${
+                                theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                              }`}
+                            >
+                              Suất chiếu:
+                            </span>
+                            <span
+                              className={`flex-1 ${
+                                theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                              }`}
+                            >
+                              {selectedData.date.format("DD/MM/YYYY")}
+                            </span>
+                          </div>
+                          <div className="flex items-start">
+                            <span
+                              className={`font-medium w-20 ${
+                                theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                              }`}
+                            >
+                              Thời gian:
+                            </span>
+                            <span
+                              className={`flex-1 ${
+                                theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                              }`}
+                            >
+                              {formatShowtime(selectedData.showtime)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <Text
+                      className={`${
+                        theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"
+                      }`}
+                    >
+                      Vui lòng chọn đầy đủ rạp, ngày, phim và suất chiếu để xem thông tin
+                    </Text>
+                  </div>
+                )}
+              </Card>
+            </div>
+          </Col>
+          <Col xs={24} lg={16} className="order-2 lg:order-2">
+            <Card
+              className={`content-card shadow-md border ${
+                theme === "dark" ? "border-gray-600 bg-gray-800" : "border-border-light bg-white"
+              }`}
             >
-              {currentStep === steps.length - 2 ? "Hoàn tất" : "Tiếp tục"}
-            </Button>
-          </div>
-        )}
-      </Card>
+              <Title
+                level={2}
+                className={`mb-6 ${
+                  theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                }`}
+              >
+                Đặt Vé Xem Phim
+              </Title>
+              <Divider className="my-4" />
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Spin size="large" className="loading-spinner" />
+                  <Text
+                    className={`mt-6 ${
+                      theme === "dark" ? "text-dark-text-primary" : "text-text-primary"
+                    }`}
+                  >
+                    Đang tải...
+                  </Text>
+                </div>
+              ) : (
+                <QuickBookingForm
+                  onSelectionChange={handleSelectionChange}
+                  notification={notification} // Truyền notification qua props
+                />
+              )}
+            </Card>
+          </Col>
+        </Row>
+      </div>
     </div>
   );
 };

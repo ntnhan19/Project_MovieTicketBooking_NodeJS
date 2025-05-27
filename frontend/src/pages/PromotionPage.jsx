@@ -11,10 +11,13 @@ import {
   FiCopy,
   FiChevronRight,
 } from "react-icons/fi";
-import { Carousel, Modal, Tooltip } from "antd";
+import { Carousel, Modal, Tooltip, App } from "antd";
+import QuickBookingWidget from "../components/common/QuickBookingWidget";
+import { motion } from "framer-motion";
 
 const PromotionsPage = ({ isHomepage = false }) => {
   const { theme } = useContext(ThemeContext);
+  const { notification } = App.useApp();
   const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,6 +33,11 @@ const PromotionsPage = ({ isHomepage = false }) => {
           console.error("Dữ liệu nhận được không phải là mảng:", data);
           setPromotions([]);
           setError("Định dạng dữ liệu không đúng. Vui lòng kiểm tra lại API.");
+          notification.error({
+            message: "Lỗi",
+            description: "Định dạng dữ liệu không đúng.",
+            duration: 3,
+          });
           setLoading(false);
           return;
         }
@@ -41,9 +49,7 @@ const PromotionsPage = ({ isHomepage = false }) => {
         }
         const now = new Date();
         const validPromotions = data.filter((promo) => {
-          if (!promo.validFrom || !promo.validUntil) {
-            return true;
-          }
+          if (!promo.validFrom || !promo.validUntil) return true;
           const validUntil = new Date(promo.validUntil);
           return validUntil >= now;
         });
@@ -52,11 +58,16 @@ const PromotionsPage = ({ isHomepage = false }) => {
       } catch (error) {
         console.error("Lỗi khi tải khuyến mãi:", error);
         setError("Không thể tải thông tin khuyến mãi. Vui lòng thử lại sau.");
+        notification.error({
+          message: "Lỗi",
+          description: "Không thể tải thông tin khuyến mãi.",
+          duration: 3,
+        });
         setLoading(false);
       }
     };
     fetchPromotions();
-  }, []);
+  }, [notification]);
 
   const formatDate = (dateString) => {
     return format(new Date(dateString), "dd/MM/yyyy", { locale: vi });
@@ -131,7 +142,12 @@ const PromotionsPage = ({ isHomepage = false }) => {
         isHomepage ? "max-w-7xl mx-auto" : "container mx-auto"
       } ${theme === "dark" ? "bg-gray-900" : "bg-white"}`}
     >
-      <div className="page-header relative bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="page-header relative bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 overflow-hidden"
+      >
         <div className="absolute inset-0 animated-gradient rounded-xl opacity-50"></div>
         <div className="flex flex-col gap-6 mb-4 text-center relative z-10">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-red-600 to-gray-800 bg-clip-text text-transparent drop-shadow-md animate-slideUp dark:text-white">
@@ -141,43 +157,62 @@ const PromotionsPage = ({ isHomepage = false }) => {
             Tận hưởng những ưu đãi đặc biệt cho trải nghiệm điện ảnh của bạn!
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {!isHomepage && promotions.length > 0 && (
-        <Carousel
-          autoplay
-          autoplaySpeed={3000}
-          className="mb-8 rounded-xl overflow-hidden dark:bg-gray-800"
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="mb-8"
         >
-          {promotions.slice(0, 3).map((promo) => (
-            <div key={promo.id} className="relative h-64">
-              <img
-                src={promo.image || "https://via.placeholder.com/1200x300"}
-                alt={promo.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <div className="text-center">
-                  <h3 className="text-2xl font-bold text-white shadow-text">
-                    {promo.title}
-                  </h3>
-                  <p className="text-white text-sm mt-2">
-                    {getDiscountText(promo)}
-                  </p>
-                  <button
-                    className="btn-primary ripple-btn mt-4 py-2 px-4 rounded-lg"
-                    onClick={() => setSelectedPromo(promo)}
-                  >
-                    Xem chi tiết
-                  </button>
+          <Carousel
+            autoplay
+            autoplaySpeed={3000}
+            className="rounded-xl overflow-hidden dark:bg-gray-800"
+          >
+            {promotions.slice(0, 3).map((promo) => (
+              <div key={promo.id} className="relative h-64">
+                <img
+                  src={promo.image || "https://via.placeholder.com/1200x300"}
+                  alt={promo.title}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <div className="text-center">
+                    <h3 className="text-2xl font-bold text-white shadow-text">
+                      {promo.title}
+                    </h3>
+                    <p className="text-white text-sm mt-2">
+                      {getDiscountText(promo)}
+                    </p>
+                    <button
+                      className="btn-primary ripple-btn mt-4 py-2 px-4 rounded-lg"
+                      onClick={() => setSelectedPromo(promo)}
+                    >
+                      Xem chi tiết
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </Carousel>
+            ))}
+          </Carousel>
+        </motion.div>
       )}
 
-      <div
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="mb-8"
+      >
+        <QuickBookingWidget promoCode={copiedCode} />
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
         className={`bg-white dark:bg-gray-800 rounded-xl shadow-card mb-8 p-4 flex flex-wrap items-center justify-between relative z-10 ${
           theme === "dark" ? "text-white" : "text-black"
         }`}
@@ -192,10 +227,13 @@ const PromotionsPage = ({ isHomepage = false }) => {
             Cập nhật ngày: {format(new Date(), "dd/MM/yyyy", { locale: vi })}
           </span>
         </div>
-      </div>
+      </motion.div>
 
       {promotions.length === 0 ? (
-        <div
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
           className={`text-center py-16 ${
             theme === "dark" ? "bg-gray-800" : "bg-white"
           } rounded-xl shadow-card`}
@@ -231,19 +269,26 @@ const PromotionsPage = ({ isHomepage = false }) => {
               Về trang chủ
             </Link>
           </div>
-        </div>
+        </motion.div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 animate-fadeIn">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 animate-fadeIn"
+        >
           {promotions.map((promotion, index) => (
-            <div
+            <motion.div
               key={promotion.id}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-card overflow-hidden transform transition-all duration-500 hover:-translate-y-2 hover:shadow-card-hover border border-gray-100/50 dark:border-gray-600/50 animate-fadeIn"
-              style={{ animationDelay: `${index * 100}ms` }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 + index * 0.1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-card overflow-hidden transform transition-all duration-500 hover:-translate-y-2 hover:shadow-card-hover border border-gray-100/50 dark:border-gray-600/50"
             >
               <div className="h-48 relative overflow-hidden group">
                 {promotion.image ? (
                   <div
-                    className="w-full h-[450px] bg-gradient-to-r from-primary-dark to-primary flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full bg-gradient-to-r from-primary-dark to-primary flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500"
                     style={{
                       backgroundImage: promotion.image
                         ? `url(${promotion.image})`
@@ -259,7 +304,7 @@ const PromotionsPage = ({ isHomepage = false }) => {
                     )}
                   </div>
                 ) : (
-                  <div className="w-full h-[450px] flex items-center justify-center bg-button-gradient relative">
+                  <div className="w-full h-full flex items-center justify-center bg-button-gradient relative">
                     <div
                       className="absolute top-0 left-0 w-full h-full opacity-10"
                       style={{
@@ -329,12 +374,15 @@ const PromotionsPage = ({ isHomepage = false }) => {
                   </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
-      <div
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
         className={`mt-16 text-center ${
           theme === "dark" ? "bg-gray-800" : "bg-white"
         } rounded-xl shadow-card p-8 relative z-10 overflow-hidden`}
@@ -355,7 +403,7 @@ const PromotionsPage = ({ isHomepage = false }) => {
             Đặt vé ngay
           </Link>
         </div>
-      </div>
+      </motion.div>
 
       <Modal
         open={!!selectedPromo}
@@ -373,7 +421,10 @@ const PromotionsPage = ({ isHomepage = false }) => {
           color: "var(--antd-color-text, #000)",
         }}
       >
-        <div
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
           className={`dark:bg-gray-800 dark:text-gray-300 p-4 rounded-xl ${
             theme === "dark" ? "bg-gray-800" : "bg-white"
           }`}
@@ -411,7 +462,7 @@ const PromotionsPage = ({ isHomepage = false }) => {
               Xem chi tiết đầy đủ
             </Link>
           </div>
-        </div>
+        </motion.div>
       </Modal>
     </div>
   );

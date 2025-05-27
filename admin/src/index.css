@@ -12,7 +12,8 @@
 }
 
 body {
-  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -125,7 +126,7 @@ body:not([data-theme="dark"]) {
   .RaLayout-appBar .MuiToolbar-root {
     padding: 0 16px;
   }
-  
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
@@ -231,8 +232,8 @@ body[data-theme="dark"],
 }
 
 /* Điều chỉnh CSS cho các input trong form */
-.dark input, 
-.dark textarea, 
+.dark input,
+.dark textarea,
 .dark select {
   color: #fff !important;
   background-color: #1e1e1e !important;
@@ -254,7 +255,7 @@ body[data-theme="dark"],
 }
 
 /* Đảm bảo các placeholder có màu phù hợp */
-.dark input::placeholder, 
+.dark input::placeholder,
 .dark textarea::placeholder {
   color: #666 !important;
 }
@@ -286,8 +287,8 @@ body[data-theme="dark"],
 }
 
 /* Khi focus vào input trong dark mode */
-.dark input:focus, 
-.dark textarea:focus, 
+.dark input:focus,
+.dark textarea:focus,
 .dark select:focus {
   border-color: #e71a0f !important;
   box-shadow: 0 0 0 2px rgba(231, 26, 15, 0.2);
@@ -322,7 +323,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 
 /* Đảm bảo kích thước bằng nhau trong tất cả các trình duyệt */
-@supports (-moz-appearance:none) {
+@supports (-moz-appearance: none) {
   input[type="datetime-local"] {
     min-height: 2.5rem;
   }
@@ -344,7 +345,8 @@ button[type="submit"]:not(:disabled):hover {
 }
 
 /* Cấu hình focus ring cho các input */
-input:focus, select:focus {
+input:focus,
+select:focus {
   outline: none;
   border-color: var(--primary-color) !important;
   box-shadow: 0 0 0 2px rgba(231, 26, 15, 0.2);
@@ -377,4 +379,21 @@ input:focus, select:focus {
 
 .hover\:bg-primary-dark:hover {
   background-color: var(--primary-color-dark);
+}
+
+/* Thêm vào file CSS của bạn */
+.status-pending {
+  @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200;
+}
+
+.status-confirmed {
+  @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
+}
+
+.status-completed {
+  @apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200;
+}
+
+.status-cancelled {
+  @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
 }

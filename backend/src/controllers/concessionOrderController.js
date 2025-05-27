@@ -12,7 +12,7 @@ exports.getAllOrders = async (req, res) => {
       endDate: endDate ? new Date(endDate) : undefined,
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 10,
-      sort: sort || "createdAt", 
+      sort: sort || "createdAt",
       order: order || "desc",
     };
 
@@ -126,9 +126,7 @@ exports.createOrder = async (req, res) => {
       items,
       combos,
       totalAmount,
-      paymentMethod,
       note,
-      pickupTime,
       ticketIds, // Thêm mảng ticketIds thay vì showId
       orderType = "STANDALONE", // Thêm orderType
     } = req.body;
@@ -156,13 +154,6 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    if (!paymentMethod) {
-      return res.status(400).json({
-        success: false,
-        message: "Phương thức thanh toán là bắt buộc",
-      });
-    }
-
     // Format items if provided
     const formattedItems = items
       ? items.map((item) => ({
@@ -175,11 +166,21 @@ exports.createOrder = async (req, res) => {
     // Format combos if provided
     const formattedCombos = combos
       ? combos.map((combo) => ({
-          comboId: parseInt(combo.comboId),
+          comboId: parseInt(combo.id),
           quantity: parseInt(combo.quantity),
           price: parseFloat(combo.price),
         }))
       : [];
+
+    // Validate comboIds
+    for (const combo of formattedCombos) {
+      if (!combo.comboId || isNaN(combo.comboId)) {
+        return res.status(400).json({
+          success: false,
+          message: `ID combo không hợp lệ: ${JSON.stringify(combo)}`,
+        });
+      }
+    }
 
     const formattedTicketIds = ticketIds
       ? ticketIds.map((id) => parseInt(id))
@@ -190,9 +191,7 @@ exports.createOrder = async (req, res) => {
       items: formattedItems,
       combos: formattedCombos,
       totalAmount: parseFloat(totalAmount),
-      paymentMethod,
       note,
-      pickupTime: pickupTime ? new Date(pickupTime) : null,
       orderType,
       ticketIds: formattedTicketIds,
       status: "PENDING", // Default status
@@ -273,6 +272,69 @@ exports.updateOrderStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Lỗi khi cập nhật trạng thái đơn hàng",
+      error: error.message,
+    });
+  }
+};
+
+// Cập nhật thông tin đơn hàng (user sở hữu đơn hàng)
+exports.updateOrder = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const userId = req.user.id;
+    const { ticketIds, orderType } = req.body;
+
+    // Kiểm tra đơn hàng tồn tại và thuộc về user
+    const order = await concessionOrderService.getUserOrderById(userId, id);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn hàng hoặc bạn không có quyền truy cập",
+      });
+    }
+
+    // Kiểm tra trạng thái đơn hàng
+    const updatableStatuses = ["PENDING", "CONFIRMED"];
+    if (!updatableStatuses.includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Không thể cập nhật đơn hàng ở trạng thái hiện tại",
+      });
+    }
+
+    // Kiểm tra orderType hợp lệ
+    const validOrderTypes = ["STANDALONE", "WITH_TICKET"];
+    if (orderType && !validOrderTypes.includes(orderType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Loại đơn hàng không hợp lệ",
+      });
+    }
+
+    // Kiểm tra ticketIds
+    if (ticketIds && !Array.isArray(ticketIds)) {
+      return res.status(400).json({
+        success: false,
+        message: "ticketIds phải là một mảng",
+      });
+    }
+
+    // Cập nhật đơn hàng
+    const updatedOrder = await concessionOrderService.updateOrder(id, {
+      ticketIds,
+      orderType,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật đơn hàng thành công",
+      data: updatedOrder,
+    });
+  } catch (error) {
+    console.error("Error in updateOrder:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi cập nhật đơn hàng",
       error: error.message,
     });
   }
@@ -368,4 +430,27 @@ exports.createOrderWithTickets = async (req, res) => {
 
   // Gọi lại hàm createOrder
   return await this.createOrder(req, res);
+};
+
+exports.getOrderStatistics = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    const statistics = await concessionOrderService.getOrderStatistics(
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined
+    );
+
+    res.status(200).json({
+      success: true,
+      data: statistics,
+    });
+  } catch (error) {
+    console.error("Error in getOrderStatistics:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi lấy thống kê đơn hàng",
+      error: error.message,
+    });
+  }
 };

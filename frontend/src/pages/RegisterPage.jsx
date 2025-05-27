@@ -1,5 +1,5 @@
 import React, { useState, useContext } from "react";
-import { Form, Input, Button, Typography, Checkbox, message, ConfigProvider } from "antd";
+import { Form, Input, Button, Typography, Checkbox, ConfigProvider, App } from "antd";
 import {
   UserOutlined,
   LockOutlined,
@@ -12,6 +12,7 @@ import { ThemeContext } from "../context/ThemeContext";
 const { Text, Title } = Typography;
 
 const RegisterForm = ({ onLoginClick }) => {
+  const { notification } = App.useApp();
   const { register } = useAuth();
   const { theme } = useContext(ThemeContext);
   const [form] = Form.useForm();
@@ -21,41 +22,55 @@ const RegisterForm = ({ onLoginClick }) => {
 
   const antdTheme = {
     token: {
-      colorPrimary: '#e71a0f',
-      fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+      colorPrimary: "#e71a0f",
+      fontFamily:
+        "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
       borderRadius: 12,
-      colorBgContainer: theme === 'dark' ? '#1f2a44' : '#ffffff',
-      colorText: theme === 'dark' ? '#d1d5db' : '#333333',
-      colorTextSecondary: theme === 'dark' ? '#d1d5db' : '#666666',
-      colorBorder: theme === 'dark' ? '#374151' : 'rgba(0, 0, 0, 0.1)',
-      colorTextPlaceholder: theme === 'dark' ? '#a0aec0' : '#999999',
+      colorBgContainer: theme === "dark" ? "#1f2a44" : "#ffffff",
+      colorText: theme === "dark" ? "#d1d5db" : "#333333",
+      colorTextSecondary: theme === "dark" ? "#d1d5db" : "#666666",
+      colorBorder: theme === "dark" ? "#374151" : "rgba(0, 0, 0, 0.1)",
+      colorTextPlaceholder: theme === "dark" ? "#a0aec0" : "#999999",
     },
     components: {
       Input: {
         borderRadius: 12,
-        colorBgContainer: theme === 'dark' ? '#2d3748' : '#ffffff',
+        colorBgContainer: theme === "dark" ? "#2d3748" : "#ffffff",
         paddingBlock: 10,
         paddingInline: 12,
-        colorText: theme === 'dark' ? '#ffffff' : '#333333',
-        colorIcon: theme === 'dark' ? '#a0aec0' : '#999999',
-        hoverBorderColor: theme === 'dark' ? '#e71a0f' : '#c41208',
-        activeBorderColor: theme === 'dark' ? '#e71a0f' : '#c41208',
+        colorText: theme === "dark" ? "#ffffff" : "#333333",
+        colorIcon: theme === "dark" ? "#a0aec0" : "#999999",
+        hoverBorderColor: theme === "dark" ? "#e71a0f" : "#c41208",
+        activeBorderColor: theme === "dark" ? "#e71a0f" : "#c41208",
       },
       Button: {
         borderRadius: 12,
         paddingBlock: 10,
       },
       Checkbox: {
-        colorText: theme === 'dark' ? '#d1d5db' : '#333333',
+        colorText: theme === "dark" ? "#d1d5db" : "#333333",
       },
     },
   };
 
   const onFinish = async (values) => {
+    const key = `register-${Date.now()}`;
     if (values.password !== values.confirmPassword) {
-      message.error("Mật khẩu không khớp!");
+      notification.error({
+        key,
+        message: "Lỗi",
+        description: "Mật khẩu không khớp!",
+        duration: 3,
+      });
       return;
     }
+
+    notification.open({
+      key,
+      message: "Đang xử lý",
+      description: "Đang tạo tài khoản...",
+      duration: 0,
+    });
 
     try {
       setLoading(true);
@@ -69,20 +84,50 @@ const RegisterForm = ({ onLoginClick }) => {
       setRegisteredEmail(values.email);
       setShowVerificationMsg(true);
       form.resetFields();
+      notification.success({
+        key,
+        message: "Thành công",
+        description: "Tạo tài khoản thành công! Vui lòng kiểm tra email để xác nhận.",
+        duration: 3,
+      });
     } catch (error) {
       console.error("Registration error:", error);
+      notification.error({
+        key,
+        message: "Lỗi",
+        description: error.response?.data?.message || "Không thể tạo tài khoản. Vui lòng thử lại sau.",
+        duration: 3,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleResendVerification = async () => {
+    const key = `resendVerification-${Date.now()}`;
+    notification.open({
+      key,
+      message: "Đang xử lý",
+      description: "Đang gửi lại email xác nhận...",
+      duration: 0,
+    });
+
     try {
       const { authApi } = await import("../api/authApi");
       await authApi.resendVerificationEmail(registeredEmail);
-      message.success("Email xác thực đã được gửi lại!");
+      notification.success({
+        key,
+        message: "Thành công",
+        description: "Email xác thực đã được gửi lại!",
+        duration: 3,
+      });
     } catch {
-      message.error("Không thể gửi lại email xác thực. Vui lòng thử lại sau.");
+      notification.error({
+        key,
+        message: "Lỗi",
+        description: "Không thể gửi lại email xác thực. Vui lòng thử lại sau.",
+        duration: 3,
+      });
     }
   };
 
@@ -93,22 +138,22 @@ const RegisterForm = ({ onLoginClick }) => {
 
   return (
     <ConfigProvider theme={antdTheme}>
-      <div className={`mt-4 ${theme === 'dark' ? 'text-dark-text-primary' : 'text-text-primary'}`}>
+      <div className={`mt-4 ${theme === "dark" ? "text-dark-text-primary" : "text-text-primary"}`}>
         <div className="text-center mb-6">
-          <Title level={3} className={`mb-2 ${theme === 'dark' ? 'text-dark-text-primary' : 'text-text-primary'}`}>
+          <Title level={3} className={`mb-2 ${theme === "dark" ? "text-dark-text-primary" : "text-text-primary"}`}>
             Tạo tài khoản mới
           </Title>
-          <Text className={`${theme === 'dark' ? 'text-dark-text-secondary' : 'text-text-secondary'}`}>
+          <Text className={`${theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"}`}>
             Tham gia cùng chúng tôi để đặt vé xem phim dễ dàng
           </Text>
         </div>
 
         {showVerificationMsg ? (
-          <div className={`p-4 rounded-lg border shadow-sm ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-blue-50 border-blue-100'}`}>
-            <Title level={4} className={`text-center ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'} mb-3`}>
+          <div className={`p-4 rounded-lg border shadow-sm ${theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-blue-50 border-blue-100"}`}>
+            <Title level={4} className={`text-center ${theme === "dark" ? "text-blue-400" : "text-blue-700"} mb-3`}>
               Vui lòng xác nhận email của bạn
             </Title>
-            <Text className={`text-center block mb-3 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}>
+            <Text className={`text-center block mb-3 ${theme === "dark" ? "text-blue-300" : "text-blue-600"}`}>
               Chúng tôi đã gửi email xác nhận đến <strong>{registeredEmail}</strong>.<br />
               Vui lòng kiểm tra hộp thư của bạn và nhấp vào liên kết xác nhận.
             </Text>
@@ -116,7 +161,7 @@ const RegisterForm = ({ onLoginClick }) => {
               <Button type="primary" onClick={handleResendVerification} className="btn-primary">
                 Gửi lại email xác nhận
               </Button>
-              <Button type="link" onClick={handleLoginClick} className={`${theme === 'dark' ? 'text-red-500' : 'text-primary'}`}>
+              <Button type="link" onClick={handleLoginClick} className={`${theme === "dark" ? "text-red-500" : "text-primary"}`}>
                 Quay lại đăng nhập
               </Button>
             </div>
@@ -230,11 +275,11 @@ const RegisterForm = ({ onLoginClick }) => {
             >
               <Checkbox>
                 Tôi đã đọc và đồng ý với{" "}
-                <a className={`${theme === 'dark' ? 'text-red-500' : 'text-primary'}`}>
+                <a className={`${theme === "dark" ? "text-red-500" : "text-primary"}`}>
                   Điều khoản dịch vụ
                 </a>{" "}
                 và{" "}
-                <a className={`${theme === 'dark' ? 'text-red-500' : 'text-primary'}`}>
+                <a className={`${theme === "dark" ? "text-red-500" : "text-primary"}`}>
                   Chính sách bảo mật
                 </a>
               </Checkbox>
@@ -257,12 +302,12 @@ const RegisterForm = ({ onLoginClick }) => {
 
         {!showVerificationMsg && (
           <div className="text-center mt-6">
-            <Text className={`text-sm ${theme === 'dark' ? 'text-dark-text-secondary' : 'text-text-secondary'}`}>
+            <Text className={`text-sm ${theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"}`}>
               Đã có tài khoản?{" "}
             </Text>
             <a
               onClick={handleLoginClick}
-              className={`text-sm font-medium transition-all cursor-pointer ${theme === 'dark' ? 'text-red-500 hover:text-red-400' : 'text-primary hover:text-primary-dark'}`}
+              className={`text-sm font-medium transition-all cursor-pointer ${theme === "dark" ? "text-red-500 hover:text-red-400" : "text-primary hover:text-primary-dark"}`}
             >
               Đăng nhập ngay
             </a>
@@ -273,4 +318,8 @@ const RegisterForm = ({ onLoginClick }) => {
   );
 };
 
-export default RegisterForm;
+export default () => (
+  <App>
+    <RegisterForm />
+  </App>
+);

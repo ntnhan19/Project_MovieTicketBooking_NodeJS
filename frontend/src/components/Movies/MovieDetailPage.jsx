@@ -13,9 +13,8 @@ import {
   Typography,
   Select,
   Empty,
-  notification,
   Card,
-  message,
+  App,
 } from "antd";
 import {
   PlayCircleOutlined,
@@ -25,7 +24,6 @@ import {
   StarOutlined,
   CloseOutlined,
   TagOutlined,
-  EnvironmentOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { movieApi } from "../../api/movieApi";
@@ -41,6 +39,7 @@ const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
 
 const MovieDetailPage = () => {
+  const { notification } = App.useApp();
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated, openAuthModal } = useAuth();
@@ -52,8 +51,6 @@ const MovieDetailPage = () => {
   const [otherNowShowingMovies, setOtherNowShowingMovies] = useState([]);
   const [trailerModal, setTrailerModal] = useState({ visible: false, url: "" });
   const [activeTab, setActiveTab] = useState("1");
-
-  // Các state cho phần đặt vé
   const [cinemas, setCinemas] = useState([]);
   const [genreDetails, setGenreDetails] = useState([]);
   const [selectedCinema, setSelectedCinema] = useState(null);
@@ -62,23 +59,20 @@ const MovieDetailPage = () => {
   const [showtimes, setShowtimes] = useState([]);
   const [loadingShowtimes, setLoadingShowtimes] = useState(false);
 
-  // Lấy thông tin phim từ API
   useEffect(() => {
     const fetchMovieDetail = async () => {
+      const key = `fetchMovieDetail-${id}`;
+
       try {
         setLoading(true);
         const movieData = await movieApi.getMovieById(id);
         setMovie(movieData);
 
-        // Fetch chi tiết thể loại nếu genres là mảng ID
         if (movieData.genres && Array.isArray(movieData.genres)) {
           if (typeof movieData.genres[0] !== "object") {
             const genrePromises = movieData.genres.map((genreId) =>
               genreApi.getGenreById(genreId).catch((err) => {
-                console.error(
-                  `Lỗi khi lấy thông tin thể loại ${genreId}:`,
-                  err
-                );
+                console.error(`Lỗi khi lấy thông tin thể loại ${genreId}:`, err);
                 return null;
               })
             );
@@ -92,8 +86,8 @@ const MovieDetailPage = () => {
           try {
             const nowShowingData = await movieApi.getNowShowing();
             const otherNowShowingMovies = nowShowingData
-              .filter((m) => m.id !== id) // Loại bỏ phim hiện tại
-              .slice(0, 4); // Giới hạn 4 phim
+              .filter((m) => m.id !== id)
+              .slice(0, 4);
             setOtherNowShowingMovies(otherNowShowingMovies);
 
             if (movieData.genres && movieData.genres.length > 0) {
@@ -101,20 +95,14 @@ const MovieDetailPage = () => {
                 typeof movieData.genres[0] === "object"
                   ? movieData.genres[0].id
                   : movieData.genres[0];
-              const { data: similarMoviesData } =
-                await movieApi.filterMoviesByGenre(firstGenreId);
-              const filteredSimilarMovies = similarMoviesData.filter(
-                (m) => m.id !== id
-              );
+              const { data: similarMoviesData } = await movieApi.filterMoviesByGenre(firstGenreId);
+              const filteredSimilarMovies = similarMoviesData.filter((m) => m.id !== id);
               setSimilarMovies(filteredSimilarMovies.slice(0, 4));
             } else {
               setSimilarMovies([]);
             }
           } catch (error) {
-            console.error(
-              "Lỗi khi tải phim đang chiếu hoặc phim tương tự:",
-              error
-            );
+            console.error("Lỗi khi tải phim đang chiếu hoặc phim tương tự:", error);
             setSimilarMovies([]);
             setOtherNowShowingMovies([]);
           }
@@ -127,15 +115,20 @@ const MovieDetailPage = () => {
           console.error("Error fetching cinemas:", error);
           setCinemas([]);
           notification.error({
+            key,
             message: "Lỗi",
             description: "Không thể tải danh sách rạp. Vui lòng thử lại sau.",
+            duration: 3,
           });
+          return;
         }
       } catch (error) {
         console.error("Error fetching movie detail:", error);
         notification.error({
+          key,
           message: "Lỗi",
           description: "Không thể tải thông tin phim. Vui lòng thử lại sau.",
+          duration: 3,
         });
       } finally {
         setLoading(false);
@@ -146,13 +139,13 @@ const MovieDetailPage = () => {
       fetchMovieDetail();
       window.scrollTo(0, 0);
     }
-  }, [id]);
+  }, [id, notification]);
 
-  // Effect khi chọn rạp, lấy ngày có suất chiếu
   useEffect(() => {
     const fetchAvailableDates = async () => {
       if (!selectedCinema || !id) return;
 
+      const key = `fetchAvailableDates-${selectedCinema}-${id}`;
       try {
         setLoadingShowtimes(true);
         const dates = await showtimeApi.getAvailableDates(id, selectedCinema);
@@ -167,51 +160,53 @@ const MovieDetailPage = () => {
         const today = new Date();
         const mockDates = [
           today.toISOString().split("T")[0],
-          new Date(today.setDate(today.getDate() + 1))
-            .toISOString()
-            .split("T")[0],
-          new Date(today.setDate(today.getDate() + 1))
-            .toISOString()
-            .split("T")[0],
+          new Date(today.setDate(today.getDate() + 1)).toISOString().split("T")[0],
+          new Date(today.setDate(today.getDate() + 1)).toISOString().split("T")[0],
         ];
         setAvailableDates(mockDates);
         setSelectedDate(mockDates[0]);
+        notification.error({
+          key,
+          message: "Lỗi",
+          description: "Không thể tải ngày chiếu. Đã sử dụng dữ liệu mặc định.",
+          duration: 3,
+        });
       } finally {
         setLoadingShowtimes(false);
       }
     };
 
     fetchAvailableDates();
-  }, [selectedCinema, id]);
+  }, [selectedCinema, id, notification]);
 
-  // Effect khi chọn ngày, lấy danh sách suất chiếu
   useEffect(() => {
     const fetchShowtimes = async () => {
       if (!selectedCinema || !selectedDate || !id) return;
 
+      const key = `fetchShowtimes-${selectedCinema}-${selectedDate}-${id}`;
+
       try {
         setLoadingShowtimes(true);
-        const showtimesData = await showtimeApi.getShowtimesByFilters(
-          id,
-          selectedCinema,
-          selectedDate
-        );
+        const showtimesData = await showtimeApi.getShowtimesByFilters(id, selectedCinema, selectedDate);
         if (showtimesData && Array.isArray(showtimesData)) {
           setShowtimes(showtimesData);
         } else {
           setShowtimes([]);
           notification.warning({
+            key,
             message: "Thông báo",
             description: "Không có suất chiếu nào trong ngày đã chọn.",
+            duration: 3,
           });
         }
       } catch (error) {
         console.error("Error fetching showtimes:", error);
         setShowtimes([]);
         notification.error({
+          key,
           message: "Lỗi",
-          description:
-            "Không thể tải danh sách suất chiếu. Vui lòng thử lại sau.",
+          description: "Không thể tải danh sách suất chiếu. Vui lòng thử lại sau.",
+          duration: 3,
         });
       } finally {
         setLoadingShowtimes(false);
@@ -219,9 +214,8 @@ const MovieDetailPage = () => {
     };
 
     fetchShowtimes();
-  }, [selectedDate, selectedCinema, id]);
+  }, [selectedDate, selectedCinema, id, notification]);
 
-  // Hàm xử lý hiển thị trailer
   const showTrailer = (url) => {
     if (!url) return;
 
@@ -260,7 +254,12 @@ const MovieDetailPage = () => {
   const handleSelectShowtime = (showtimeId) => {
     if (!isAuthenticated) {
       openAuthModal("1", `/booking/seats/${showtimeId}`);
-      message.warning("Vui lòng đăng nhập để đặt vé");
+      notification.warning({
+        key: `selectShowtime-${showtimeId}`,
+        message: "Thông báo",
+        description: "Vui lòng đăng nhập để đặt vé",
+        duration: 3,
+      });
       return;
     }
     navigate(`/booking/seats/${showtimeId}`);
@@ -286,15 +285,7 @@ const MovieDetailPage = () => {
   const formatDisplayDate = (dateString) => {
     if (!dateString) return "";
     const date = new Date(dateString);
-    const weekdays = [
-      "Chủ nhật",
-      "Thứ 2",
-      "Thứ 3",
-      "Thứ 4",
-      "Thứ 5",
-      "Thứ 6",
-      "Thứ 7",
-    ];
+    const weekdays = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
     const weekday = weekdays[date.getDay()];
     return `${weekday}, ${date.getDate()}/${date.getMonth() + 1}`;
   };
@@ -309,9 +300,7 @@ const MovieDetailPage = () => {
             Nội dung phim
           </Title>
           <Paragraph className="text-base leading-relaxed">
-            {movie?.description ||
-              movie?.overview ||
-              "Chưa có thông tin nội dung phim."}
+            {movie?.description || movie?.overview || "Chưa có thông tin nội dung phim."}
           </Paragraph>
 
           {movie?.cast && movie?.cast.length > 0 && (
@@ -430,9 +419,7 @@ const MovieDetailPage = () => {
                         selectedDate === date ? "border-red-500" : ""
                       }`}
                     >
-                      <div className="font-bold">
-                        {formatDisplayDate(date).split(",")[0]}
-                      </div>
+                      <div className="font-bold">{formatDisplayDate(date).split(",")[0]}</div>
                       <div>{formatDisplayDate(date).split(",")[1]}</div>
                     </Button>
                   ))
@@ -467,9 +454,7 @@ const MovieDetailPage = () => {
                       onClick={() => handleSelectShowtime(showtime.id)}
                     >
                       <div className="font-bold text-lg">{showtime.time}</div>
-                      <div className="text-xs text-gray-500">
-                        {showtime.room}
-                      </div>
+                      <div className="text-xs text-gray-500">{showtime.room}</div>
                       <Tag color="blue" className="mt-2">
                         {showtime.format}
                       </Tag>
@@ -529,20 +514,14 @@ const MovieDetailPage = () => {
 
   return (
     <div
-      className={`min-h-screen ${
-        theme === "dark" ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"
-      }`}
+      className={`min-h-screen ${theme === "dark" ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"}`}
     >
       <div className="relative">
         <div
           className="relative w-full h-96 bg-cover bg-center"
           style={{
             backgroundImage: `url(${
-              movie.poster ||
-              movie.posterUrl ||
-              movie.backdropUrl ||
-              movie.backdrop ||
-              "/movie-backdrop-default.jpg"
+              movie.poster || movie.posterUrl || movie.backdropUrl || movie.backdrop || "/movie-backdrop-default.jpg"
             })`,
             backgroundPosition: "center 20%",
           }}
@@ -569,11 +548,7 @@ const MovieDetailPage = () => {
                 } rounded-lg shadow-xl overflow-hidden`}
               >
                 <img
-                  src={
-                    movie.poster ||
-                    movie.posterUrl ||
-                    "/movie-poster-default.jpg"
-                  }
+                  src={movie.poster || movie.posterUrl || "/movie-poster-default.jpg"}
                   alt={movie.title}
                   className="w-full h-full object-cover"
                 />
@@ -586,20 +561,11 @@ const MovieDetailPage = () => {
                 }`}
               >
                 <h1 className="text-3xl font-bold mb-2">{movie.title}</h1>
-                {movie.originalTitle && (
-                  <h2 className="text-xl mb-4">{movie.originalTitle}</h2>
-                )}
+                {movie.originalTitle && <h2 className="text-xl mb-4">{movie.originalTitle}</h2>}
                 {movie.rating && (
                   <div className="flex items-center mb-4">
-                    <Rate
-                      disabled
-                      allowHalf
-                      defaultValue={movie.rating / 2}
-                      className="text-yellow-400 text-lg"
-                    />
-                    <span className="ml-2 text-lg font-medium">
-                      {movie.rating}/10
-                    </span>
+                    <Rate disabled allowHalf defaultValue={movie.rating / 2} className="text-yellow-400 text-lg" />
+                    <span className="ml-2 text-lg font-medium">{movie.rating}/10</span>
                   </div>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-6">
@@ -634,19 +600,13 @@ const MovieDetailPage = () => {
                   <div className="flex flex-wrap gap-2 movie-detail-tags">
                     {genreDetails && genreDetails.length > 0 ? (
                       genreDetails.map((genre, index) => (
-                        <Tag
-                          key={index}
-                          className="px-3 py-1.5 text-sm rounded-full"
-                        >
+                        <Tag key={index} className="px-3 py-1.5 text-sm rounded-full">
                           {genre.name}
                         </Tag>
                       ))
                     ) : movie.genres && movie.genres.length > 0 ? (
                       movie.genres.map((genre, index) => (
-                        <Tag
-                          key={index}
-                          className="px-3 py-1.5 text-sm rounded-full"
-                        >
+                        <Tag key={index} className="px-3 py-1.5 text-sm rounded-full">
                           {typeof genre === "object" ? genre.name : genre}
                         </Tag>
                       ))
@@ -657,9 +617,7 @@ const MovieDetailPage = () => {
                 </div>
                 <div className="mb-6">
                   <p className="line-clamp-3">
-                    {movie?.description ||
-                      movie?.overview ||
-                      "Chưa có thông tin nội dung phim."}
+                    {movie?.description || movie?.overview || "Chưa có thông tin nội dung phim."}
                   </p>
                 </div>
               </div>
@@ -674,18 +632,14 @@ const MovieDetailPage = () => {
               activeKey={activeTab}
               onChange={setActiveTab}
               className={`movie-detail-tabs ${
-                theme === "dark"
-                  ? "bg-gray-800 text-white"
-                  : "bg-white text-gray-800"
+                theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-800"
               } rounded-lg shadow-lg p-4 animate-fadeIn`}
               items={tabItems}
             />
           </Col>
           <Col xs={24} lg={8}>
             <div
-              className={`bg-${
-                theme === "dark" ? "gray-800" : "white"
-              } rounded-lg shadow-lg p-6 mb-6 animate-fadeIn`}
+              className={`bg-${theme === "dark" ? "gray-800" : "white"} rounded-lg shadow-lg p-6 mb-6 animate-fadeIn`}
             >
               <Title level={4} className="mb-4 text-red-500 font-bold">
                 Phim cùng thể loại
@@ -697,11 +651,7 @@ const MovieDetailPage = () => {
                       <div className="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors group">
                         <div className="w-16 h-24 overflow-hidden rounded-md flex-shrink-0 transition-transform duration-300 group-hover:scale-105">
                           <img
-                            src={
-                              movie.poster ||
-                              movie.posterUrl ||
-                              "/movie-poster-default.jpg"
-                            }
+                            src={movie.poster || movie.posterUrl || "/movie-poster-default.jpg"}
                             alt={movie.title}
                             className="w-full h-full object-cover"
                           />
@@ -713,11 +663,7 @@ const MovieDetailPage = () => {
                           <div className="text-xs text-gray-500 mt-1">
                             {movie.genres && movie.genres.length > 0
                               ? movie.genres
-                                  .map((genre) =>
-                                    typeof genre === "object"
-                                      ? genre.name
-                                      : genre
-                                  )
+                                  .map((genre) => (typeof genre === "object" ? genre.name : genre))
                                   .slice(0, 2)
                                   .join(", ")
                               : "Chưa cập nhật"}
@@ -812,4 +758,8 @@ const MovieDetailPage = () => {
   );
 };
 
-export default MovieDetailPage;
+export default () => (
+  <App>
+    <MovieDetailPage />
+  </App>
+);

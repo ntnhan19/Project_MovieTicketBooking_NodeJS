@@ -13,6 +13,8 @@ router.get('/:id', seatController.getSeatById);
 // Lấy layout ghế theo phòng
 router.get('/hall/:hallId', seatController.getSeatLayoutByHall);
 
+router.post('/renew/:id', authenticate, seatController.renewSeatLock);
+
 // Cập nhật thông tin ghế (yêu cầu đăng nhập + quyền admin)
 router.put('/:id', authenticate, seatController.updateSeat);
 

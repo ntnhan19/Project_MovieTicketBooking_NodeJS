@@ -243,12 +243,11 @@ const ItemCard = ({
             hoverable
             className="content-card h-full transition-all transform hover:-translate-y-2 hover:shadow-card-hover rounded-xl border border-gray-100/50 dark:border-gray-600/50"
             cover={
-              <div className="relative aspect-[3/4] overflow-hidden bg-light-bg-secondary group">
+              <div className="relative aspect-[3/4] overflow-hidden bg-gray-200 dark:bg-gray-700 group">
                 <img
                   alt={item.name || "Combo"}
                   src={item.image || "/api/placeholder/400/400"}
-                  className="absolute top-0 left-0 w-full h-full object-contain transition-all duration-300 group-hover:scale-105"
-                  loading="lazy"
+                  className="absolute top-0 left-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-105"
                 />
                 <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
                   <Button
@@ -256,7 +255,6 @@ const ItemCard = ({
                     icon={<InfoCircleOutlined />}
                     className="btn-primary transform scale-0 group-hover:scale-100 transition-all duration-300 hover:shadow-md"
                     onClick={toggleDetails}
-                    aria-label="Xem chi tiết sản phẩm"
                   >
                     Xem chi tiết
                   </Button>
@@ -272,7 +270,7 @@ const ItemCard = ({
               }
               description={
                 <div className="flex justify-between items-center mt-2">
-                  <span className="text-red-600 font-bold text-base bg-button-gradient px-2 py-1 rounded-full">
+                  <span className="price-text text-base bg-button-gradient px-2 py-1 rounded-full">
                     {formattedPrice}
                   </span>
                   <Button

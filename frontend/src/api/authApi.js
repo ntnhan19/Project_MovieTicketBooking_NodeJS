@@ -1,4 +1,3 @@
-// frontend/src/api/authApi.js
 import axiosInstance from './axiosInstance';
 
 export const authApi = {
@@ -8,10 +7,10 @@ export const authApi = {
       const res = await axiosInstance.post("/auth/login", credentials);
       const { token, user } = res.data;
 
-      // Lưu vào localStorage
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-      localStorage.setItem("userId", user.id);
+      // Lưu vào sessionStorage thay vì localStorage
+      sessionStorage.setItem("token", token);
+      sessionStorage.setItem("user", JSON.stringify(user));
+      sessionStorage.setItem("userId", user.id);
 
       // Đặt token trong header cho các request tiếp theo
       axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -36,15 +35,16 @@ export const authApi = {
 
   // Đăng xuất
   logout: () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("auth"); // Xóa thêm auth trong localStorage
+    // Xóa dữ liệu từ sessionStorage
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
+    sessionStorage.removeItem("userId");
+    sessionStorage.removeItem("auth");
   },
 
-  // Lấy thông tin user hiện tại từ localStorage
+  // Lấy thông tin user hiện tại từ sessionStorage
   getCurrentUserFromStorage: () => {
-    const userStr = localStorage.getItem("user");
+    const userStr = sessionStorage.getItem("user");
     return userStr ? JSON.parse(userStr) : null;
   },
 
@@ -58,11 +58,10 @@ export const authApi = {
       throw error;
     }
   },
-  
+
   // Xác thực email
   verifyEmail: async (token) => {
     try {
-      // Sửa endpoint này để khớp với backend
       const res = await axiosInstance.get(`/auth/verify-email/${token}`);
       return res.data;
     } catch (error) {

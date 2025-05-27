@@ -11,7 +11,6 @@ import {
   Tag,
   Image,
   Spin,
-  App,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -20,6 +19,7 @@ import {
   PrinterOutlined,
   CreditCardOutlined,
   DownloadOutlined,
+  CoffeeOutlined,
 } from "@ant-design/icons";
 import QRCode from "react-qr-code";
 import { ticketApi } from "../../../api/ticketApi";
@@ -34,10 +34,30 @@ const CompletionStep = ({
   seatDetails,
   onFinish,
   onRetry,
+  payment,
 }) => {
   const [activeTicketIndex, setActiveTicketIndex] = useState(0);
   const [qrCodes, setQrCodes] = useState({});
   const [loadingQR, setLoadingQR] = useState({});
+
+  // Hàm tính tổng tiền vé
+  const calculateTicketTotal = (tickets) => {
+    let ticketTotal = 0;
+    if (tickets && Array.isArray(tickets)) {
+      tickets.forEach((ticket) => {
+        let amount = ticket.price || 0;
+        if (ticket.promotion) {
+          if (ticket.promotion.type === "PERCENTAGE") {
+            amount = amount * (1 - ticket.promotion.discount / 100);
+          } else if (ticket.promotion.type === "FIXED") {
+            amount = Math.max(0, amount - ticket.promotion.discount);
+          }
+        }
+        ticketTotal += Math.max(0, amount);
+      });
+    }
+    return Math.round(ticketTotal * 100) / 100;
+  };
 
   // Xử lý để lấy danh sách vé từ ticketData
   const getTicketsList = () => {
@@ -45,7 +65,6 @@ const CompletionStep = ({
     if (ticketData.tickets && Array.isArray(ticketData.tickets)) {
       return ticketData.tickets;
     }
-    // Nếu không có danh sách vé, tạo một mảng với 1 vé
     return [ticketData];
   };
 
@@ -63,7 +82,6 @@ const CompletionStep = ({
   useEffect(() => {
     if (paymentSuccess && tickets.length > 0) {
       tickets.forEach((ticket) => {
-        // Chỉ tải QR cho những vé chưa có
         if (ticket.id && !qrCodes[ticket.id]) {
           generateQRCode(ticket);
         }
@@ -79,24 +97,11 @@ const CompletionStep = ({
     setLoadingQR((prev) => ({ ...prev, [ticketId]: true }));
 
     try {
-      // Tạo QR code từ API nếu có thể
-      if (ticketApi.generateTicketQR) {
-        try {
-          const qrData = await ticketApi.generateTicketQR(ticketId);
-          setQrCodes((prev) => ({ ...prev, [ticketId]: qrData }));
-          setLoadingQR((prev) => ({ ...prev, [ticketId]: false }));
-          return;
-        } catch (apiError) {
-          console.error("Lỗi khi gọi API tạo QR:", apiError);
-          // Nếu API thất bại, sẽ tiếp tục tạo QR code trực tiếp
-        }
-      }
-
-      // Tạo QR code trực tiếp nếu API không có hoặc thất bại
-      generateLocalQRCode(ticket);
+      const response = await ticketApi.generateTicketQR(ticketId);
+      setQrCodes((prev) => ({ ...prev, [ticketId]: response.qrCode }));
     } catch (error) {
-      console.error("Lỗi khi tạo QR code:", error);
-      generateLocalQRCode(ticket);
+      console.error("Lỗi khi tạo mã QR:", error);
+      setQrCodes((prev) => ({ ...prev, [ticketId]: null }));
     } finally {
       setLoadingQR((prev) => ({ ...prev, [ticketId]: false }));
     }
@@ -108,6 +113,8 @@ const CompletionStep = ({
 
     const ticketCode = getTicketCode(ticket);
     const seatInfo = getSeatInfo(ticket);
+    const concessions =
+      payment?.concessionOrders?.[0]?.items || ticketData?.concessions || [];
 
     const qrData = JSON.stringify({
       ticketCode: ticketCode,
@@ -120,6 +127,13 @@ const CompletionStep = ({
       }),
       date: new Date(showtimeDetails.startTime).toLocaleDateString("vi-VN"),
       seat: seatInfo,
+      concessions: concessions.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.price * item.quantity,
+      })),
+      concessionOrderId: payment?.concessionOrders?.[0]?.id || null,
     });
 
     setQrCodes((prev) => ({ ...prev, [ticket.id]: qrData }));
@@ -130,7 +144,6 @@ const CompletionStep = ({
     if (ticket.seat) {
       return `${ticket.seat.row}${ticket.seat.column || ticket.seat.number}`;
     }
-    // Tìm ghế tương ứng trong seatDetails
     const matchingSeat = seatDetails.find(
       (seat) =>
         seat.id === ticket.seatId || (ticket.seat && seat.id === ticket.seat.id)
@@ -160,156 +173,44 @@ const CompletionStep = ({
 
   // Lấy thông tin phương thức thanh toán
   const getPaymentMethod = () => {
-    if (!ticketData) return "Không xác định";
-
-    // Kiểm tra nhiều vị trí có thể chứa phương thức thanh toán
-    const paymentMethod =
-      ticketData.paymentMethod ||
-      (ticketData.payment && ticketData.payment.method) ||
-      "vnpay"; // Giá trị mặc định nếu không tìm thấy
-
-    return formatPaymentMethod(paymentMethod);
+    if (!payment) return "Không xác định";
+    return formatPaymentMethod(payment.method);
   };
-
-  console.log("Debug ticketData structure:", ticketData);
-  console.log("Debug ticketData keys:", Object.keys(ticketData || {}));
 
   // Lấy mã giao dịch
-  // 1. Cập nhật hàm getTransactionId() trong CompletionStep.jsx
-  // Hàm getTransactionId() đã được sửa lỗi
   const getTransactionId = () => {
-    if (!ticketData) return "Không xác định";
-
-    // Ưu tiên các nguồn dữ liệu theo thứ tự quan trọng
-
-    // 1. Kiểm tra vnp_TransactionNo trực tiếp từ ticketData
-    if (ticketData.vnp_TransactionNo) {
-      return ticketData.vnp_TransactionNo;
-    }
-
-    // 2. Kiểm tra trong vnpayData
-    if (ticketData.vnpayData && ticketData.vnpayData.vnp_TransactionNo) {
-      return ticketData.vnpayData.vnp_TransactionNo;
-    }
-
-    // 3. Kiểm tra transactionId trực tiếp
-    if (ticketData.transactionId) {
-      return ticketData.transactionId;
-    }
-
-    // 4. Kiểm tra trong payment object
-    if (ticketData.payment) {
-      if (ticketData.payment.vnp_TransactionNo) {
-        return ticketData.payment.vnp_TransactionNo;
-      }
-      if (ticketData.payment.transactionId) {
-        return ticketData.payment.transactionId;
-      }
-      if (ticketData.payment.transactionNo) {
-        return ticketData.payment.transactionNo;
-      }
-    }
-
-    // 5. Kiểm tra trong paymentDetails
-    if (ticketData.paymentDetails) {
-      if (ticketData.paymentDetails.vnp_TransactionNo) {
-        return ticketData.paymentDetails.vnp_TransactionNo;
-      }
-      if (ticketData.paymentDetails.transactionId) {
-        return ticketData.paymentDetails.transactionId;
-      }
-    }
-
-    // 6. Kiểm tra từ tham số URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlTransactionId =
-      urlParams.get("vnp_TransactionNo") ||
-      urlParams.get("transactionId") ||
-      urlParams.get("vnp_TransactionId");
-    if (urlTransactionId) {
-      return urlTransactionId;
-    }
-
-    // 7. Kiểm tra global variable
-    if (window && window.paymentTransactionId) {
-      return window.paymentTransactionId;
-    }
-
-    // 8. Kiểm tra trong mảng tickets
-    if (
-      ticketData.tickets &&
-      Array.isArray(ticketData.tickets) &&
-      ticketData.tickets.length > 0
-    ) {
-      const firstTicket = ticketData.tickets[0];
-      if (firstTicket.payment) {
-        if (firstTicket.payment.vnp_TransactionNo) {
-          return firstTicket.payment.vnp_TransactionNo;
-        }
-        if (firstTicket.payment.transactionId) {
-          return firstTicket.payment.transactionId;
-        }
-      }
-      if (firstTicket.vnp_TransactionNo) {
-        return firstTicket.vnp_TransactionNo;
-      }
-      if (firstTicket.transactionId) {
-        return firstTicket.transactionId;
-      }
-    }
-
-    // 9. Kiểm tra trong firstTicket
-    if (ticketData.firstTicket) {
-      if (ticketData.firstTicket.vnp_TransactionNo) {
-        return ticketData.firstTicket.vnp_TransactionNo;
-      }
-      if (
-        ticketData.firstTicket.payment &&
-        ticketData.firstTicket.payment.vnp_TransactionNo
-      ) {
-        return ticketData.firstTicket.payment.vnp_TransactionNo;
-      }
-      if (
-        ticketData.firstTicket.payment &&
-        ticketData.firstTicket.payment.transactionId
-      ) {
-        return ticketData.firstTicket.payment.transactionId;
-      }
-      if (ticketData.firstTicket.transactionId) {
-        return ticketData.firstTicket.transactionId;
-      }
-    }
-
-    // 10. Cuối cùng, trả về thông báo rõ ràng
-    console.warn("Không tìm thấy mã giao dịch trong ticketData:", ticketData);
-    return "Không có mã giao dịch";
+    if (!payment) return "Không xác định";
+    return (
+      payment.transactionId ||
+      payment.vnp_TransactionNo ||
+      "Không có mã giao dịch"
+    );
   };
 
-  const DebugTransactionInfo = ({ ticketData }) => {
-    if (!ticketData) return null;
-
-    const debugInfo = {
-      vnp_TransactionNo: ticketData.vnp_TransactionNo,
-      transactionId: ticketData.transactionId,
-      payment: ticketData.payment,
-      vnpayData: ticketData.vnpayData,
-      paymentDetails: ticketData.paymentDetails,
-      allKeys: Object.keys(ticketData),
-    };
-
+  // Render thông tin bắp nước
+  const renderConcessionInfo = () => {
+    const concessions =
+      payment?.concessionOrders?.[0]?.items || ticketData?.concessions || [];
+    if (!concessions || concessions.length === 0) {
+      return <Text type="secondary">Không có bắp nước</Text>;
+    }
     return (
-      <div
-        style={{
-          backgroundColor: "#f5f5f5",
-          padding: "10px",
-          margin: "10px 0",
-          borderRadius: "5px",
-          fontSize: "12px",
-          fontFamily: "monospace",
-        }}
-      >
-        <h4>Debug Transaction Info:</h4>
-        <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+      <div className="flex flex-wrap gap-2">
+        {concessions.map((item, index) => (
+          <Tag
+            key={`${item.id}-${index}`}
+            color="cyan"
+            className="px-3 py-1.5 rounded-lg font-medium bg-cyan-100 border border-cyan-500 text-cyan-700"
+          >
+            {item.name} x{item.quantity} -{" "}
+            {(item.price * item.quantity).toLocaleString("vi-VN")}đ
+          </Tag>
+        ))}
+        {payment?.concessionOrders?.[0]?.id && (
+          <Text className="block mt-2 text-sm">
+            Mã đơn bắp nước: {payment.concessionOrders[0].id}
+          </Text>
+        )}
       </div>
     );
   };
@@ -323,15 +224,14 @@ const CompletionStep = ({
 
     return (
       <div className="ticket-info-card bg-white rounded-lg shadow-card overflow-hidden border border-border-light">
-        {/* Header của vé */}
-        <div className="bg-gradient-to-r from-primary to-primary-light p-4 text-white">
+        <div className="bg-gradient-to-r from-red-500 to-red-600 p-4 text-white">
           <Row justify="space-between" align="middle">
             <Col>
               <Title level={4} className="m-0 text-white flex items-center">
                 <span className="mr-2">{showtimeDetails.hall.cinema.name}</span>
                 <Tag
                   color="white"
-                  className="text-primary bg-white font-medium"
+                  className="text-red-500 bg-white font-medium"
                 >
                   E-Ticket
                 </Tag>
@@ -344,14 +244,12 @@ const CompletionStep = ({
         </div>
 
         <Row gutter={[0, 0]} className="h-full">
-          {/* Phần thông tin phim và suất chiếu */}
           <Col
             xs={24}
             md={16}
             className="p-6 border-r-0 md:border-r border-border-light"
           >
             <div className="flex flex-col md:flex-row gap-6">
-              {/* Poster phim nếu có */}
               {showtimeDetails.movie?.posterUrl && (
                 <div className="w-full md:w-1/3 mb-4 md:mb-0">
                   <img
@@ -380,14 +278,12 @@ const CompletionStep = ({
                     </Text>
                     <Text>{showtimeDetails.hall.cinema.name}</Text>
                   </div>
-
                   <div className="flex items-center">
                     <Text strong className="w-24">
                       Phòng:
                     </Text>
                     <Text>{showtimeDetails.hall.name}</Text>
                   </div>
-
                   <div className="flex items-center">
                     <Text strong className="w-24">
                       Ngày:
@@ -398,7 +294,6 @@ const CompletionStep = ({
                       )}
                     </Text>
                   </div>
-
                   <div className="flex items-center">
                     <Text strong className="w-24">
                       Giờ chiếu:
@@ -413,30 +308,22 @@ const CompletionStep = ({
                       )}
                     </Text>
                   </div>
-
                   <div className="flex items-center">
                     <Text strong className="w-24">
                       Ghế:
                     </Text>
                     <Text className="font-medium">{seatInfo}</Text>
                   </div>
-
-                  {ticket.price && (
-                    <div className="flex items-center">
-                      <Text strong className="w-24">
-                        Giá vé:
-                      </Text>
-                      <Text className="font-medium text-primary">
-                        {ticket.price.toLocaleString("vi-VN")}đ
-                      </Text>
-                    </div>
-                  )}
+                  <div className="flex items-start">
+                    <Text strong className="w-24">
+                      Bắp nước:
+                    </Text>
+                    <div className="flex-1">{renderConcessionInfo()}</div>
+                  </div>
                 </div>
               </div>
             </div>
           </Col>
-
-          {/* Phần QR code */}
           <Col
             xs={24}
             md={8}
@@ -471,7 +358,6 @@ const CompletionStep = ({
             <Text className="text-text-secondary mb-6">
               Vui lòng quét mã QR tại quầy để nhận vé
             </Text>
-
             <Space direction="vertical" className="w-full">
               <Button
                 icon={<PrinterOutlined />}
@@ -511,7 +397,7 @@ const CompletionStep = ({
               <List.Item
                 className={`rounded-lg transition-colors cursor-pointer ${
                   index === activeTicketIndex
-                    ? "bg-primary/10 border-l-4 border-primary"
+                    ? "bg-red-500/10 border-l-4 border-red-500"
                     : "hover:bg-gray-50 border-l-4 border-transparent"
                 }`}
                 onClick={() => setActiveTicketIndex(index)}
@@ -520,7 +406,7 @@ const CompletionStep = ({
                   <FileTextOutlined
                     className={`mr-3 ${
                       index === activeTicketIndex
-                        ? "text-primary"
+                        ? "text-red-500"
                         : "text-text-secondary"
                     }`}
                   />
@@ -534,7 +420,7 @@ const CompletionStep = ({
                     <Text
                       className={`${
                         index === activeTicketIndex
-                          ? "text-primary font-medium"
+                          ? "text-red-500 font-medium"
                           : "text-text-secondary"
                       }`}
                     >
@@ -552,18 +438,12 @@ const CompletionStep = ({
 
   // Render thông tin thanh toán
   const renderPaymentInfo = () => {
-    if (!ticketData) return null;
+    if (!payment) return null;
 
     const paymentMethod = getPaymentMethod();
     const transactionId = getTransactionId();
+    const totalAmount = payment.amount || 0; // Chỉ hiển thị tổng tiền từ payment.amount
 
-    // Lấy tổng tiền từ dữ liệu thanh toán nếu có
-    const totalAmount =
-      (ticketData.payment && ticketData.payment.amount) ||
-      ticketData.totalAmount ||
-      tickets.reduce((sum, ticket) => sum + (ticket.price || 0), 0);
-
-    // Map các logo cho phương thức thanh toán
     const getPaymentLogo = (method) => {
       const logoMap = {
         VNPAY:
@@ -573,7 +453,6 @@ const CompletionStep = ({
         ZaloPay:
           "https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-ZaloPay-Square.png",
       };
-
       return logoMap[method] || null;
     };
 
@@ -584,12 +463,11 @@ const CompletionStep = ({
         <Row gutter={[0, 16]}>
           <Col span={24}>
             <Title level={5} className="mb-3 flex items-center">
-              <CreditCardOutlined className="mr-2 text-primary" />
+              <CreditCardOutlined className="mr-2 text-red-500" />
               Thông tin thanh toán
             </Title>
             <Divider className="my-3" />
           </Col>
-
           <Col span={24}>
             <Row justify="space-between" className="py-1">
               <Col>
@@ -611,7 +489,6 @@ const CompletionStep = ({
                 </Text>
               </Col>
             </Row>
-
             <Row justify="space-between" className="py-1">
               <Col>
                 <Text>Mã giao dịch:</Text>
@@ -622,9 +499,7 @@ const CompletionStep = ({
                 </Text>
               </Col>
             </Row>
-
             <Divider className="my-3" />
-
             <Row justify="space-between" align="middle">
               <Col>
                 <Text strong className="text-lg">
@@ -632,11 +507,23 @@ const CompletionStep = ({
                 </Text>
               </Col>
               <Col>
-                <Text strong className="text-xl text-primary">
+                <Text strong className="text-xl text-red-500">
                   {totalAmount.toLocaleString("vi-VN")}đ
                 </Text>
               </Col>
             </Row>
+            {/* Hiển thị chi tiết bắp nước nếu có */}
+            {payment?.concessionOrders?.[0]?.items?.length > 0 && (
+              <>
+                <Divider className="my-3" />
+                <Row>
+                  <Col span={24}>
+                    <Text strong>Chi tiết bắp nước:</Text>
+                    <div className="mt-2">{renderConcessionInfo()}</div>
+                  </Col>
+                </Row>
+              </>
+            )}
           </Col>
         </Row>
       </div>
@@ -644,8 +531,7 @@ const CompletionStep = ({
   };
 
   return (
-    <div className="completion-step animate-fadeIn">
-      {/* Thông báo kết quả */}
+    <div className="completion-step animate-fadeIn max-w-5xl mx-auto">
       <Result
         icon={
           paymentSuccess ? (
@@ -656,70 +542,58 @@ const CompletionStep = ({
         }
         status={paymentSuccess ? "success" : "error"}
         title={
-          <span className={paymentSuccess ? "text-green-600" : "text-red-600"}>
-            {paymentSuccess ? "Thanh toán thành công!" : "Thanh toán thất bại"}
-          </span>
+          paymentSuccess ? "Thanh toán thành công!" : "Thanh toán thất bại"
         }
         subTitle={
-          paymentSuccess && ticketData
-            ? `Mã đặt vé: ${
-                tickets.length > 1
-                  ? `${tickets.length} vé`
-                  : getTicketCode(tickets[0])
-              }`
-            : paymentError
+          paymentSuccess ? (
+            <Text>
+              Cảm ơn bạn đã đặt vé! Vui lòng lưu hoặc in vé để sử dụng tại rạp.
+            </Text>
+          ) : (
+            <Text className="text-red-500">
+              {paymentError || "Đã có lỗi xảy ra trong quá trình thanh toán."}
+            </Text>
+          )
         }
-        extra={[
-          <Button
-            key="home"
-            onClick={onFinish}
-            className="bg-gradient-to-r from-primary to-primary-light hover:from-primary-dark hover:to-primary text-white border-none shadow-button hover:shadow-button-hover px-8"
-            size="large"
-          >
-            Về trang chủ
-          </Button>,
-          !paymentSuccess && (
+        extra={
+          paymentSuccess ? (
             <Button
-              type="default"
-              key="retry"
-              onClick={onRetry}
+              type="primary"
               size="large"
-              className="border-primary text-primary hover:bg-primary/5"
+              onClick={onFinish}
+              className="bg-red-500 border-none rounded-lg font-bold h-12 hover:bg-red-600"
             >
-              Thử lại
+              Về trang chủ
             </Button>
-          ),
-        ]}
-        className="mb-8 bg-white p-6 rounded-lg shadow-card border border-border-light"
+          ) : (
+            <Space>
+              <Button
+                type="default"
+                size="large"
+                onClick={onRetry}
+                className="border rounded-lg h-12 font-medium border-gray-300 text-text-primary hover:bg-gray-100"
+              >
+                Thử lại
+              </Button>
+              <Button
+                type="primary"
+                size="large"
+                onClick={onFinish}
+                className="bg-red-500 border-none rounded-lg font-bold h-12 hover:bg-red-600"
+              >
+                Về trang chủ
+              </Button>
+            </Space>
+          )
+        }
       />
 
-      {/* Phần hiển thị vé và thông tin thanh toán */}
-      {paymentSuccess && (
-        <div className="ticket-content">
-          <Title level={4} className="mb-6 text-center">
-            Vui lòng xuất trình mã QR khi đến rạp
-          </Title>
-
-          <Row gutter={[24, 24]}>
-            {/* Danh sách vé (hiển thị khi có nhiều vé) */}
-            {tickets.length > 1 && (
-              <Col xs={24} lg={8}>
-                {renderTicketsList()}
-                {renderPaymentInfo()}
-              </Col>
-            )}
-
-            {/* Chi tiết vé */}
-            <Col xs={24} lg={tickets.length > 1 ? 16 : 24}>
-              {renderTicketInfo(currentTicket)}
-
-              {/* Hiển thị thông tin thanh toán khi chỉ có 1 vé */}
-              {tickets.length <= 1 && (
-                <div className="mt-6">{renderPaymentInfo()}</div>
-              )}
-            </Col>
-          </Row>
-        </div>
+      {paymentSuccess && currentTicket && (
+        <Row gutter={[24, 24]} className="mt-8">
+          <Col xs={24}>{renderTicketInfo(currentTicket)}</Col>
+          {tickets.length > 1 && <Col xs={24}>{renderTicketsList()}</Col>}
+          <Col xs={24}>{renderPaymentInfo()}</Col>
+        </Row>
       )}
     </div>
   );

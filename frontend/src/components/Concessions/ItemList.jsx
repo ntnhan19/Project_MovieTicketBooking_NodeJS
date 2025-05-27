@@ -9,7 +9,8 @@ const ItemList = ({
   isCombo = false,
   emptyMessage = "Không có sản phẩm nào",
   emptyButtonText = "Khám Phá Combo",
-  colSizes = { xs: 24, sm: 12, md: 8, lg: 8 },
+  colSizes = { xs: 24, sm: 12, md: 8, lg: 6 },
+  cardClassName = "",
 }) => {
   if (loading) {
     return (
@@ -17,7 +18,7 @@ const ItemList = ({
         <Row gutter={[32, 32]} className="animate-fadeIn">
           {[1, 2, 3, 4].map((key) => (
             <Col key={key} {...colSizes}>
-              <div className="content-card p-6 h-80 animate-pulse">
+              <div className={`content-card p-6 h-80 animate-pulse ${cardClassName}`}>
                 <Skeleton.Image active className="w-full h-40" />
                 <Skeleton active paragraph={{ rows: 2 }} className="mt-4" />
               </div>
@@ -30,10 +31,10 @@ const ItemList = ({
 
   if (!items || items.length === 0) {
     return (
-      <div className="py-16 px-8 text-center bg-white rounded-xl shadow-card">
+      <div className="py-16 px-8 text-center bg-white/80 dark:bg-gray-800/80 rounded-xl shadow-md">
         <Empty
           description={
-            <span className="text-text-secondary text-lg">{emptyMessage}</span>
+            <span className="text-gray-700 dark:text-gray-300 text-lg">{emptyMessage}</span>
           }
           image={Empty.PRESENTED_IMAGE_SIMPLE}
           className="py-8"
@@ -61,6 +62,7 @@ const ItemList = ({
               item={{ ...item, type: isCombo ? "combo" : "item" }}
               onAddItem={onAddItem}
               isCombo={isCombo}
+              cardClassName={cardClassName}
             />
           </Col>
         ))}

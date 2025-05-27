@@ -1,17 +1,14 @@
 // backend/src/controllers/paymentController.js
 const paymentService = require("../services/paymentService");
 const vnpayService = require("../services/vnpayService");
+const seatService = require("../services/seatService");
 const prisma = require("../../prisma/prisma");
 
-/**
- * Tạo thanh toán mới (POST /api/payments)
- */
 const createPayment = async (req, res) => {
   try {
-    const { ticketIds, method } = req.body;
+    const { ticketIds, concessionOrderIds, method } = req.body;
     const userId = req.user?.id;
 
-    // Validate input
     if (
       !ticketIds ||
       !Array.isArray(ticketIds) ||
@@ -21,7 +18,6 @@ const createPayment = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Lấy thông tin của tất cả các vé
     const tickets = await prisma.ticket.findMany({
       where: { id: { in: ticketIds } },
       include: {
@@ -36,7 +32,6 @@ const createPayment = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy vé" });
     }
 
-    // Kiểm tra quyền truy cập (chỉ admin hoặc chủ sở hữu vé mới có thể tạo thanh toán)
     if (userId && req.user.role !== "ADMIN") {
       const unauthorizedTicket = tickets.find(
         (ticket) => ticket.userId !== userId
@@ -46,28 +41,51 @@ const createPayment = async (req, res) => {
       }
     }
 
-    // Truyền vào service để tạo thanh toán
-    const payment = await paymentService.createPayment({ tickets, method });
+    // Kiểm tra concessionOrderIds nếu được cung cấp
+    let concessionOrders = [];
+    if (concessionOrderIds && Array.isArray(concessionOrderIds)) {
+      concessionOrders = await prisma.concessionOrder.findMany({
+        where: { id: { in: concessionOrderIds } },
+      });
 
-    // Xử lý theo phương thức thanh toán
+      if (concessionOrderIds.length !== concessionOrders.length) {
+        return res
+          .status(404)
+          .json({ message: "Một số đơn hàng bắp nước không tìm thấy" });
+      }
+
+      // Kiểm tra quyền sở hữu concession orders
+      if (userId && req.user.role !== "ADMIN") {
+        const unauthorizedOrder = concessionOrders.find(
+          (order) => order.userId !== userId
+        );
+        if (unauthorizedOrder) {
+          return res
+            .status(403)
+            .json({ message: "Access denied for some concession orders" });
+        }
+      }
+    }
+
+    const payment = await paymentService.createPayment({
+      tickets,
+      concessionOrders,
+      method,
+    });
+
     switch (method) {
       case "VNPAY":
         try {
-          // Lấy địa chỉ IP của người dùng
           const ipAddr =
             req.headers["x-forwarded-for"] ||
             req.connection.remoteAddress ||
             req.socket.remoteAddress ||
             "127.0.0.1";
-
-          // Tạo đơn hàng VNPay và lấy URL thanh toán
           const vnpayOrder = await vnpayService.createVNPayOrder(
             payment,
             tickets[0],
             ipAddr
           );
-          console.log("VNPay order created:", vnpayOrder);
-
           return res.status(201).json({
             ...payment,
             paymentUrl: vnpayOrder.paymentUrl,
@@ -81,7 +99,6 @@ const createPayment = async (req, res) => {
             .json({ message: `Lỗi tạo thanh toán VNPAY: ${error.message}` });
         }
       default:
-        // Với các phương thức thanh toán khác, trả về payment bình thường
         res.status(201).json(payment);
     }
   } catch (error) {
@@ -93,27 +110,44 @@ const createPayment = async (req, res) => {
   }
 };
 
-/**
- * Xử lý kết quả thanh toán từ VNPay (GET /api/payments/vnpay-return)
- */
 const vnpayReturn = async (req, res) => {
   try {
     const vnpayData = req.query;
-    console.log("VNPay return data:", vnpayData);
-
-    // Xử lý dữ liệu trả về qua service
+    const io = req.app.get("io");
     const result = await vnpayService.processVNPayReturn(vnpayData);
 
+    if (!result.success && result.seatIds.length > 0) {
+      const payment = await prisma.payment.findUnique({
+        where: { id: result.paymentId },
+        include: { tickets: { include: { seat: true } } },
+      });
+      const showtimeId = payment.tickets[0]?.showtimeId;
+      if (showtimeId) {
+        result.seatIds.forEach((seatId) => {
+          io.to(`showtime:${showtimeId}`).emit("seatUpdate", {
+            seatId,
+            status: "AVAILABLE",
+          });
+        });
+      }
+    }
+
     if (result.success) {
-      // Lấy thông tin payment đã được cập nhật với transactionId
       const payment = await paymentService.getPaymentById(result.paymentId);
-      
       return res.redirect(
-        `${process.env.FRONTEND_URL}/booking/payment?paymentId=${result.paymentId}&status=success&transactionId=${payment.transactionId || result.transactionId}`
+        `${process.env.FRONTEND_URL}/booking/payment?paymentId=${
+          result.paymentId
+        }&status=success&transactionId=${
+          payment.transactionId || result.transactionId
+        }`
       );
     } else {
       return res.redirect(
-        `${process.env.FRONTEND_URL}/booking/payment/result?paymentId=${result.paymentId}&status=failed&code=${result.responseCode}`
+        `${process.env.FRONTEND_URL}/booking/payment/result?paymentId=${
+          result.paymentId
+        }&status=failed&code=${
+          result.responseCode
+        }&seatIds=${encodeURIComponent(JSON.stringify(result.seatIds))}`
       );
     }
   } catch (error) {
@@ -126,18 +160,10 @@ const vnpayReturn = async (req, res) => {
   }
 };
 
-/**
- * VNPay IPN (Instant Payment Notification) handler (POST /api/payments/vnpay-ipn)
- */
 const vnpayIPN = async (req, res) => {
   try {
     const ipnData = req.query;
-    console.log("VNPay IPN received:", ipnData);
-
-    // Xử lý IPN qua service
     const result = await vnpayService.processVNPayIPN(ipnData);
-
-    // VNPay yêu cầu trả về đúng định dạng này
     return res.status(200).json(result);
   } catch (error) {
     console.error("Error processing VNPay IPN:", error);
@@ -145,9 +171,6 @@ const vnpayIPN = async (req, res) => {
   }
 };
 
-/**
- * Kiểm tra trạng thái thanh toán VNPay (GET /api/payments/:id/check-vnpay-status)
- */
 const checkVNPayStatus = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -165,27 +188,14 @@ const checkVNPayStatus = async (req, res) => {
         .json({ message: "This payment was not processed by VNPay" });
     }
 
-    // Lấy địa chỉ IP của người dùng
     const ipAddr =
       req.headers["x-forwarded-for"] ||
       req.connection.remoteAddress ||
       req.socket.remoteAddress ||
       "127.0.0.1";
 
-    try {
-      // Kiểm tra trạng thái giao dịch
-      const result = await vnpayService.checkTransactionStatus(payment, ipAddr);
-      return res.status(200).json(result);
-    } catch (error) {
-      // Trả về thông tin cơ bản nếu có lỗi
-      return res.status(200).json({
-        status: payment.status,
-        message: `Không thể kiểm tra chi tiết: ${error.message}`,
-        paymentId: payment.id,
-        appTransId: payment.appTransId,
-        error: true,
-      });
-    }
+    const result = await vnpayService.checkTransactionStatus(payment, ipAddr);
+    return res.status(200).json(result);
   } catch (error) {
     console.error("Error checking VNPay status:", error);
     return res.status(500).json({
@@ -195,21 +205,16 @@ const checkVNPayStatus = async (req, res) => {
   }
 };
 
-/**
- * Lấy thông tin thanh toán theo ID (GET /api/payments/:id)
- */
 const getPaymentById = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const userId = req.user?.id;
-
     const payment = await paymentService.getPaymentById(id);
 
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
 
-    // Kiểm tra quyền truy cập (chỉ admin hoặc chủ sở hữu vé mới có thể xem)
     if (userId && req.user.role !== "ADMIN") {
       const unauthorizedTicket = payment.tickets.find(
         (ticket) => ticket.userId !== userId
@@ -226,13 +231,10 @@ const getPaymentById = async (req, res) => {
   }
 };
 
-// Lấy thông tin thanh toán theo ID vé (GET /api/payments/ticket/:ticketId)
 const getPaymentByTicketId = async (req, res) => {
   try {
     const ticketId = parseInt(req.params.ticketId);
     const userId = req.user?.id;
-
-    // Trước tiên xem ticket thuộc về ai
     const ticket = await prisma.ticket.findUnique({
       where: { id: ticketId },
       select: { userId: true },
@@ -242,13 +244,11 @@ const getPaymentByTicketId = async (req, res) => {
       return res.status(404).json({ message: "Ticket not found" });
     }
 
-    // Kiểm tra quyền truy cập với ticket
     if (userId && req.user.role !== "ADMIN" && userId !== ticket.userId) {
       return res.status(403).json({ message: "Access denied" });
     }
 
     const payment = await paymentService.getPaymentByTicketId(ticketId);
-
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
@@ -260,7 +260,6 @@ const getPaymentByTicketId = async (req, res) => {
   }
 };
 
-// Cập nhật trạng thái thanh toán (PUT /api/payments/:id/status)
 const updatePaymentStatus = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -276,27 +275,21 @@ const updatePaymentStatus = async (req, res) => {
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    // Kiểm tra thanh toán tồn tại
     const payment = await paymentService.getPaymentById(id);
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
 
-    // Kiểm tra quyền truy cập
+    // Kiểm tra quyền: Người dùng chỉ có thể hủy thanh toán của chính mình
     if (userId && req.user.role !== "ADMIN") {
-      const unauthorizedTicket = payment.tickets.find(
-        (ticket) => ticket.userId !== userId
+      const isOwner = payment.tickets.some(
+        (ticket) => ticket.userId === userId
       );
-      if (unauthorizedTicket) {
-        return res.status(403).json({ message: "Access denied" });
+      if (!isOwner && status !== "CANCELLED") {
+        return res
+          .status(403)
+          .json({ message: "You can only cancel your own payment" });
       }
-    }
-
-    // Thêm kiểm tra nghiệp vụ: nếu không phải admin, user chỉ được phép hủy thanh toán
-    if (userId && req.user.role !== "ADMIN" && status !== "CANCELLED") {
-      return res
-        .status(403)
-        .json({ message: "You can only cancel your own payment" });
     }
 
     const updatedPayment = await paymentService.updatePaymentStatus(id, status);
@@ -307,7 +300,6 @@ const updatePaymentStatus = async (req, res) => {
   }
 };
 
-// Mô phỏng webhook từ cổng thanh toán (POST /api/payments/webhook)
 const paymentWebhook = async (req, res) => {
   try {
     const { paymentId, status, transactionId } = req.body;
@@ -316,7 +308,6 @@ const paymentWebhook = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Kiểm tra thanh toán tồn tại
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
     });
@@ -334,7 +325,6 @@ const paymentWebhook = async (req, res) => {
       },
     });
 
-    // Gọi service để xử lý các thay đổi liên quan đến trạng thái vé
     if (status === "COMPLETED" || status === "CANCELLED") {
       await paymentService.updatePaymentStatus(paymentId, status);
     }
@@ -350,7 +340,6 @@ const simulatePaymentSuccess = async (req, res) => {
   try {
     const paymentId = parseInt(req.params.id);
     const result = await vnpayService.simulatePaymentSuccess(paymentId);
-
     res.status(200).json({
       success: true,
       message: "Payment simulated successfully",
@@ -362,9 +351,6 @@ const simulatePaymentSuccess = async (req, res) => {
   }
 };
 
-/**
- * Lấy danh sách thanh toán cho admin (GET /api/payments)
- */
 const getPayments = async (req, res) => {
   try {
     const {
@@ -379,63 +365,36 @@ const getPayments = async (req, res) => {
       endDate,
     } = req.query;
 
-    // Xây dựng điều kiện where
     const where = {};
-    
     if (status) {
       where.status = status;
     }
-    
     if (method) {
       where.method = method;
     }
-
     if (search) {
       where.OR = [
-        { transactionId: { contains: search, mode: 'insensitive' } },
-        { appTransId: { contains: search, mode: 'insensitive' } },
+        { transactionId: { contains: search, mode: "insensitive" } },
+        { appTransId: { contains: search, mode: "insensitive" } },
       ];
     }
-
     if (startDate) {
-      where.createdAt = {
-        ...where.createdAt,
-        gte: new Date(startDate),
-      };
+      where.createdAt = { ...where.createdAt, gte: new Date(startDate) };
     }
-
     if (endDate) {
-      where.createdAt = {
-        ...where.createdAt,
-        lte: new Date(endDate),
-      };
+      where.createdAt = { ...where.createdAt, lte: new Date(endDate) };
     }
 
-    // Lấy tổng số payment theo điều kiện
     const total = await prisma.payment.count({ where });
-
-    // Lấy danh sách payment
     const payments = await prisma.payment.findMany({
       where,
       skip: (Number(page) - 1) * Number(perPage),
       take: Number(perPage),
-      orderBy: {
-        [sortBy]: sortOrder.toLowerCase(),
-      },
+      orderBy: { [sortBy]: sortOrder.toLowerCase() },
       include: {
-        tickets: {
-          select: {
-            id: true,
-            status: true,
-            price: true,
-          },
-        },
+        tickets: { select: { id: true, status: true, price: true } },
         concessionOrders: {
-          select: {
-            id: true,
-            status: true,
-            totalAmount: true,
-          },
+          select: { id: true, status: true, totalAmount: true },
         },
       },
     });
@@ -452,59 +411,105 @@ const getPayments = async (req, res) => {
   }
 };
 
-/**
- * Lấy thống kê thanh toán cho admin (GET /api/payments/statistics)
- */
 const getPaymentStatistics = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-
     const where = {};
     if (startDate) {
-      where.createdAt = {
-        ...where.createdAt,
-        gte: new Date(startDate),
-      };
+      where.createdAt = { ...where.createdAt, gte: new Date(startDate) };
     }
     if (endDate) {
-      where.createdAt = {
-        ...where.createdAt,
-        lte: new Date(endDate),
-      };
+      where.createdAt = { ...where.createdAt, lte: new Date(endDate) };
     }
 
     const [totalTransactions, methodStats, statusStats] = await Promise.all([
-      // Tổng số giao dịch
       prisma.payment.count({ where }),
-
-      // Thống kê theo phương thức thanh toán
       prisma.payment.groupBy({
         by: ["method"],
         where,
         _count: true,
-        _sum: {
-          amount: true,
-        },
+        _sum: { amount: true },
       }),
-
-      // Thống kê theo trạng thái
       prisma.payment.groupBy({
         by: ["status"],
         where,
         _count: true,
-        _sum: {
-          amount: true,
-        },
+        _sum: { amount: true },
       }),
     ]);
 
-    res.json({
-      totalTransactions,
-      methodStats,
-      statusStats,
-    });
+    res.json({ totalTransactions, methodStats, statusStats });
   } catch (error) {
     console.error("Error in getPaymentStatistics:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const cancelPayment = async (req, res) => {
+  try {
+    const paymentId = parseInt(req.params.id);
+    const userId = req.user?.id;
+
+    // Kiểm tra payment có tồn tại không
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        tickets: {
+          include: { seat: true },
+        },
+        concessionOrders: true,
+      },
+    });
+
+    if (!payment) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    // Kiểm tra quyền sở hữu: Người dùng chỉ có thể hủy thanh toán của chính mình
+    const isOwner = payment.tickets.some((ticket) => ticket.userId === userId);
+    if (!isOwner) {
+      return res
+        .status(403)
+        .json({ message: "You can only cancel your own payment" });
+    }
+
+    // Kiểm tra trạng thái thanh toán: Chỉ có thể hủy nếu đang ở trạng thái PENDING
+    if (payment.status !== "PENDING") {
+      return res
+        .status(400)
+        .json({
+          message: "Cannot cancel a payment that is not in PENDING status",
+        });
+    }
+
+    // Cập nhật trạng thái payment thành CANCELLED
+    const updatedPayment = await paymentService.updatePaymentStatus(
+      paymentId,
+      "CANCELLED"
+    );
+
+    // Phát tín hiệu real-time để cập nhật trạng thái ghế (nếu cần)
+    const io = req.app.get("io");
+    const showtimeId = payment.tickets[0]?.showtimeId;
+    if (showtimeId) {
+      payment.tickets.forEach((ticket) => {
+        if (ticket.seat) {
+          io.to(`showtime:${showtimeId}`).emit("seatUpdate", {
+            seatId: ticket.seat.id,
+            status: "AVAILABLE",
+          });
+        }
+      });
+    }
+
+    res
+      .status(200)
+      .json({
+        message: "Payment cancelled successfully",
+        payment: updatedPayment,
+      });
+  } catch (error) {
+    console.error("Error cancelling payment:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -520,5 +525,6 @@ module.exports = {
   checkVNPayStatus,
   simulatePaymentSuccess,
   getPayments,
-  getPaymentStatistics
+  getPaymentStatistics,
+  cancelPayment,
 };

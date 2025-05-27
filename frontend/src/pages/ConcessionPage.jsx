@@ -1,13 +1,5 @@
 import { useState, useEffect, useContext } from "react";
-import {
-  message,
-  Tabs,
-  Spin,
-  Alert,
-  Input,
-  Modal,
-  ConfigProvider,
-} from "antd";
+import { message, Tabs, Skeleton, Alert, Input, Modal, ConfigProvider } from "antd";
 import {
   CoffeeOutlined,
   SearchOutlined,
@@ -18,8 +10,10 @@ import CategorySection from "../components/Concessions/CategorySection";
 import ComboSection from "../components/Concessions/ComboSection";
 import OrderSummary from "../components/Concessions/OrderSummary";
 import RecommendedItems from "../components/Concessions/RecommendedItems";
+import QuickBookingWidget from "../components/common/QuickBookingWidget";
 import concessionCategoryApi from "../api/concessionCategoryApi";
 import concessionComboApi from "../api/concessionComboApi";
+import { motion } from "framer-motion";
 
 const ConcessionPage = () => {
   const { theme } = useContext(ThemeContext);
@@ -38,12 +32,12 @@ const ConcessionPage = () => {
       fontFamily:
         "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
       borderRadius: 12,
-      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)", // Giảm shadow toàn cục
       colorBgContainer: theme === "dark" ? "#1f2a44" : "#ffffff",
       colorText: theme === "dark" ? "#d1d5db" : "#333333",
       colorTextSecondary: theme === "dark" ? "#d1d5db" : "#666666",
       colorBorder:
-        theme === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)",
+        theme === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)", // Giảm độ đậm của border
     },
     components: {
       Tabs: {
@@ -55,7 +49,7 @@ const ConcessionPage = () => {
       Input: {
         borderRadius: 12,
         colorBorder:
-          theme === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)",
+          theme === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)",
         colorBgContainer: theme === "dark" ? "#374151" : "#ffffff",
       },
       Button: {
@@ -74,8 +68,7 @@ const ConcessionPage = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const categoriesData =
-          await concessionCategoryApi.getActiveCategories();
+        const categoriesData = await concessionCategoryApi.getActiveCategories();
         setCategories(categoriesData.data || []);
         if (categoriesData.data && categoriesData.data.length > 0) {
           setActiveTab(categoriesData.data[0].id);
@@ -189,32 +182,13 @@ const ConcessionPage = () => {
   if (loading) {
     return (
       <div
-        className={`flex justify-center items-center min-h-screen ${
+        className={`min-h-screen ${
           theme === "dark" ? "bg-dark-bg" : "bg-light-bg"
         }`}
       >
-        <div className="flex flex-col items-center">
-          <Spin
-            size="large"
-            indicator={
-              <CoffeeOutlined
-                style={{
-                  fontSize: 48,
-                  color: "#e71a0f",
-                  animation: "bounce 1.5s infinite",
-                }}
-              />
-            }
-          />
-          <span
-            className={`mt-4 text-lg ${
-              theme === "dark"
-                ? "text-dark-text-secondary"
-                : "text-text-secondary"
-            }`}
-          >
-            Đang tải dữ liệu...
-          </span>
+        <div className="container mx-auto px-6 py-10">
+          <Skeleton active paragraph={{ rows: 4 }} className="mb-6" />
+          <Skeleton active paragraph={{ rows: 8 }} />
         </div>
       </div>
     );
@@ -227,7 +201,7 @@ const ConcessionPage = () => {
           message={error}
           type="error"
           showIcon
-          className="content-card shadow-lg"
+          className="content-card shadow-lg rounded-xl"
         />
       </div>
     );
@@ -243,10 +217,17 @@ const ConcessionPage = () => {
         }`}
       >
         <div className="container mx-auto px-6 py-10">
-          <div className="page-header relative rounded-2xl shadow-xl p-8 mb-10 overflow-hidden backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="page-header relative rounded-2xl shadow-xl p-8 mb-12 overflow-hidden backdrop-blur-sm"
+          >
             <div
               className={`absolute inset-0 bg-gradient-to-r from-red-600/20 to-gray-200/20 rounded-2xl opacity-70 ${
-                theme === "dark" ? "dark:from-red-500/20 dark:to-gray-800/20" : ""
+                theme === "dark"
+                  ? "dark:from-red-500/20 dark:to-gray-800/20"
+                  : ""
               }`}
             ></div>
             <div className="flex flex-col gap-6 mb-4 text-center relative z-10">
@@ -299,7 +280,17 @@ const ConcessionPage = () => {
                 />
               </div>
             </div>
-          </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="mb-12"
+          >
+            <QuickBookingWidget selectedItems={selectedItems} />
+          </motion.div>
+
           {categories.length === 0 && combos.length === 0 ? (
             <Alert
               message="Không có dữ liệu"
@@ -309,13 +300,18 @@ const ConcessionPage = () => {
               className="mb-6 content-card rounded-xl shadow-lg"
             />
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="lg:col-span-2 space-y-12"
+              >
                 <Tabs
                   activeKey={activeTab}
                   onChange={setActiveTab}
                   items={buildTabs()}
-                  className="content-card custom-movie-tabs rounded-xl shadow-lg"
+                  className="content-card custom-movie-tabs rounded-xl bg-white dark:bg-gray-800"
                   animated={{ tabPane: true }}
                   size="middle"
                 />
@@ -326,17 +322,24 @@ const ConcessionPage = () => {
                     excludeIds={getSelectedItemIds()}
                   />
                 </div>
-              </div>
-              <div className="lg:col-span-1">
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="lg:col-span-1"
+              >
                 <div className="sticky top-24">
-                  <OrderSummary
-                    items={selectedItems}
-                    onUpdateQuantity={updateItemQuantity}
-                    onRemoveItem={removeItemFromCart}
-                    onClearCart={clearCart}
-                  />
+                  <div className="bg-transparent dark:bg-transparent rounded-xl">
+                    <OrderSummary
+                      items={selectedItems}
+                      onUpdateQuantity={updateItemQuantity}
+                      onRemoveItem={removeItemFromCart}
+                      onClearCart={clearCart}
+                    />
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             </div>
           )}
         </div>
@@ -350,7 +353,12 @@ const ConcessionPage = () => {
           centered
           width={500}
         >
-          <div className="flex flex-col items-center p-6">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-col items-center p-6"
+          >
             {selectedItem?.image && (
               <img
                 src={selectedItem.image}
@@ -375,7 +383,9 @@ const ConcessionPage = () => {
                 }).format(selectedItem?.price || 0)}
               </p>
             </div>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               className="btn-primary w-full py-3 text-lg flex items-center justify-center gap-2 hover:shadow-xl transition-all duration-300 ripple-btn"
               onClick={() => {
                 addItemToCart(selectedItem, 1);
@@ -384,8 +394,8 @@ const ConcessionPage = () => {
             >
               <ShoppingCartOutlined />
               Thêm vào giỏ hàng
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         </Modal>
       </div>
     </ConfigProvider>

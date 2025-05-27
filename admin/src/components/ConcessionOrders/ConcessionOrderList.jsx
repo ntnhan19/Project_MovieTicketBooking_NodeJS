@@ -268,7 +268,7 @@ const ConcessionOrderList = () => {
                       to={`/concession-orders/${order.id}`}
                       className="text-primary hover:text-primary-dark hover:underline font-medium"
                     >
-                      #{order.id}
+                      {order.id}
                     </Link>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

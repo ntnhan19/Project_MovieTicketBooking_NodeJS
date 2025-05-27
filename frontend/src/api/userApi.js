@@ -1,14 +1,17 @@
 // frontend/src/api/userApi.js
-import axiosInstance from './axiosInstance';
+import axiosInstance from "./axiosInstance";
 
 export const userApi = {
   // Lấy thông tin người dùng hiện tại
   getCurrentUser: async () => {
     try {
-      const res = await axiosInstance.get('/users/me');
+      const res = await axiosInstance.get("/users/me");
       return res.data;
     } catch (error) {
-      console.error("Get current user error:", error.response?.data || error.message);
+      console.error(
+        "Get current user error:",
+        error.response?.data || error.message
+      );
       throw error;
     }
   },
@@ -17,15 +20,18 @@ export const userApi = {
   updateUser: async (userId, userData) => {
     try {
       const res = await axiosInstance.put(`/users/${userId}`, userData);
-      
-      // Cập nhật thông tin user trong localStorage
-      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+      // Cập nhật thông tin user trong sessionStorage
+      const currentUser = JSON.parse(sessionStorage.getItem("user") || "{}");
       const updatedUser = { ...currentUser, ...res.data };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      
+      sessionStorage.setItem("user", JSON.stringify(updatedUser));
+
       return res.data;
     } catch (error) {
-      console.error("Update user error:", error.response?.data || error.message);
+      console.error(
+        "Update user error:",
+        error.response?.data || error.message
+      );
       throw error;
     }
   },
@@ -33,10 +39,16 @@ export const userApi = {
   // Thay đổi mật khẩu
   changePassword: async (passwordData) => {
     try {
-      const res = await axiosInstance.post('/users/change-password', passwordData);
+      const res = await axiosInstance.post(
+        "/users/change-password",
+        passwordData
+      );
       return res.data;
     } catch (error) {
-      console.error("Change password error:", error.response?.data || error.message);
+      console.error(
+        "Change password error:",
+        error.response?.data || error.message
+      );
       throw error;
     }
   },
@@ -44,20 +56,23 @@ export const userApi = {
   // Upload avatar
   uploadAvatar: async (formData) => {
     try {
-      const res = await axiosInstance.post('/users/upload-avatar', formData, {
+      const res = await axiosInstance.post("/users/upload-avatar", formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+          "Content-Type": "multipart/form-data",
+        },
       });
-      
-      // Cập nhật avatar trong localStorage
-      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+      // Cập nhật avatar trong sessionStorage
+      const currentUser = JSON.parse(sessionStorage.getItem("user") || "{}");
       currentUser.avatar = res.data.avatar;
-      localStorage.setItem('user', JSON.stringify(currentUser));
-      
+      sessionStorage.setItem("user", JSON.stringify(currentUser));
+
       return res.data;
     } catch (error) {
-      console.error("Upload avatar error:", error.response?.data || error.message);
+      console.error(
+        "Upload avatar error:",
+        error.response?.data || error.message
+      );
       throw error;
     }
   },
@@ -65,10 +80,13 @@ export const userApi = {
   // Lấy lịch sử đặt vé
   getMyTickets: async (params = {}) => {
     try {
-      const res = await axiosInstance.get('/users/my-tickets', { params });
+      const res = await axiosInstance.get("/users/my-tickets", { params });
       return res.data;
     } catch (error) {
-      console.error("Get tickets error:", error.response?.data || error.message);
+      console.error(
+        "Get tickets error:",
+        error.response?.data || error.message
+      );
       throw error;
     }
   },
@@ -76,10 +94,13 @@ export const userApi = {
   // Lấy lịch sử đánh giá
   getMyReviews: async (params = {}) => {
     try {
-      const res = await axiosInstance.get('/users/my-reviews', { params });
+      const res = await axiosInstance.get("/users/my-reviews", { params });
       return res.data;
     } catch (error) {
-      console.error("Get reviews error:", error.response?.data || error.message);
+      console.error(
+        "Get reviews error:",
+        error.response?.data || error.message
+      );
       throw error;
     }
   },
@@ -87,10 +108,13 @@ export const userApi = {
   // Quên mật khẩu
   forgotPassword: async (email) => {
     try {
-      const res = await axiosInstance.post('/users/forgot-password', { email });
+      const res = await axiosInstance.post("/users/forgot-password", { email });
       return res.data;
     } catch (error) {
-      console.error("Forgot password error:", error.response?.data || error.message);
+      console.error(
+        "Forgot password error:",
+        error.response?.data || error.message
+      );
       throw error;
     }
   },
@@ -101,7 +125,10 @@ export const userApi = {
       const res = await axiosInstance.get(`/users/verify-reset-token/${token}`);
       return res.data;
     } catch (error) {
-      console.error("Verify reset token error:", error.response?.data || error.message);
+      console.error(
+        "Verify reset token error:",
+        error.response?.data || error.message
+      );
       throw error;
     }
   },
@@ -109,13 +136,16 @@ export const userApi = {
   // Đặt lại mật khẩu
   resetPassword: async (token, newPassword) => {
     try {
-      const res = await axiosInstance.post('/users/reset-password', { 
-        token, 
-        newPassword 
+      const res = await axiosInstance.post("/users/reset-password", {
+        token,
+        newPassword,
       });
       return res.data;
     } catch (error) {
-      console.error("Reset password error:", error.response?.data || error.message);
+      console.error(
+        "Reset password error:",
+        error.response?.data || error.message
+      );
       throw error;
     }
   },
@@ -126,8 +156,11 @@ export const userApi = {
       const res = await axiosInstance.get(`/auth/verify-email/${token}`);
       return res.data;
     } catch (error) {
-      console.error("Verify email error:", error.response?.data || error.message);
+      console.error(
+        "Verify email error:",
+        error.response?.data || error.message
+      );
       throw error;
     }
-  }
-}
+  },
+};

@@ -2,31 +2,36 @@
 import axiosInstance from "./axiosInstance";
 
 export const paymentApi = {
-  // Xử lý thanh toán với VNPay
   processPayment: async (paymentData) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
+      const userId = parseInt(sessionStorage.getItem("userId"));
 
-      // Chuẩn hóa phương thức thanh toán
+      if (!token || !userId) {
+        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      }
+
       const validMethods = ["VNPAY"];
       const method = paymentData.method.toUpperCase();
       if (!validMethods.includes(method)) {
         throw new Error(`Phương thức thanh toán '${method}' không hợp lệ.`);
       }
 
-      // Đảm bảo ticketIds luôn là mảng
       const ticketIds = Array.isArray(paymentData.ticketIds)
         ? paymentData.ticketIds
         : [paymentData.ticketIds];
+      const concessionOrderIds = Array.isArray(paymentData.concessionOrderIds)
+        ? paymentData.concessionOrderIds
+        : paymentData.concessionOrderIds
+        ? [paymentData.concessionOrderIds]
+        : [];
 
-      // Tạo payload đơn giản
-      const payload = { ticketIds, method };
+      const payload = { ticketIds, concessionOrderIds, method };
 
       const response = await axiosInstance.post("/payments", payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Lưu thông tin thanh toán vào localStorage để theo dõi
       if (response.data.id) {
         const paymentInfo = {
           id: response.data.id,
@@ -34,21 +39,37 @@ export const paymentApi = {
           orderToken: response.data.orderToken || "",
           amount: response.data.amount,
           createdAt: new Date().toISOString(),
-          appTransId: response.data.appTransId || response.data.orderToken || "",
+          appTransId:
+            response.data.appTransId || response.data.orderToken || "",
+          userId: userId,
         };
-        
-        localStorage.setItem("lastPaymentId", response.data.id);
-        localStorage.setItem("lastPaymentMethod", method);
-        localStorage.setItem("lastOrderToken", response.data.orderToken || "");
-        localStorage.setItem("lastPaymentAmount", response.data.amount);
-        localStorage.setItem("lastPaymentCreatedAt", new Date().toISOString());
-        localStorage.setItem("lastAppTransId", response.data.appTransId || response.data.orderToken || "");
-        localStorage.setItem("lastPaymentInfo", JSON.stringify(paymentInfo));
+
+        localStorage.setItem(`lastPaymentId_${userId}`, response.data.id);
+        localStorage.setItem(`lastPaymentMethod_${userId}`, method);
+        localStorage.setItem(
+          `lastOrderToken_${userId}`,
+          response.data.orderToken || ""
+        );
+        localStorage.setItem(
+          `lastPaymentAmount_${userId}`,
+          response.data.amount
+        );
+        localStorage.setItem(
+          `lastPaymentCreatedAt_${userId}`,
+          new Date().toISOString()
+        );
+        localStorage.setItem(
+          `lastAppTransId_${userId}`,
+          response.data.appTransId || response.data.orderToken || ""
+        );
+        localStorage.setItem(
+          `lastPaymentInfo_${userId}`,
+          JSON.stringify(paymentInfo)
+        );
       }
 
       return response.data;
     } catch (error) {
-      // Xử lý chi tiết lỗi từ backend
       if (error.response?.data?.message) {
         throw new Error(error.response.data.message);
       }
@@ -89,17 +110,17 @@ export const paymentApi = {
         "04": "Khởi tạo giao dịch không thành công",
         "07": "Giao dịch bị nghi ngờ gian lận",
         "09": "Thẻ/Tài khoản hết hạn thanh toán",
-        "10": "Đã hết hạn chờ thanh toán",
-        "11": "Giao dịch thất bại",
-        "24": "Khách hàng đã hủy giao dịch",
-        "51": "Tài khoản không đủ số dư để thực hiện giao dịch",
-        "65": "Tài khoản của quý khách đã vượt quá hạn mức thanh toán trong ngày",
-        "75": "Ngân hàng thanh toán đang bảo trì",
-        "79": "Đã vượt quá số lần thanh toán cho phép",
-        "91": "Không tìm thấy giao dịch yêu cầu",
-        "94": "Yêu cầu bị trùng lặp trong thời gian giới hạn",
-        "97": "Chữ ký không hợp lệ",
-        "99": "Lỗi không xác định",
+        10: "Đã hết hạn chờ thanh toán",
+        11: "Giao dịch thất bại",
+        24: "Khách hàng đã hủy giao dịch",
+        51: "Tài khoản không đủ số dư để thực hiện giao dịch",
+        65: "Tài khoản của quý khách đã vượt quá hạn mức thanh toán trong ngày",
+        75: "Ngân hàng thanh toán đang bảo trì",
+        79: "Đã vượt quá số lần thanh toán cho phép",
+        91: "Không tìm thấy giao dịch yêu cầu",
+        94: "Yêu cầu bị trùng lặp trong thời gian giới hạn",
+        97: "Chữ ký không hợp lệ",
+        99: "Lỗi không xác định",
       };
 
       // Xử lý trường hợp đặc biệt cho mã lỗi 91 - Giao dịch chưa được thực hiện
@@ -110,33 +131,41 @@ export const paymentApi = {
           ...result,
           success: false,
           status: "PENDING",
-          message: "Giao dịch chưa được thực hiện, đang đợi người dùng thanh toán",
+          message:
+            "Giao dịch chưa được thực hiện, đang đợi người dùng thanh toán",
           nextQueryAllowed: nextQueryTime.toISOString(),
           pendingPayment: true, // Flag để biết đang chờ người dùng thực hiện thanh toán
-          messageVi: vnpayResponseMessages[result.responseCode] || "Đang đợi thanh toán",
+          messageVi:
+            vnpayResponseMessages[result.responseCode] || "Đang đợi thanh toán",
         };
       }
-      
+
       // Xử lý trường hợp đã được cache - tuân theo lastQueryTime từ backend
       if (result.cached && result.nextQueryAllowed) {
         return {
           ...result,
           success: result.status === "COMPLETED",
           message: result.message || "Đang đợi kết quả từ cổng thanh toán",
-          messageVi: vnpayResponseMessages[result.responseCode] || result.message,
+          messageVi:
+            vnpayResponseMessages[result.responseCode] || result.message,
         };
       }
 
       // Trả về thông tin trạng thái chuẩn hóa
       return {
         ...result,
-        success: result.status === "COMPLETED" || 
-                (result.responseCode === "00" && result.transactionStatus === "00"),
-        paymentStatus: result.status || 
-                      (result.responseCode === "00" && result.transactionStatus === "00" 
-                        ? "COMPLETED" : "PENDING"),
-        message: result.message || 
-                (vnpayResponseMessages[result.responseCode] || "Đang xử lý thanh toán"),
+        success:
+          result.status === "COMPLETED" ||
+          (result.responseCode === "00" && result.transactionStatus === "00"),
+        paymentStatus:
+          result.status ||
+          (result.responseCode === "00" && result.transactionStatus === "00"
+            ? "COMPLETED"
+            : "PENDING"),
+        message:
+          result.message ||
+          vnpayResponseMessages[result.responseCode] ||
+          "Đang xử lý thanh toán",
         messageVi: vnpayResponseMessages[result.responseCode] || result.message,
         cached: result.cached || false,
       };
@@ -145,7 +174,9 @@ export const paymentApi = {
       return {
         success: false,
         status: "ERROR",
-        message: error.response?.data?.message || "Không thể kiểm tra trạng thái thanh toán",
+        message:
+          error.response?.data?.message ||
+          "Không thể kiểm tra trạng thái thanh toán",
         error: true,
       };
     }
@@ -194,7 +225,9 @@ export const paymentApi = {
 
           // Xử lý đặc biệt cho mã lỗi 91 - Tăng thời gian chờ
           if (result.responseCode === "91") {
-            console.log("Giao dịch chưa được thực hiện, đợi người dùng thanh toán...");
+            console.log(
+              "Giao dịch chưa được thực hiện, đợi người dùng thanh toán..."
+            );
             // Đặt thời gian chờ dài hơn (20 giây) cho trường hợp này
             nextCheckTime = Date.now() + 20000;
             return;
@@ -204,13 +237,17 @@ export const paymentApi = {
           if (result.nextQueryAllowed) {
             const waitUntil = new Date(result.nextQueryAllowed);
             nextCheckTime = waitUntil.getTime();
-            console.log(`Cần đợi đến ${waitUntil.toLocaleTimeString()} để kiểm tra lại`);
+            console.log(
+              `Cần đợi đến ${waitUntil.toLocaleTimeString()} để kiểm tra lại`
+            );
             return;
           }
 
           // Nếu thanh toán đã hoàn tất
-          if (result.status === "COMPLETED" || 
-             (result.responseCode === "00" && result.transactionStatus === "00")) {
+          if (
+            result.status === "COMPLETED" ||
+            (result.responseCode === "00" && result.transactionStatus === "00")
+          ) {
             clearInterval(checkInterval);
             resolve({
               ...result,
@@ -227,9 +264,11 @@ export const paymentApi = {
             reject({
               ...result,
               success: false,
-              message: result.message || `Thanh toán ${
-                result.status === "FAILED" ? "thất bại" : "đã bị hủy"
-              }`,
+              message:
+                result.message ||
+                `Thanh toán ${
+                  result.status === "FAILED" ? "thất bại" : "đã bị hủy"
+                }`,
             });
             return;
           }
@@ -284,7 +323,8 @@ export const paymentApi = {
     try {
       const params = new URLSearchParams(queryParams);
       const status = params.get("status"); // success hoặc failed từ backend
-      const paymentId = params.get("paymentId") || localStorage.getItem("lastPaymentId");
+      const paymentId =
+        params.get("paymentId") || localStorage.getItem("lastPaymentId");
       const errorParam = params.get("error");
       const code = params.get("code"); // Mã phản hồi từ VNPay
       const vnp_TransactionNo = params.get("vnp_TransactionNo"); // ID giao dịch từ VNPay
@@ -299,17 +339,17 @@ export const paymentApi = {
         "04": "Khởi tạo giao dịch không thành công",
         "07": "Giao dịch bị nghi ngờ gian lận",
         "09": "Thẻ/Tài khoản hết hạn thanh toán",
-        "10": "Đã hết hạn chờ thanh toán",
-        "11": "Giao dịch thất bại",
-        "24": "Khách hàng đã hủy giao dịch",
-        "51": "Tài khoản không đủ số dư để thực hiện giao dịch",
-        "65": "Tài khoản của quý khách đã vượt quá hạn mức thanh toán trong ngày",
-        "75": "Ngân hàng thanh toán đang bảo trì",
-        "79": "Đã vượt quá số lần thanh toán cho phép",
-        "91": "Không tìm thấy giao dịch yêu cầu",
-        "94": "Yêu cầu bị trùng lặp trong thời gian giới hạn",
-        "97": "Chữ ký không hợp lệ",
-        "99": "Lỗi không xác định",
+        10: "Đã hết hạn chờ thanh toán",
+        11: "Giao dịch thất bại",
+        24: "Khách hàng đã hủy giao dịch",
+        51: "Tài khoản không đủ số dư để thực hiện giao dịch",
+        65: "Tài khoản của quý khách đã vượt quá hạn mức thanh toán trong ngày",
+        75: "Ngân hàng thanh toán đang bảo trì",
+        79: "Đã vượt quá số lần thanh toán cho phép",
+        91: "Không tìm thấy giao dịch yêu cầu",
+        94: "Yêu cầu bị trùng lặp trong thời gian giới hạn",
+        97: "Chữ ký không hợp lệ",
+        99: "Lỗi không xác định",
       };
 
       if (!paymentId) {
@@ -324,7 +364,8 @@ export const paymentApi = {
       if (errorParam === "true") {
         return {
           success: false,
-          message: params.get("message") || "Có lỗi xảy ra trong quá trình thanh toán",
+          message:
+            params.get("message") || "Có lỗi xảy ra trong quá trình thanh toán",
           error: true,
           paymentId: parseInt(paymentId),
         };
@@ -333,18 +374,21 @@ export const paymentApi = {
       // Ưu tiên xử lý response code trực tiếp từ VNPay nếu có
       if (vnp_ResponseCode) {
         const isSuccess = vnp_ResponseCode === "00";
-        
+
         // Kiểm tra trạng thái hiện tại từ backend để xác nhận
         try {
-          const statusCheck = await paymentApi.checkVNPayStatus(parseInt(paymentId));
+          const statusCheck = await paymentApi.checkVNPayStatus(
+            parseInt(paymentId)
+          );
           return {
             success: isSuccess,
             paymentId: parseInt(paymentId),
             transactionId: vnp_TransactionNo,
             statusData: statusCheck,
             responseCode: vnp_ResponseCode,
-            message: vnpayErrorCodes[vnp_ResponseCode] || 
-                    (isSuccess ? "Thanh toán thành công" : "Thanh toán thất bại"),
+            message:
+              vnpayErrorCodes[vnp_ResponseCode] ||
+              (isSuccess ? "Thanh toán thành công" : "Thanh toán thất bại"),
           };
         } catch {
           // Nếu không kiểm tra được, vẫn tin tưởng response code từ VNPay
@@ -353,8 +397,9 @@ export const paymentApi = {
             paymentId: parseInt(paymentId),
             transactionId: vnp_TransactionNo,
             responseCode: vnp_ResponseCode,
-            message: vnpayErrorCodes[vnp_ResponseCode] || 
-                    (isSuccess ? "Thanh toán thành công" : "Thanh toán thất bại"),
+            message:
+              vnpayErrorCodes[vnp_ResponseCode] ||
+              (isSuccess ? "Thanh toán thành công" : "Thanh toán thất bại"),
           };
         }
       }
@@ -374,7 +419,9 @@ export const paymentApi = {
 
           // Gọi API kiểm tra trạng thái
           try {
-            const statusCheck = await paymentApi.checkVNPayStatus(parseInt(paymentId));
+            const statusCheck = await paymentApi.checkVNPayStatus(
+              parseInt(paymentId)
+            );
             if (statusCheck.success || statusCheck.status === "COMPLETED") {
               return {
                 success: true,
@@ -387,7 +434,8 @@ export const paymentApi = {
                 success: statusCheck.success,
                 paymentId: parseInt(paymentId),
                 statusData: statusCheck,
-                message: statusCheck.message || "Đang xác nhận kết quả thanh toán",
+                message:
+                  statusCheck.message || "Đang xác nhận kết quả thanh toán",
               };
             }
           } catch {
@@ -395,9 +443,10 @@ export const paymentApi = {
             return {
               success: status === "success",
               paymentId: parseInt(paymentId),
-              message: status === "success"
-                ? "Thanh toán thành công (đang đồng bộ dữ liệu)"
-                : "Có lỗi khi xác nhận kết quả thanh toán",
+              message:
+                status === "success"
+                  ? "Thanh toán thành công (đang đồng bộ dữ liệu)"
+                  : "Có lỗi khi xác nhận kết quả thanh toán",
               pendingSync: true,
             };
           }
@@ -421,7 +470,9 @@ export const paymentApi = {
 
       // Nếu không xác định được từ URL, kiểm tra trạng thái từ backend
       try {
-        const statusCheck = await paymentApi.checkVNPayStatus(parseInt(paymentId));
+        const statusCheck = await paymentApi.checkVNPayStatus(
+          parseInt(paymentId)
+        );
 
         // Nếu transactionStatus là 00 hoặc responseCode là 00 và status là COMPLETED
         if (
@@ -452,7 +503,8 @@ export const paymentApi = {
           success: false,
           paymentId: parseInt(paymentId),
           statusData: statusCheck,
-          message: statusCheck.message ||
+          message:
+            statusCheck.message ||
             (statusCheck.status === "FAILED"
               ? "Thanh toán thất bại"
               : statusCheck.status === "CANCELLED"
@@ -478,11 +530,12 @@ export const paymentApi = {
               success: false,
               paymentId: parseInt(paymentId),
               payment,
-              message: payment.status === "FAILED"
-                ? "Thanh toán thất bại"
-                : payment.status === "CANCELLED"
-                ? "Thanh toán đã bị hủy"
-                : "Đang xử lý thanh toán",
+              message:
+                payment.status === "FAILED"
+                  ? "Thanh toán thất bại"
+                  : payment.status === "CANCELLED"
+                  ? "Thanh toán đã bị hủy"
+                  : "Đang xử lý thanh toán",
             };
           }
         } catch {
@@ -504,16 +557,18 @@ export const paymentApi = {
       };
     }
   },
-  
+
   // Hủy thanh toán
   cancelPayment: async (paymentId) => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axiosInstance.put(
-        `/payments/${paymentId}/status`,
-        {
-          status: "CANCELLED",
-        },
+      if (!token) {
+        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      }
+
+      const response = await axiosInstance.post(
+        `/payments/${paymentId}/cancel`,
+        {},
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -523,7 +578,10 @@ export const paymentApi = {
       return response.data;
     } catch (error) {
       console.error("Lỗi khi hủy thanh toán:", error);
-      throw error;
+      const errorMessage =
+        error.response?.data?.message ||
+        "Không thể hủy thanh toán. Vui lòng thử lại sau.";
+      throw new Error(errorMessage);
     }
   },
 
@@ -563,15 +621,17 @@ export const paymentApi = {
   },
 
   // Xóa cache thanh toán
-  clearPaymentCache: () => {
-    localStorage.removeItem("lastPaymentId");
-    localStorage.removeItem("lastPaymentMethod");
-    localStorage.removeItem("lastOrderToken");
-    localStorage.removeItem("lastPaymentAmount");
-    localStorage.removeItem("lastPaymentCreatedAt");
-    localStorage.removeItem("lastAppTransId");
-    localStorage.removeItem("lastPaymentInfo");
-    localStorage.removeItem("tempPaymentInfo");
-    console.log("Đã xóa cache thông tin thanh toán từ localStorage");
+  clearPaymentCache: (userId) => {
+    localStorage.removeItem(`lastPaymentId_${userId}`);
+    localStorage.removeItem(`lastPaymentMethod_${userId}`);
+    localStorage.removeItem(`lastOrderToken_${userId}`);
+    localStorage.removeItem(`lastPaymentAmount_${userId}`);
+    localStorage.removeItem(`lastPaymentCreatedAt_${userId}`);
+    localStorage.removeItem(`lastAppTransId_${userId}`);
+    localStorage.removeItem(`lastPaymentInfo_${userId}`);
+    localStorage.removeItem(`tempPaymentInfo_${userId}`);
+    console.log(
+      `Đã xóa cache thông tin thanh toán cho user ${userId} từ localStorage`
+    );
   },
 };

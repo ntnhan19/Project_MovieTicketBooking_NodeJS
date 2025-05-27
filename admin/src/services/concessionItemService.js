@@ -1,274 +1,318 @@
-// admin/src/services/concessionItemService.js
-import { apiUrl, httpClient, checkAuth } from './httpClient';
-import { processApiResponse, processManyResponse } from './utils';
+import { apiUrl, httpClient, checkAuth } from "./httpClient";
+import { formatError, formatSearchParams, processApiResponse, processManyResponse } from './utils';
 
 const concessionItemService = {
-  getList: async ({ pagination, sort, filter }) => {
-    const { page, perPage } = pagination;
-    const { field, order } = sort;
-    const query = {
-      page,
-      limit: perPage,
-      ...filter,
-    };
+  getList: async ({ pagination = { page: 1, perPage: 10 }, sort = {}, filter = {} }) => {
+    try {
+      const { page, perPage } = pagination;
+      const { field, order } = sort;
 
-    if (field && order) {
-      query._sort = field;
-      query._order = order;
+      const query = {
+        page,
+        limit: perPage,
+        ...filter,
+      };
+
+      if (field && order) {
+        query._sort = field;
+        query._order = order.toUpperCase(); // Đảm bảo order là uppercase (ASC/DESC)
+      }
+
+      const url = `${apiUrl}/concession/items?${formatSearchParams(query)}`;
+      const { json, headers } = await httpClient(url);
+
+      return processApiResponse(json, headers);
+    } catch (error) {
+      throw formatError("Lỗi khi lấy danh sách sản phẩm bắp nước", error);
     }
-
-    const url = `${apiUrl}/concession/items?${new URLSearchParams(query)}`;
-    const { json, headers } = await httpClient(url);
-
-    return processApiResponse(json, headers);
   },
 
   getOne: async (id) => {
-    const { json } = await httpClient(`${apiUrl}/concession/items/${id}`);
-
-    // Xử lý trường hợp API trả về cấu trúc { data: {...} }
-    const data = json.data || json;
-    
-    return { data };
+    try {
+      if (!id) throw new Error("ID sản phẩm không được để trống");
+      const { json } = await httpClient(`${apiUrl}/concession/items/${id}`);
+      return { data: json.data || json };
+    } catch (error) {
+      throw formatError("Lỗi khi lấy thông tin sản phẩm bắp nước", error);
+    }
   },
 
   getMany: async (ids) => {
-    const query = ids.map((id) => `id=${id}`).join("&");
-    const { json } = await httpClient(`${apiUrl}/concession/items?${query}`);
-    
-    const resultData = processManyResponse(json);
-    return { data: resultData };
+    try {
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return { data: [] };
+      }
+      const query = formatSearchParams({ id: ids });
+      const { json } = await httpClient(`${apiUrl}/concession/items?${query}`);
+      return { data: processManyResponse(json) };
+    } catch (error) {
+      throw formatError("Lỗi khi lấy nhiều sản phẩm bắp nước", error);
+    }
   },
 
-  getManyReference: async ({ target, id, pagination, sort, filter }) => {
-    const { page, perPage } = pagination;
-    const { field, order } = sort;
+  getManyReference: async ({ target, id, pagination = { page: 1, perPage: 10 }, sort = {}, filter = {} }) => {
+    try {
+      if (!target || !id) throw new Error("Target hoặc ID không được để trống");
+      const { page, perPage } = pagination;
+      const { field, order } = sort;
 
-    const query = {
-      ...filter,
-      [target]: id,
-      page,
-      limit: perPage,
-    };
+      const query = {
+        ...filter,
+        [target]: id,
+        page,
+        limit: perPage,
+      };
 
-    if (field && order) {
-      query._sort = field;
-      query._order = order;
+      if (field && order) {
+        query._sort = field;
+        query._order = order.toUpperCase();
+      }
+
+      const url = `${apiUrl}/concession/items?${formatSearchParams(query)}`;
+      const { json, headers } = await httpClient(url);
+
+      return processApiResponse(json, headers);
+    } catch (error) {
+      throw formatError("Lỗi khi lấy sản phẩm theo tham chiếu", error);
     }
-
-    const url = `${apiUrl}/concession/items?${new URLSearchParams(query)}`;
-    const { json, headers } = await httpClient(url);
-
-    return processApiResponse(json, headers);
   },
 
   create: async (data) => {
-    const token = checkAuth();
-    
-    // Đảm bảo không gửi id
-    const { id, _id, ...dataWithoutId } = data;
-    console.log("Dữ liệu gửi đi cho concession item:", dataWithoutId);
+    try {
+      const token = checkAuth();
+      const { id, _id, ...dataWithoutId } = data;
 
-    const response = await fetch(`${apiUrl}/concession/items`, {
-      method: "POST",
-      body: JSON.stringify(dataWithoutId),
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+      if (!dataWithoutId.name || !dataWithoutId.price) {
+        throw new Error("Tên và giá sản phẩm là bắt buộc");
+      }
 
-    if (!response.ok) {
-      // Xử lý lỗi từ server
-      const errorData = await response.json();
-      console.error("Lỗi từ server:", errorData);
-      throw new Error(errorData.message || "Có lỗi xảy ra khi tạo sản phẩm bắp nước");
+      const { json } = await httpClient(`${apiUrl}/concession/items`, {
+        method: "POST",
+        body: JSON.stringify(dataWithoutId),
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      return {
+        data: {
+          ...dataWithoutId,
+          id: json.data?.id || json.id || json._id,
+        },
+      };
+    } catch (error) {
+      throw formatError("Lỗi khi tạo sản phẩm bắp nước", error);
     }
-
-    const json = await response.json();
-    return { data: { ...dataWithoutId, id: json.data?.id || json.id || json._id } };
   },
 
   update: async (id, data) => {
-    const token = checkAuth();
-    
-    // Đảm bảo không gửi id trong phần thân của dữ liệu cập nhật
-    const { id: dataId, _id, ...dataWithoutId } = data;
+    try {
+      if (!id) throw new Error("ID sản phẩm không được để trống");
+      const token = checkAuth();
+      const { id: dataId, _id, ...dataWithoutId } = data;
 
-    const response = await fetch(`${apiUrl}/concession/items/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(dataWithoutId),
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+      const { json } = await httpClient(`${apiUrl}/concession/items/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(dataWithoutId),
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Lỗi từ server:", errorData);
-      throw new Error(errorData.message || `Có lỗi xảy ra khi cập nhật sản phẩm bắp nước (status: ${response.status})`);
+      return {
+        data: {
+          ...dataWithoutId,
+          id: json.data?.id || json.id || json._id || id,
+        },
+      };
+    } catch (error) {
+      throw formatError("Lỗi khi cập nhật sản phẩm bắp nước", error);
     }
-
-    const json = await response.json();
-    return { data: { ...dataWithoutId, id: json.data?.id || json.id || json._id || id } };
   },
 
   updateMany: async (ids, data) => {
-    const { id, _id, ...dataWithoutId } = data;
+    try {
+      if (!Array.isArray(ids) || ids.length === 0) {
+        throw new Error("Danh sách ID không hợp lệ");
+      }
+      const token = checkAuth();
+      const { id, _id, ...dataWithoutId } = data;
 
-    const promises = ids.map((id) =>
-      httpClient(`${apiUrl}/concession/items/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(dataWithoutId),
-      })
-    );
+      const promises = ids.map((id) =>
+        httpClient(`${apiUrl}/concession/items/${id}`, {
+          method: "PUT",
+          body: JSON.stringify(dataWithoutId),
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        })
+      );
 
-    await Promise.all(promises);
-    return { data: ids };
+      await Promise.all(promises);
+      return { data: ids };
+    } catch (error) {
+      throw formatError("Lỗi khi cập nhật nhiều sản phẩm bắp nước", error);
+    }
   },
 
   delete: async (id) => {
-    const token = checkAuth();
-    
-    const response = await fetch(`${apiUrl}/concession/items/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    try {
+      if (!id) throw new Error("ID sản phẩm không được để trống");
+      const token = checkAuth();
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Lỗi từ server:", errorData);
-      throw new Error(errorData.message || "Có lỗi xảy ra khi xóa sản phẩm bắp nước");
-    }
-    
-    return { data: { id } };
-  },
-
-  deleteMany: async (ids) => {
-    const token = checkAuth();
-    
-    const promises = ids.map((id) =>
-      fetch(`${apiUrl}/concession/items/${id}`, {
+      await httpClient(`${apiUrl}/concession/items/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-      })
-    );
+      });
 
-    await Promise.all(promises);
-    return { data: ids };
-  },
-  
-  toggleAvailability: async (id) => {
-    const token = checkAuth();
-    
-    const response = await fetch(`${apiUrl}/concession/items/${id}/toggle-availability`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Lỗi từ server:", errorData);
-      throw new Error(errorData.message || "Có lỗi xảy ra khi thay đổi trạng thái sản phẩm");
+      return { data: { id } };
+    } catch (error) {
+      throw formatError("Lỗi khi xóa sản phẩm bắp nước", error);
     }
+  },
 
-    const json = await response.json();
-    return { data: json.data || json };
+  deleteMany: async (ids) => {
+    try {
+      if (!Array.isArray(ids) || ids.length === 0) {
+        throw new Error("Danh sách ID không hợp lệ");
+      }
+      const token = checkAuth();
+
+      const promises = ids.map((id) =>
+        httpClient(`${apiUrl}/concession/items/${id}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        })
+      );
+
+      await Promise.all(promises);
+      return { data: ids };
+    } catch (error) {
+      throw formatError("Lỗi khi xóa nhiều sản phẩm bắp nước", error);
+    }
+  },
+
+  toggleAvailability: async (id) => {
+    try {
+      if (!id) throw new Error("ID sản phẩm không được để trống");
+      const token = checkAuth();
+
+      const { json } = await httpClient(
+        `${apiUrl}/concession/items/${id}/toggle-availability`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return { data: json.data || json };
+    } catch (error) {
+      throw formatError("Lỗi khi thay đổi trạng thái sản phẩm", error);
+    }
   },
 
   getItemsByCategory: async (categoryId) => {
-    const url = `${apiUrl}/concession/items/category/${categoryId}`;
-    const { json } = await httpClient(url);
-    
-    // Xử lý trường hợp API trả về cấu trúc { data: [...] }
-    const data = json.data || json;
-    
-    return { data };
+    try {
+      if (!categoryId) throw new Error("ID danh mục không được để trống");
+      const { json } = await httpClient(`${apiUrl}/concession/items/category/${categoryId}`);
+      return { data: json.data || json };
+    } catch (error) {
+      throw formatError("Lỗi khi lấy sản phẩm theo danh mục", error);
+    }
   },
-  
+
   getPopularItems: async (limit = 5) => {
-    const url = `${apiUrl}/concession/items/popular?limit=${limit}`;
-    const { json } = await httpClient(url);
-    
-    // Xử lý trường hợp API trả về cấu trúc { data: [...] }
-    const data = json.data || json;
-    
-    return { data };
+    try {
+      if (limit < 1) throw new Error("Giới hạn phải lớn hơn 0");
+      const url = `${apiUrl}/concession/items/popular?${formatSearchParams({ limit })}`;
+      const { json } = await httpClient(url);
+      return { data: json.data || json };
+    } catch (error) {
+      throw formatError("Lỗi khi lấy danh sách sản phẩm phổ biến", error);
+    }
   },
-  
+
   searchItems: async (searchTerm) => {
-    const url = `${apiUrl}/concession/items/search?q=${encodeURIComponent(searchTerm)}`;
-    const { json } = await httpClient(url);
-    
-    // Xử lý trường hợp API trả về cấu trúc { data: [...] }
-    const data = json.data || json;
-    
-    return { data };
+    try {
+      if (!searchTerm) throw new Error("Từ khóa tìm kiếm không được để trống");
+      const url = `${apiUrl}/concession/items/search?${formatSearchParams({
+        q: searchTerm,
+      })}`;
+      const { json } = await httpClient(url);
+      return { data: json.data || json };
+    } catch (error) {
+      throw formatError("Lỗi khi tìm kiếm sản phẩm bắp nước", error);
+    }
   },
-  
+
   bulkCreate: async (items) => {
-    const token = checkAuth();
-    
-    const response = await fetch(`${apiUrl}/concession/items/bulk`, {
-      method: "POST",
-      body: JSON.stringify({ items }),
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    try {
+      if (!Array.isArray(items) || items.length === 0) {
+        throw new Error("Danh sách sản phẩm không hợp lệ");
+      }
+      const token = checkAuth();
+      const cleanedItems = items.map(({ id, _id, ...item }) => item);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Lỗi từ server:", errorData);
-      throw new Error(errorData.message || "Có lỗi xảy ra khi tạo nhiều sản phẩm");
+      const { json } = await httpClient(`${apiUrl}/concession/items/bulk`, {
+        method: "POST",
+        body: JSON.stringify({ items: cleanedItems }),
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      return { data: json.data || json };
+    } catch (error) {
+      throw formatError("Lỗi khi tạo nhiều sản phẩm bắp nước", error);
     }
-
-    const json = await response.json();
-    return { data: json.data || json };
   },
-  
+
   updateAvailability: async (ids, isAvailable) => {
-    const token = checkAuth();
-    
-    const response = await fetch(`${apiUrl}/concession/items/availability`, {
-      method: "PATCH",
-      body: JSON.stringify({ ids, isAvailable }),
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    try {
+      if (!Array.isArray(ids) || ids.length === 0) {
+        throw new Error("Danh sách ID không hợp lệ");
+      }
+      if (typeof isAvailable !== "boolean") {
+        throw new Error("Trạng thái isAvailable phải là boolean");
+      }
+      const token = checkAuth();
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Lỗi từ server:", errorData);
-      throw new Error(errorData.message || "Có lỗi xảy ra khi cập nhật trạng thái sản phẩm");
+      const { json } = await httpClient(`${apiUrl}/concession/items/availability`, {
+        method: "PATCH",
+        body: JSON.stringify({ ids, isAvailable }),
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      return { data: json.data || json };
+    } catch (error) {
+      throw formatError("Lỗi khi cập nhật trạng thái sản phẩm", error);
     }
-
-    const json = await response.json();
-    return { data: json.data || json };
   },
-  
+
   getAllAvailable: async () => {
-    const url = `${apiUrl}/concession/items/available`;
-    const { json } = await httpClient(url);
-    
-    // Xử lý trường hợp API trả về cấu trúc { data: [...] }
-    const data = json.data || json;
-    
-    return { data };
-  }
+    try {
+      const { json } = await httpClient(`${apiUrl}/concession/items/available`);
+      return { data: json.data || json };
+    } catch (error) {
+      throw formatError("Lỗi khi lấy danh sách sản phẩm có sẵn", error);
+    }
+  },
 };
 
 export default concessionItemService;

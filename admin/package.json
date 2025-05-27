@@ -24,6 +24,7 @@
     "chart.js": "^4.4.9",
     "dayjs": "^1.11.13",
     "fakerest": "^4.1.2",
+    "html5-qrcode": "^2.3.8",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.485.0",
     "ra-core": "^5.7.0",

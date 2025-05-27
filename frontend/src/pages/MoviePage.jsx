@@ -24,6 +24,7 @@ import {
   FireFilled,
   CalendarOutlined,
 } from "@ant-design/icons";
+import { motion } from "framer-motion";
 
 const { Option } = Select;
 
@@ -172,7 +173,12 @@ const MoviePage = () => {
       }`}
     >
       <div className="container mx-auto">
-        <div className="page-header relative bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="page-header relative bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 overflow-hidden"
+        >
           <div className="absolute inset-0 animated-gradient rounded-xl opacity-50"></div>
           <div className="flex flex-col gap-6 mb-4 text-center relative z-10">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-red-600 to-gray-800 bg-clip-text text-transparent drop-shadow-md animate-slideUp dark:text-white">
@@ -182,7 +188,12 @@ const MoviePage = () => {
               Khám phá các bộ phim hot nhất tuần này! 🎬
             </div>
           </div>
-          <div className="flex flex-col gap-4 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="flex flex-col gap-4 relative z-10"
+          >
             <div
               className={`text-gray-700 text-lg flex items-center justify-center gap-2 animate-fadeIn ${
                 theme === "dark" ? "text-gray-300" : "text-gray-700"
@@ -353,8 +364,13 @@ const MoviePage = () => {
                 )}
               </div>
             </div>
-          </div>
-          <div className="flex flex-col md:flex-row md:items-center gap-4 mt-4 justify-center relative z-10">
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="flex flex-col md:flex-row md:items-center gap-4 mt-4 justify-center relative z-10"
+          >
             <div className="movie-tabs-container">
               <div className="flex bg-gray-100 dark:bg-gray-700 rounded-xl p-1 border border-gray-200 dark:border-gray-600">
                 <button
@@ -427,37 +443,49 @@ const MoviePage = () => {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
         {bannerMovies.length > 0 && (
-          <Carousel
-            autoplay
-            autoplaySpeed={3000}
-            className="mb-8 rounded-xl overflow-hidden dark:bg-gray-800"
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="mb-8"
           >
-            {bannerMovies.map((movie) => (
-              <div
-                key={movie.id}
-                className="relative h-64 cursor-pointer"
-                onClick={() => handleBannerClick(movie.id)}
-              >
-                <img
-                  src={
-                    movie.bannerImage ||
-                    movie.poster ||
-                    "https://via.placeholder.com/1200x300"
-                  }
-                  alt={movie.title}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-            ))}
-          </Carousel>
+            <Carousel
+              autoplay
+              autoplaySpeed={3000}
+              className="rounded-xl overflow-hidden dark:bg-gray-800"
+            >
+              {bannerMovies.map((movie) => (
+                <div
+                  key={movie.id}
+                  className="relative h-64 cursor-pointer"
+                  onClick={() => handleBannerClick(movie.id)}
+                >
+                  <img
+                    src={
+                      movie.bannerImage ||
+                      movie.poster ||
+                      "https://via.placeholder.com/1200x300"
+                    }
+                    alt={movie.title}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              ))}
+            </Carousel>
+          </motion.div>
         )}
         <div className="movies-list min-h-[500px]">
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
+            >
               {[...Array(8)].map((_, index) => (
                 <div
                   key={index}
@@ -473,9 +501,14 @@ const MoviePage = () => {
                   </div>
                 </div>
               ))}
-            </div>
+            </motion.div>
           ) : filteredMovies.length > 0 ? (
-            <div className="movie-grid-container animate-fadeIn">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="movie-grid-container animate-fadeIn"
+            >
               <MovieList
                 movies={filteredMovies}
                 maxDisplay={1000}
@@ -490,47 +523,53 @@ const MoviePage = () => {
                 ticketButtonClassName="btn-outline ripple-btn py-3 px-4 rounded-lg font-medium flex-1 flex items-center justify-center"
                 gridClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
               />
-            </div>
+            </motion.div>
           ) : (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={
-                <div
-                  className={`text-center py-16 ${
-                    theme === "dark" ? "bg-gray-800" : "bg-white"
-                  }`}
-                >
-                  <div className="mb-6 text-6xl opacity-50 dark:text-gray-300">
-                    🎬
-                  </div>
-                  <p className="text-xl text-text-secondary dark:text-gray-300 mb-4">
-                    {searchTerm
-                      ? "Không tìm thấy phim phù hợp với từ khóa"
-                      : activeTab === "nowShowing"
-                      ? "Không có phim đang chiếu"
-                      : "Không có phim sắp chiếu"}
-                  </p>
-                  {searchTerm && (
-                    <p className="text-base text-text-secondary dark:text-gray-300 mb-4">
-                      Thử tìm kiếm với từ khóa khác hoặc xem phim đang chiếu!
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <div
+                    className={`text-center py-16 ${
+                      theme === "dark" ? "bg-gray-800" : "bg-white"
+                    }`}
+                  >
+                    <div className="mb-6 text-6xl opacity-50 dark:text-gray-300">
+                      🎬
+                    </div>
+                    <p className="text-xl text-text-secondary dark:text-gray-300 mb-4">
+                      {searchTerm
+                        ? "Không tìm thấy phim phù hợp với từ khóa"
+                        : activeTab === "nowShowing"
+                        ? "Không có phim đang chiếu"
+                        : "Không có phim sắp chiếu"}
                     </p>
-                  )}
-                  {(searchTerm || sortBy !== "latest") && (
-                    <button
-                      onClick={(e) => {
-                        handleRipple(e);
-                        resetFilters();
-                      }}
-                      className="mt-4 py-3 px-8 btn-primary ripple-btn text-white rounded-xl hover:bg-primary-dark transition-all shadow-button hover:shadow-button-hover"
-                    >
-                      <CloseOutlined className="mr-2" />
-                      Đặt lại bộ lọc
-                    </button>
-                  )}
-                </div>
-              }
-              className="py-16"
-            />
+                    {searchTerm && (
+                      <p className="text-base text-text-secondary dark:text-gray-300 mb-4">
+                        Thử tìm kiếm với từ khóa khác hoặc xem phim đang chiếu!
+                      </p>
+                    )}
+                    {(searchTerm || sortBy !== "latest") && (
+                      <button
+                        onClick={(e) => {
+                          handleRipple(e);
+                          resetFilters();
+                        }}
+                        className="mt-4 py-3 px-8 btn-primary ripple-btn text-white rounded-xl hover:bg-primary-dark transition-all shadow-button hover:shadow-button-hover"
+                      >
+                        <CloseOutlined className="mr-2" />
+                        Đặt lại bộ lọc
+                      </button>
+                    )}
+                  </div>
+                }
+                className="py-16"
+              />
+            </motion.div>
           )}
         </div>
         <Modal
@@ -549,7 +588,10 @@ const MoviePage = () => {
             color: "var(--antd-color-text, #000)",
           }}
         >
-          <div
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
             className={`dark:bg-gray-800 dark:text-gray-300 p-4 rounded-xl ${
               theme === "dark" ? "bg-gray-800" : "bg-white"
             }`}
@@ -591,11 +633,14 @@ const MoviePage = () => {
                 Đặt vé
               </button>
             </div>
-          </div>
+          </motion.div>
         </Modal>
       </div>
       {showBackToTop && (
-        <button
+        <motion.button
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
           onClick={(e) => {
             handleRipple(e);
             window.scrollTo({ top: 0, behavior: "smooth" });
@@ -603,7 +648,7 @@ const MoviePage = () => {
           className="fixed bottom-8 right-8 bg-primary dark:bg-red-500 text-white p-4 rounded-full shadow-lg hover:bg-primary-dark dark:hover:bg-red-600 transition-all ripple-btn"
         >
           <ArrowUpOutlined className="text-xl" />
-        </button>
+        </motion.button>
       )}
     </div>
   );

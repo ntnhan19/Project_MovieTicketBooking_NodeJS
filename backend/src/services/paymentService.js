@@ -1,7 +1,6 @@
-// frontend/src/services/paymentService.js
 const prisma = require("../../prisma/prisma");
 
-const createPayment = async ({ tickets, method }) => {
+const createPayment = async ({ tickets, concessionOrders, method }) => {
   // Kiểm tra xem có ticket nào không
   if (!tickets || !Array.isArray(tickets) || tickets.length === 0) {
     throw new Error("Không có vé để thanh toán");
@@ -40,9 +39,10 @@ const createPayment = async ({ tickets, method }) => {
     method = "CREDIT_CARD";
   }
 
-  // Tính tổng số tiền thanh toán từ tất cả các vé
+  // Tính tổng số tiền thanh toán từ vé và bắp nước
   let totalAmount = 0;
 
+  // Tính tổng tiền từ vé
   tickets.forEach((ticket) => {
     let amount = ticket.price || 0;
 
@@ -61,6 +61,13 @@ const createPayment = async ({ tickets, method }) => {
     // Cộng vào tổng số tiền
     totalAmount += amount;
   });
+
+  // Tính tổng tiền từ concession orders
+  if (concessionOrders && Array.isArray(concessionOrders)) {
+    concessionOrders.forEach((order) => {
+      totalAmount += order.totalAmount || 0;
+    });
+  }
 
   // Làm tròn số tiền đến 2 chữ số thập phân
   totalAmount = Math.round(totalAmount * 100) / 100;
@@ -83,6 +90,9 @@ const createPayment = async ({ tickets, method }) => {
       tickets: {
         connect: ticketIds.map((id) => ({ id })),
       },
+      concessionOrders: {
+        connect: concessionOrders.map((order) => ({ id: order.id })),
+      },
     },
     include: {
       tickets: {
@@ -102,6 +112,11 @@ const createPayment = async ({ tickets, method }) => {
           },
           seat: true,
           promotion: true,
+        },
+      },
+      concessionOrders: {
+        include: {
+          items: true,
         },
       },
     },
@@ -132,6 +147,11 @@ const getPaymentById = async (id) => {
           },
           seat: true,
           promotion: true,
+        },
+      },
+      concessionOrders: {
+        include: {
+          items: true,
         },
       },
     },
@@ -168,6 +188,11 @@ const getPaymentByTicketId = async (ticketId) => {
           promotion: true,
         },
       },
+      concessionOrders: {
+        include: {
+          items: true,
+        },
+      },
     },
   });
 };
@@ -182,6 +207,7 @@ const updatePaymentStatus = async (id, status) => {
           seat: true,
         },
       },
+      concessionOrders: true,
     },
   });
 
@@ -216,6 +242,11 @@ const updatePaymentStatus = async (id, status) => {
           promotion: true,
         },
       },
+      concessionOrders: {
+        include: {
+          items: true,
+        },
+      },
     },
   });
 
@@ -230,12 +261,21 @@ const updatePaymentStatus = async (id, status) => {
       data: { status: "CONFIRMED" },
     });
 
-    // Gửi thông báo hoặc email xác nhận (có thể thêm sau)
+    // Cập nhật trạng thái concession orders thành PAID
+    await prisma.concessionOrder.updateMany({
+      where: {
+        id: {
+          in: payment.concessionOrders.map((order) => order.id),
+        },
+      },
+      data: { status: "PAID" },
+    });
   }
 
   // Nếu thanh toán bị hủy hoặc thất bại, cập nhật trạng thái vé thành CANCELLED và mở khóa ghế
   if (status === "CANCELLED" || status === "FAILED") {
     const ticketIds = payment.tickets.map((ticket) => ticket.id);
+    const orderIds = payment.concessionOrders.map((order) => order.id);
 
     // Cập nhật trạng thái các vé
     await prisma.ticket.updateMany({
@@ -247,12 +287,26 @@ const updatePaymentStatus = async (id, status) => {
       data: { status: "CANCELLED" },
     });
 
+    // Cập nhật trạng thái các concession orders
+    await prisma.concessionOrder.updateMany({
+      where: {
+        id: {
+          in: orderIds,
+        },
+      },
+      data: { status: "CANCELLED" },
+    });
+
     // Mở khóa tất cả các ghế
     for (const ticket of payment.tickets) {
       if (ticket.seat) {
         await prisma.seat.update({
           where: { id: ticket.seat.id },
-          data: { status: "AVAILABLE" },
+          data: {
+            status: "AVAILABLE",
+            lockedBy: null,
+            lockedAt: null,
+          },
         });
       }
     }
@@ -282,6 +336,11 @@ const getPaymentsByUserId = async (userId) => {
           },
           seat: true,
           promotion: true,
+        },
+      },
+      concessionOrders: {
+        include: {
+          items: true,
         },
       },
     },

@@ -1,15 +1,15 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { authApi } from '../api/authApi';
-import { userApi } from '../api/userApi';
-import { toast } from 'react-toastify';
-import axiosInstance from '../api/axiosInstance';
+import React, { createContext, useState, useEffect, useContext } from "react";
+import { authApi } from "../api/authApi";
+import { userApi } from "../api/userApi";
+import { toast } from "react-toastify";
+import axiosInstance from "../api/axiosInstance";
 
 export const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth phải được sử dụng trong AuthProvider');
+    throw new Error("useAuth phải được sử dụng trong AuthProvider");
   }
   return context;
 };
@@ -18,44 +18,44 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
+
   const [authModal, setAuthModal] = useState({
     visible: false,
-    activeTab: '1',
-    redirectAfterLogin: null
+    activeTab: "1",
+    redirectAfterLogin: null,
   });
 
   // Thêm trạng thái cho modal Quên mật khẩu
   const [forgotPasswordModal, setForgotPasswordModal] = useState({
-    visible: false
+    visible: false,
   });
 
-  const openAuthModal = (tab = '1', redirectPath = null) => {
+  const openAuthModal = (tab = "1", redirectPath = null) => {
     setAuthModal({
       visible: true,
       activeTab: tab,
-      redirectAfterLogin: redirectPath
+      redirectAfterLogin: redirectPath,
     });
   };
 
   const closeAuthModal = () => {
     setAuthModal({
       ...authModal,
-      visible: false
+      visible: false,
     });
   };
 
   const switchAuthTab = (tab) => {
     setAuthModal({
       ...authModal,
-      activeTab: tab
+      activeTab: tab,
     });
   };
 
   // Hàm mở modal Quên mật khẩu
   const openForgotPasswordModal = () => {
     setForgotPasswordModal({
-      visible: true
+      visible: true,
     });
     closeAuthModal(); // Đóng modal đăng nhập/đăng ký khi mở modal quên mật khẩu
   };
@@ -63,20 +63,20 @@ export const AuthProvider = ({ children }) => {
   // Hàm đóng modal Quên mật khẩu
   const closeForgotPasswordModal = () => {
     setForgotPasswordModal({
-      visible: false
+      visible: false,
     });
   };
 
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem("token"); // Sử dụng sessionStorage
         if (token) {
           try {
             const userData = await userApi.getCurrentUser();
             setUser(userData);
             setIsAuthenticated(true);
-            localStorage.setItem('user', JSON.stringify(userData));
+            sessionStorage.setItem("user", JSON.stringify(userData)); // Sử dụng sessionStorage
           } catch (error) {
             console.error("Failed to fetch user data:", error);
             authApi.logout();
@@ -103,26 +103,31 @@ export const AuthProvider = ({ children }) => {
       const { user, token } = response;
       if (!user) {
         console.error("Không nhận được thông tin người dùng từ API");
-        return { success: false, error: 'Không nhận được thông tin người dùng' };
+        return {
+          success: false,
+          error: "Không nhận được thông tin người dùng",
+        };
       }
       setUser(user);
       setIsAuthenticated(true);
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('userId', user.id);
-      localStorage.setItem('auth', JSON.stringify({ user, token }));
-      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      sessionStorage.setItem("token", token); // Sử dụng sessionStorage
+      sessionStorage.setItem("user", JSON.stringify(user)); // Sử dụng sessionStorage
+      sessionStorage.setItem("userId", user.id); // Sử dụng sessionStorage
+      sessionStorage.setItem("auth", JSON.stringify({ user, token })); // Sử dụng sessionStorage
+      axiosInstance.defaults.headers.common[
+        "Authorization"
+      ] = `Bearer ${token}`;
       closeAuthModal();
       if (authModal.redirectAfterLogin) {
         setTimeout(() => {
           window.location.href = authModal.redirectAfterLogin;
         }, 500);
       }
-      toast.success('Đăng nhập thành công!');
+      toast.success("Đăng nhập thành công!");
       return response;
     } catch (error) {
       console.error("Login error:", error);
-      const errorMessage = error.response?.data?.error || 'Đăng nhập thất bại';
+      const errorMessage = error.response?.data?.error || "Đăng nhập thất bại";
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -134,12 +139,15 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const result = await authApi.register(userData);
-      toast.success(result.message || 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.');
-      switchAuthTab('1');
+      toast.success(
+        result.message ||
+          "Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản."
+      );
+      switchAuthTab("1");
       return { success: true, message: result.message };
     } catch (error) {
       console.error("Register error:", error);
-      const errorMessage = error.response?.data?.error || 'Đăng ký thất bại';
+      const errorMessage = error.response?.data?.error || "Đăng ký thất bại";
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -151,17 +159,18 @@ export const AuthProvider = ({ children }) => {
     authApi.logout();
     setUser(null);
     setIsAuthenticated(false);
-    toast.info('Đã đăng xuất');
+    toast.info("Đã đăng xuất");
   };
 
   const resendVerificationEmail = async (email) => {
     try {
       setLoading(true);
       const result = await authApi.resendVerificationEmail(email);
-      toast.success(result.message || 'Đã gửi lại email xác thực');
+      toast.success(result.message || "Đã gửi lại email xác thực");
       return { success: true };
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Không thể gửi lại email xác thực';
+      const errorMessage =
+        error.response?.data?.error || "Không thể gửi lại email xác thực";
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -173,10 +182,11 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const result = await authApi.verifyEmail(token);
-      toast.success(result.message || 'Xác thực email thành công');
+      toast.success(result.message || "Xác thực email thành công");
       return { success: true };
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Xác thực email thất bại';
+      const errorMessage =
+        error.response?.data?.error || "Xác thực email thất bại";
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -188,11 +198,12 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const updatedUser = await userApi.updateUser(userId, userData);
-      setUser(prevUser => ({ ...prevUser, ...updatedUser }));
-      toast.success('Cập nhật thông tin thành công');
+      setUser((prevUser) => ({ ...prevUser, ...updatedUser }));
+      toast.success("Cập nhật thông tin thành công");
       return { success: true, user: updatedUser };
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Cập nhật thông tin thất bại';
+      const errorMessage =
+        error.response?.data?.error || "Cập nhật thông tin thất bại";
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -204,10 +215,11 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const result = await userApi.changePassword(passwordData);
-      toast.success(result.message || 'Thay đổi mật khẩu thành công');
+      toast.success(result.message || "Thay đổi mật khẩu thành công");
       return { success: true };
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Thay đổi mật khẩu thất bại';
+      const errorMessage =
+        error.response?.data?.error || "Thay đổi mật khẩu thất bại";
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -219,14 +231,15 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const result = await userApi.uploadAvatar(formData);
-      setUser(prevUser => ({
+      setUser((prevUser) => ({
         ...prevUser,
-        avatar: result.avatar
+        avatar: result.avatar,
       }));
-      toast.success(result.message || 'Upload avatar thành công');
+      toast.success(result.message || "Upload avatar thành công");
       return { success: true, avatar: result.avatar };
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Upload avatar thất bại';
+      const errorMessage =
+        error.response?.data?.error || "Upload avatar thất bại";
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -238,10 +251,13 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const result = await userApi.forgotPassword(email);
-      toast.success(result.message || 'Đã gửi email hướng dẫn đặt lại mật khẩu');
+      toast.success(
+        result.message || "Đã gửi email hướng dẫn đặt lại mật khẩu"
+      );
       return { success: true };
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Không thể xử lý yêu cầu quên mật khẩu';
+      const errorMessage =
+        error.response?.data?.error || "Không thể xử lý yêu cầu quên mật khẩu";
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -255,7 +271,8 @@ export const AuthProvider = ({ children }) => {
       const result = await userApi.verifyResetToken(token);
       return { success: result.valid };
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Token không hợp lệ hoặc đã hết hạn';
+      const errorMessage =
+        error.response?.data?.error || "Token không hợp lệ hoặc đã hết hạn";
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
@@ -266,10 +283,11 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const result = await userApi.resetPassword(token, newPassword);
-      toast.success(result.message || 'Đặt lại mật khẩu thành công');
+      toast.success(result.message || "Đặt lại mật khẩu thành công");
       return { success: true };
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Đặt lại mật khẩu thất bại';
+      const errorMessage =
+        error.response?.data?.error || "Đặt lại mật khẩu thất bại";
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -299,7 +317,7 @@ export const AuthProvider = ({ children }) => {
     switchAuthTab,
     forgotPasswordModal,
     openForgotPasswordModal,
-    closeForgotPasswordModal
+    closeForgotPasswordModal,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

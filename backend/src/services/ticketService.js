@@ -1,114 +1,140 @@
-// frontend/src/services/ticketService.js
-const prisma = require('../../prisma/prisma');
+const prisma = require("../../prisma/prisma");
+const seatService = require("./seatService");
+const mailService = require("./mailService");
+const QRCode = require("qrcode");
+const { v4: uuidv4 } = require("uuid");
 
-// Tạo vé mới 
+// Tạo vé mới
 const createTicket = async ({ userId, showtimeId, seats, promotionId }) => {
-  // Kiểm tra xem người dùng có tồn tại không
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
-    throw new Error('Không tìm thấy người dùng');
+    throw new Error("Không tìm thấy người dùng");
   }
 
-  // Kiểm tra xem suất chiếu có tồn tại không
-  const showtime = await prisma.showtime.findUnique({ where: { id: showtimeId } });
+  const showtime = await prisma.showtime.findUnique({
+    where: { id: showtimeId },
+  });
   if (!showtime) {
-    throw new Error('Không tìm thấy suất chiếu');
+    throw new Error("Không tìm thấy suất chiếu");
   }
 
-  // Kiểm tra xem suất chiếu có giá cơ bản không
   if (showtime.price === null) {
-    throw new Error('Suất chiếu chưa có giá cơ bản');
+    throw new Error("Suất chiếu chưa có giá cơ bản");
   }
 
-  // Kiểm tra promotionId nếu có
   let finalPromoId = null;
   if (promotionId) {
     const promotion = await prisma.promotion.findUnique({
-      where: { id: promotionId }
+      where: { id: promotionId },
     });
-    
     if (!promotion) {
-      throw new Error('Khuyến mãi không hợp lệ');
+      throw new Error("Khuyến mãi không hợp lệ");
     }
-    
     const now = new Date();
-    if (!promotion.isActive || now < promotion.validFrom || now > promotion.validUntil) {
-      throw new Error('Khuyến mãi không hợp lệ');
+    if (
+      !promotion.isActive ||
+      now < promotion.validFrom ||
+      now > promotion.validUntil
+    ) {
+      throw new Error("Khuyến mãi không hợp lệ");
     }
-    
     finalPromoId = promotionId;
   }
 
-  // Tạo nhiều vé cùng lúc
   const createdTickets = [];
   let totalPrice = 0;
 
   return await prisma.$transaction(async (tx) => {
-    // Xử lý từng ghế một
     for (const seatId of seats) {
-      // Kiểm tra xem ghế có tồn tại không
-      const seat = await tx.seat.findUnique({
-        where: { id: seatId }
-      });
-
+      const seat = await tx.seat.findUnique({ where: { id: seatId } });
       if (!seat) {
         throw new Error(`Ghế ${seatId} không tồn tại`);
       }
 
-      // Kiểm tra xem ghế có sẵn hoặc đã khóa không
-      if (seat.status !== 'AVAILABLE' && seat.status !== 'LOCKED') {
+      // Kiểm tra trạng thái ghế
+      const seatsStatus = await seatService.getSeatById(seatId);
+      if (seatsStatus.status === "BOOKED") {
+        const existingTicket = await tx.ticket.findFirst({
+          where: {
+            seatId: seatId,
+            userId: userId,
+            status: "PENDING",
+          },
+        });
+        if (existingTicket) {
+          createdTickets.push(existingTicket);
+          totalPrice += existingTicket.price;
+          continue;
+        } else {
+          // Thử mở khóa ghế nếu không có vé PENDING hợp lệ
+          try {
+            await seatService.unlockSeatIfLocked(seatId, userId);
+            await tx.seat.update({
+              where: { id: seatId },
+              data: {
+                status: "AVAILABLE",
+                lockedBy: null,
+                lockedAt: null,
+              },
+            });
+          } catch (error) {
+            throw new Error(`Ghế ${seatId} không có sẵn và không thể mở khóa`);
+          }
+        }
+      } else if (
+        seatsStatus.status !== "AVAILABLE" &&
+        seatsStatus.status !== "LOCKED"
+      ) {
         throw new Error(`Ghế ${seatId} không có sẵn`);
       }
 
-      // Tính giá vé dựa trên loại ghế
+      // Khóa ghế trước khi tạo vé
+      await seatService.lockMultipleSeats([seatId], userId);
+
       let basePrice = showtime.price;
       let ticketPrice = basePrice;
-      
-      // Áp dụng hệ số theo loại ghế
-      if (seat.type === 'VIP') {
+      if (seat.type === "VIP") {
         ticketPrice = basePrice * 1.5;
-      } else if (seat.type === 'COUPLE') {
+      } else if (seat.type === "COUPLE") {
         ticketPrice = basePrice * 2.0;
       }
-      
-      // Áp dụng khuyến mãi nếu có
+
       if (finalPromoId) {
         const promotion = await tx.promotion.findUnique({
-          where: { id: finalPromoId }
+          where: { id: finalPromoId },
         });
-        
-        if (promotion.type === 'PERCENTAGE') {
+        if (promotion.type === "PERCENTAGE") {
           ticketPrice = ticketPrice * (1 - promotion.discount / 100);
-        } else if (promotion.type === 'FIXED') {
+        } else if (promotion.type === "FIXED") {
           ticketPrice = Math.max(0, ticketPrice - promotion.discount);
         }
       }
-      
-      // Làm tròn giá vé đến 2 chữ số thập phân
+
       ticketPrice = Math.round(ticketPrice * 100) / 100;
       totalPrice += ticketPrice;
 
-      // Cập nhật trạng thái ghế
+      // Cập nhật trạng thái ghế thành BOOKED
       await tx.seat.update({
         where: { id: seatId },
-        data: { status: 'BOOKED' }
+        data: {
+          status: "BOOKED",
+          lockedBy: null,
+          lockedAt: null,
+        },
       });
 
-      // Tạo vé mới
       const ticketData = {
         userId,
         showtimeId,
         seatId,
         price: ticketPrice,
-        status: 'PENDING'
+        status: "PENDING",
       };
-      
-      // Thêm mã khuyến mãi nếu có
+
       if (finalPromoId) {
         ticketData.promotionId = finalPromoId;
       }
-      
-      // Tạo vé và thêm vào danh sách
+
       const newTicket = await tx.ticket.create({
         data: ticketData,
         include: {
@@ -117,56 +143,149 @@ const createTicket = async ({ userId, showtimeId, seats, promotionId }) => {
               movie: true,
               hall: {
                 include: {
-                  cinema: true
-                }
-              }
-            }
+                  cinema: true,
+                },
+              },
+            },
           },
           seat: true,
           user: true,
-          promotion: true
-        }
+          promotion: true,
+        },
       });
-      
+
       createdTickets.push(newTicket);
     }
-    
+
     return {
       tickets: createdTickets,
-      totalAmount: totalPrice
+      totalAmount: totalPrice,
     };
   });
 };
 
-// Các hàm khác giữ nguyên, thêm mới function cập nhật paymentId cho vé
+// Lấy vé theo seatId và userId
+const getTicketBySeatId = async (seatId, userId, status = "PENDING") => {
+  return await prisma.ticket.findFirst({
+    where: {
+      seatId,
+      userId,
+      status,
+    },
+    include: {
+      showtime: {
+        include: {
+          movie: true,
+          hall: {
+            include: {
+              cinema: true,
+            },
+          },
+        },
+      },
+      seat: true,
+      user: true,
+      promotion: true,
+    },
+  });
+};
+
+// Xóa vé
+const deleteTicket = async (id) => {
+  const ticket = await prisma.ticket.findUnique({
+    where: { id },
+    include: { seat: true },
+  });
+
+  if (!ticket) {
+    throw new Error("Không tìm thấy vé");
+  }
+
+  return await prisma.$transaction(async (tx) => {
+    // Sử dụng seatService để mở khóa ghế
+    await seatService.unlockSeatIfLocked(ticket.seat.id, ticket.userId);
+
+    return await tx.ticket.delete({
+      where: { id },
+    });
+  });
+};
+
+// Cập nhật payment ID cho nhiều vé
 const updateTicketsPayment = async (ticketIds, paymentId) => {
   return await prisma.ticket.updateMany({
-    where: {
-      id: {
-        in: ticketIds
-      }
-    },
-    data: {
-      paymentId: paymentId
-    }
+    where: { id: { in: ticketIds } },
+    data: { paymentId: paymentId },
   });
 };
 
-// Cập nhật trạng thái các vé khi thanh toán hoàn tất
+// Cập nhật trạng thái nhiều vé
 const updateTicketsStatus = async (ticketIds, status) => {
-  return await prisma.ticket.updateMany({
-    where: {
-      id: {
-        in: ticketIds
+  const validStatuses = ["PENDING", "CONFIRMED", "USED", "CANCELLED"];
+  if (!validStatuses.includes(status)) {
+    throw new Error("Trạng thái vé không hợp lệ");
+  }
+
+  return await prisma.$transaction(async (tx) => {
+    const tickets = await tx.ticket.findMany({
+      where: { id: { in: ticketIds } },
+      include: {
+        seat: true,
+        user: true,
+        showtime: {
+          include: {
+            movie: true,
+            hall: { include: { cinema: true } },
+          },
+        },
+        concessionOrders: {
+          include: { items: true },
+        },
+      },
+    });
+
+    const result = await tx.ticket.updateMany({
+      where: { id: { in: ticketIds } },
+      data: { status },
+    });
+
+    if (status === "CONFIRMED") {
+      for (const ticket of tickets) {
+        const qrCodeUrl = await generateTicketQR(ticket.id);
+        const concessionOrder = ticket.concessionOrders[0] || null;
+        await mailService.sendTicketConfirmationEmail(
+          ticket.user,
+          ticket,
+          ticket.showtime.movie,
+          ticket.showtime.hall.cinema,
+          ticket.showtime,
+          ticket.seat,
+          qrCodeUrl,
+          concessionOrder
+        );
       }
-    },
-    data: {
-      status: status
     }
+
+    if (status === "CANCELLED") {
+      const seatIds = tickets.map((ticket) => ticket.seatId);
+      for (const ticket of tickets) {
+        await seatService.unlockSeatIfLocked(ticket.seatId, ticket.userId);
+      }
+      await tx.seat.updateMany({
+        where: { id: { in: seatIds } },
+        data: {
+          status: "AVAILABLE",
+          lockedBy: null,
+          lockedAt: null,
+        },
+      });
+    }
+
+    return result;
   });
 };
 
-// Lấy vé theo ID của payment
+// Lấy vé theo payment ID
 const getTicketsByPaymentId = async (paymentId) => {
   return await prisma.ticket.findMany({
     where: { paymentId },
@@ -176,22 +295,22 @@ const getTicketsByPaymentId = async (paymentId) => {
           movie: true,
           hall: {
             include: {
-              cinema: true
-            }
-          }
-        }
+              cinema: true,
+            },
+          },
+        },
       },
       seat: true,
       user: true,
-      promotion: true
-    }
+      promotion: true,
+    },
   });
 };
 
-// Các hàm khác giữ nguyên
+// Lấy tất cả vé
 const getAllTickets = async (page = 1, limit = 10) => {
   const skip = (page - 1) * limit;
-  
+
   const [tickets, total] = await prisma.$transaction([
     prisma.ticket.findMany({
       skip,
@@ -202,37 +321,30 @@ const getAllTickets = async (page = 1, limit = 10) => {
             movie: true,
             hall: {
               include: {
-                cinema: true
-              }
-            }
-          }
+                cinema: true,
+              },
+            },
+          },
         },
         seat: true,
         user: true,
         promotion: true,
-        payment: true
+        payment: true,
       },
       orderBy: {
-        showtime: {
-          startTime: 'asc'
-        }
-      }
+        showtime: { startTime: "asc" },
+      },
     }),
-    prisma.ticket.count()
+    prisma.ticket.count(),
   ]);
-  
+
   return {
     data: tickets,
-    meta: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit)
-    }
+    meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
   };
 };
 
-// Lấy vé theo ID người dùng
+// Lấy vé theo userId
 const getTicketsByUserId = async (userId) => {
   return await prisma.ticket.findMany({
     where: { userId },
@@ -242,26 +354,30 @@ const getTicketsByUserId = async (userId) => {
           movie: true,
           hall: {
             include: {
-              cinema: true
-            }
-          }
-        }
+              cinema: true,
+            },
+          },
+        },
       },
       seat: true,
       promotion: true,
-      payment: true
+      payment: true,
     },
     orderBy: {
-      showtime: {
-        startTime: 'desc'
-      }
-    }
+      showtime: { startTime: "desc" },
+    },
   });
 };
 
 // Lấy vé theo ID
 const getTicketById = async (id) => {
-  return await prisma.ticket.findUnique({
+  console.log("[TicketService] getTicketById called with id:", id);
+  if (!id || isNaN(id) || id <= 0) {
+    console.error("[TicketService] ID vé không hợp lệ:", id);
+    throw new Error("ID vé không hợp lệ");
+  }
+
+  const ticket = await prisma.ticket.findUnique({
     where: { id },
     include: {
       showtime: {
@@ -269,186 +385,254 @@ const getTicketById = async (id) => {
           movie: true,
           hall: {
             include: {
-              cinema: true
-            }
-          }
-        }
+              cinema: true,
+            },
+          },
+        },
       },
       seat: true,
       user: true,
       promotion: true,
-      payment: true
-    }
+      payment: true,
+    },
   });
-};
 
-// Cập nhật trạng thái vé
-const updateTicketStatus = async (id, status) => {
-  return await prisma.ticket.update({
-    where: { id },
-    data: { status },
-    include: {
-      showtime: true,
-      seat: true,
-      promotion: true
-    }
-  });
-};
-
-// Xóa vé
-const deleteTicket = async (id) => {
-  const ticket = await prisma.ticket.findUnique({
-    where: { id },
-    include: { seat: true }
-  });
-  
   if (!ticket) {
-    throw new Error('Không tìm thấy vé');
+    console.warn("[TicketService] Không tìm thấy vé với ID:", id);
   }
-  
+
+  return ticket;
+};
+
+// Cập nhật trạng thái một vé
+const updateTicketStatus = async (id, status) => {
+  const validStatuses = ["PENDING", "CONFIRMED", "USED", "CANCELLED"];
+  if (!validStatuses.includes(status)) {
+    throw new Error("Trạng thái vé không hợp lệ");
+  }
+
   return await prisma.$transaction(async (tx) => {
-    await tx.seat.update({
-      where: { id: ticket.seat.id },
-      data: { status: 'AVAILABLE' }
+    const ticket = await tx.ticket.findUnique({
+      where: { id },
+      include: { seat: true },
     });
-    
-    return await tx.ticket.delete({
-      where: { id }
+    if (!ticket) {
+      throw new Error("Không tìm thấy vé");
+    }
+
+    const updatedTicket = await tx.ticket.update({
+      where: { id },
+      data: { status },
+      include: { showtime: true, seat: true, promotion: true },
     });
+
+    if (status === "CANCELLED") {
+      await seatService.unlockSeatIfLocked(ticket.seat.id, ticket.userId);
+      await tx.seat.update({
+        where: { id: ticket.seat.id },
+        data: {
+          status: "AVAILABLE",
+          lockedBy: null,
+          lockedAt: null,
+        },
+      });
+    }
+
+    return updatedTicket;
   });
 };
 
-// Khóa ghế tạm thời khi người dùng đang chọn (15 phút)
-const lockSeat = async (seatId) => {
-  const seat = await prisma.seat.findUnique({
-    where: { id: seatId }
-  });
-
-  if (!seat) {
-    throw new Error('Không tìm thấy ghế');
-  }
-
-  if (seat.status !== 'AVAILABLE') {
-    throw new Error('Ghế không có sẵn');
-  }
-
-  await prisma.seat.update({
-    where: { id: seatId },
-    data: { status: 'LOCKED' }
-  });
-
-  return { message: 'Đã khóa ghế thành công', seatId };
-};
-
-// Kiểm tra và mở khóa ghế nếu đã hết thời gian giữ
-const checkAndUnlockSeat = async (seatId) => {
-  const seat = await prisma.seat.findUnique({
-    where: { id: seatId }
-  });
-  
-  if (seat && seat.status === 'LOCKED') {
-    return await unlockSeat(seatId);
-  }
-  
-  return { message: 'Ghế không bị khóa hoặc đã đặt', seatId };
-};
-
-// Mở khóa ghế
-const unlockSeat = async (seatId) => {
-  const seat = await prisma.seat.findUnique({
-    where: { id: seatId }
-  });
-  
-  if (!seat) {
-    throw new Error('Không tìm thấy ghế');
-  }
-  
-  // Only unlock if the seat is currently locked
-  if (seat.status === 'LOCKED') {
-    await prisma.seat.update({
-      where: { id: seatId },
-      data: { status: 'AVAILABLE' }
-    });
-  }
-
-  return { message: 'Mở khóa ghế thành công', seatId };
-};
-
-// Lấy danh sách ghế theo suất chiếu
-const getSeatsByShowtime = async (showtimeId) => {
-  return await prisma.seat.findMany({
-    where: { showtimeId: showtimeId },
-    orderBy: [
-      { row: 'asc' },
-      { column: 'asc' }
-    ]
-  });
-};
-
-// Áp dụng mã khuyến mãi cho vé
+// Áp dụng khuyến mãi
 const applyPromotion = async (ticketId, promotionCode) => {
-  // Tìm khuyến mãi theo mã
   const promotion = await prisma.promotion.findUnique({
-    where: { code: promotionCode }
+    where: { code: promotionCode },
   });
-  
   if (!promotion) {
-    throw new Error('Không tìm thấy khuyến mãi');
+    throw new Error("Không tìm thấy khuyến mãi");
   }
-  
-  // Kiểm tra xem khuyến mãi có còn hiệu lực không
   const now = new Date();
   if (!promotion.isActive) {
-    throw new Error('Khuyến mãi không còn hiệu lực');
+    throw new Error("Khuyến mãi không còn hiệu lực");
   }
-  
   if (now < promotion.validFrom || now > promotion.validUntil) {
-    throw new Error('Khuyến mãi đã hết hạn');
+    throw new Error("Khuyến mãi đã hết hạn");
   }
-  
-  // Tìm vé theo ID
   const ticket = await prisma.ticket.findUnique({
-    where: { id: ticketId }
+    where: { id: ticketId },
   });
-  
   if (!ticket) {
-    throw new Error('Ticket not found');
+    throw new Error("Ticket not found");
   }
-  
-  // Tính toán giá vé mới dựa trên khuyến mãi
   let newPrice = ticket.price;
-  
-  if (promotion.type === 'PERCENTAGE') {
+  if (promotion.type === "PERCENTAGE") {
     newPrice = ticket.price * (1 - promotion.discount / 100);
-  } else if (promotion.type === 'FIXED') {
+  } else if (promotion.type === "FIXED") {
     newPrice = Math.max(0, ticket.price - promotion.discount);
   }
-  
-  // Làm tròn giá vé mới đến 2 chữ số thập phân
   newPrice = Math.round(newPrice * 100) / 100;
-  
-  // Cập nhật vé với giá mới và mã khuyến mãi
   return await prisma.ticket.update({
     where: { id: ticketId },
-    data: {
-      price: newPrice,
-      promotionId: promotion.id
-    },
+    data: { price: newPrice, promotionId: promotion.id },
     include: {
       showtime: {
         include: {
           movie: true,
-          hall: {
-            include: {
-              cinema: true
-            }
-          }
-        }
+          hall: { include: { cinema: true } },
+        },
       },
       seat: true,
-      promotion: true
-    }
+      promotion: true,
+    },
   });
+};
+
+// Lấy thống kê vé
+const getTicketStats = async (filter = {}) => {
+  try {
+    const { fromDate, toDate } = filter;
+
+    const where = {};
+    if (fromDate || toDate) {
+      where.createdAt = {};
+      if (fromDate) where.createdAt.gte = new Date(fromDate);
+      if (toDate) where.createdAt.lte = new Date(toDate);
+    }
+
+    const stats = await prisma.ticket.groupBy({
+      by: ["status"],
+      _count: {
+        status: true,
+      },
+      where,
+    });
+
+    const total = await prisma.ticket.count({ where });
+
+    const formattedStats = {
+      total,
+      pending: 0,
+      confirmed: 0,
+      used: 0,
+      cancelled: 0,
+    };
+
+    stats.forEach((item) => {
+      const status = item.status.toLowerCase();
+      if (status in formattedStats) {
+        formattedStats[status] = item._count.status;
+      }
+    });
+
+    return formattedStats;
+  } catch (error) {
+    console.error("[TicketService] Lỗi khi lấy thống kê vé:", error);
+    throw new Error("Không thể lấy thống kê vé");
+  }
+};
+
+// Tạo và lưu mã QR cho vé
+const generateTicketQR = async (ticketId) => {
+  try {
+    const ticket = await prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: {
+        showtime: {
+          include: { movie: true, hall: { include: { cinema: true } } },
+        },
+        seat: true,
+        concessionOrders: {
+          include: { items: { include: { item: true, combo: true } } },
+        },
+      },
+    });
+    if (!ticket) throw new Error("Không tìm thấy vé");
+
+    const qrToken = uuidv4();
+    const qrData = JSON.stringify({
+      type: "TICKET",
+      ticketId: ticket.id,
+      qrToken,
+      concessionOrderId: ticket.concessionOrders[0]?.id || null,
+      details: {
+        movieTitle: ticket.showtime.movie.title,
+        cinemaName: ticket.showtime.hall.cinema.name,
+        hallName: ticket.showtime.hall.name,
+        seat: `${ticket.seat.row}${ticket.seat.column}`,
+        showtime: ticket.showtime.startTime.toISOString(),
+        concessions:
+          ticket.concessionOrders[0]?.items.map((item) => ({
+            name: item.item?.name || item.combo?.name,
+            quantity: item.quantity,
+            price: item.price,
+          })) || [],
+      },
+    });
+
+    const qrCodeUrl = await QRCode.toDataURL(qrData);
+
+    await prisma.ticket.update({
+      where: { id: ticketId },
+      data: { qrCode: qrCodeUrl },
+    });
+
+    if (ticket.concessionOrders[0]) {
+      await prisma.concessionOrder.update({
+        where: { id: ticket.concessionOrders[0].id },
+        data: { qrCode: qrCodeUrl },
+      });
+    }
+
+    return { qrCodeUrl, ticket };
+  } catch (error) {
+    console.error("Lỗi khi tạo mã QR cho vé:", error);
+    throw new Error("Không thể tạo mã QR");
+  }
+};
+
+// Xác thực mã QR
+const validateQR = async (qrData) => {
+  try {
+    const { type, ticketId, qrToken, concessionOrderId } = JSON.parse(qrData);
+    if (type !== "TICKET") throw new Error("Mã QR không hợp lệ");
+
+    return await prisma.$transaction(async (tx) => {
+      const ticket = await tx.ticket.findUnique({
+        where: { id: ticketId },
+        include: { concessionOrders: true },
+      });
+      if (!ticket) throw new Error("Không tìm thấy vé");
+      if (ticket.status === "USED") throw new Error("Vé đã được sử dụng");
+      if (ticket.status === "CANCELLED") throw new Error("Vé đã bị hủy");
+
+      // Cập nhật trạng thái vé
+      await tx.ticket.update({
+        where: { id: ticketId },
+        data: { status: "USED", qrCode: null },
+      });
+
+      // Cập nhật trạng thái đơn bắp nước (nếu có)
+      if (concessionOrderId) {
+        const order = await tx.concessionOrder.findUnique({
+          where: { id: concessionOrderId },
+        });
+        if (
+          order &&
+          order.status !== "COMPLETED" &&
+          order.status !== "CANCELLED"
+        ) {
+          await tx.concessionOrder.update({
+            where: { id: concessionOrderId },
+            data: { status: "COMPLETED", qrCode: null },
+          });
+        }
+      }
+
+      return { ticketId, concessionOrderId, status: "VALID" };
+    });
+  } catch (error) {
+    console.error("Lỗi khi xác thực mã QR:", error);
+    throw new Error(error.message || "Xác thực mã QR thất bại");
+  }
 };
 
 module.exports = {
@@ -456,14 +640,14 @@ module.exports = {
   getAllTickets,
   getTicketsByUserId,
   getTicketById,
+  getTicketBySeatId,
   updateTicketStatus,
   deleteTicket,
-  lockSeat,
-  unlockSeat,
-  checkAndUnlockSeat,
-  getSeatsByShowtime,
   applyPromotion,
   updateTicketsPayment,
   updateTicketsStatus,
-  getTicketsByPaymentId
+  getTicketsByPaymentId,
+  getTicketStats,
+  generateTicketQR,
+  validateQR,
 };

@@ -5,8 +5,9 @@ import { RightOutlined, LeftOutlined, FireOutlined, CalendarOutlined } from "@an
 import useMovies from "../hooks/useMovies";
 import { movieApi } from "../api/movieApi";
 import MovieList from "../components/Movies/MovieList";
-import QuickBookingWidget from "../components/Payments/QuickBookingWidget";
+import QuickBookingWidget from "../components/common/QuickBookingWidget";
 import PromotionList from "../components/Promotions/PromotionList";
+import { motion } from "framer-motion";
 
 const { Title } = Typography;
 
@@ -95,7 +96,12 @@ const HomePage = () => {
   return (
     <div className="home-page-container">
       {/* Hero Banner Section */}
-      <section className="w-full h-[550px] relative overflow-hidden mb-10">
+      <motion.section
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="w-full h-[550px] relative overflow-hidden mb-10"
+      >
         {loadingHeroBanner ? (
           <div className="w-full h-full flex justify-center items-center bg-light-bg-secondary">
             <Spin size="large" />
@@ -133,20 +139,30 @@ const HomePage = () => {
             />
           </div>
         )}
-      </section>
+      </motion.section>
 
       {/* Quick Booking Widget Section */}
-      <section className="flex justify-center w-full relative z-10 -mt-[100px] mb-[90px] px-4">
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="flex justify-center w-full relative z-10 -mt-[100px] mb-[90px] px-4"
+      >
         <div className="w-full content-card mx-auto max-w-7xl hover:shadow-card-hover transition-all hover:-translate-y-1">
           <QuickBookingWidget onCinemaChange={handleCinemaChange} />
         </div>
-      </section>
+      </motion.section>
 
-            {/* Main Content Container */}
+      {/* Main Content Container */}
       <div className="bg-light-bg dark:bg-dark-bg py-12">
         <div className="main-content relative z-[1] max-w-7xl mx-auto px-4">
           {/* Movie List Section */}
-          <section className="w-full relative mb-16">
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="w-full relative mb-16"
+          >
             <div className="flex justify-center mb-8">
               <div className="w-full md:w-2/3">
                 <Title level={2} className="text-center movie-section-title relative mb-6">
@@ -158,11 +174,20 @@ const HomePage = () => {
             </div>
 
             <div className="mt-5 w-full">
-              <div className="flex justify-center mb-10 gap-4 movie-tab-buttons">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+                className="flex justify-center mb-10 gap-4 movie-tab-buttons"
+              >
                 <Button
                   icon={<FireOutlined />}
                   className={`movie-tab-btn bg-transparent border-none text-lg font-semibold py-3 px-8 relative transition-all duration-300
-                    ${activeTab === "nowShowing" ? "text-red-600 after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-10 after:h-[3px] after:bg-button-gradient after:rounded-t dark:text-red-400" : "text-text-secondary hover:text-red-600 !hover:text-red-600 dark:text-gray-300 dark:hover:text-red-400"}`}
+                    ${
+                      activeTab === "nowShowing"
+                        ? "text-red-600 after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-10 after:h-[3px] after:bg-button-gradient after:rounded-t dark:text-red-400"
+                        : "text-text-secondary hover:text-red-600 !hover:text-red-600 dark:text-gray-300 dark:hover:text-red-400"
+                    }`}
                   onClick={() => setActiveTab("nowShowing")}
                 >
                   Phim Đang Chiếu
@@ -170,14 +195,23 @@ const HomePage = () => {
                 <Button
                   icon={<CalendarOutlined />}
                   className={`movie-tab-btn bg-transparent border-none text-lg font-semibold py-3 px-8 relative transition-all duration-300
-                    ${activeTab === "comingSoon" ? "text-red-600 after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-10 after:h-[3px] after:bg-button-gradient after:rounded-t dark:text-red-400" : "text-text-secondary hover:text-red-600 !hover:text-red-600 dark:text-gray-300 dark:hover:text-red-400"}`}
+                    ${
+                      activeTab === "comingSoon"
+                        ? "text-red-600 after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-10 after:h-[3px] after:bg-button-gradient after:rounded-t dark:text-red-400"
+                        : "text-text-secondary hover:text-red-600 !hover:text-red-600 dark:text-gray-300 dark:hover:text-red-400"
+                    }`}
                   onClick={() => setActiveTab("comingSoon")}
                 >
                   Phim Sắp Chiếu
                 </Button>
-              </div>
+              </motion.div>
 
-              <div className="min-h-[400px] w-full">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+                className="min-h-[400px] w-full"
+              >
                 {loading ? (
                   <div className="flex justify-center items-center min-h-[300px]">
                     <Spin>
@@ -203,16 +237,21 @@ const HomePage = () => {
                     className="py-16"
                   />
                 )}
-              </div>
+              </motion.div>
             </div>
-          </section>
+          </motion.section>
         </div>
       </div>
 
-      {/* Promotion Section - Now uses the same background */}
+      {/* Promotion Section */}
       <div className="bg-light-bg dark:bg-dark-bg py-12 border-t border-gray-100/50 dark:border-gray-800/50">
         <div className="max-w-7xl mx-auto px-4">
-          <section className="promotions-section mb-12">
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="promotions-section mb-12"
+          >
             <div className="flex justify-center mb-8">
               <div className="w-full md:w-2/3">
                 <Title level={2} className="text-center movie-section-title relative mb-6">
@@ -223,7 +262,7 @@ const HomePage = () => {
               </div>
             </div>
             <PromotionList />
-          </section>
+          </motion.section>
         </div>
       </div>
     </div>

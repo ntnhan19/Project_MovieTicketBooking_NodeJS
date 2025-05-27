@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Select, DatePicker, Button, Spin, message } from "antd";
+import { Select, DatePicker, Button, Spin, App } from "antd";
 import {
   CalendarOutlined,
   EnvironmentOutlined,
@@ -19,6 +19,7 @@ const { Option } = Select;
 
 const QuickBookingWidget = () => {
   const navigate = useNavigate();
+  const { notification } = App.useApp();
   const { isAuthenticated, openAuthModal } = useAuth();
 
   // State cho các lựa chọn
@@ -47,7 +48,11 @@ const QuickBookingWidget = () => {
         setCinemas(data || []);
       } catch (error) {
         console.error("Error fetching cinemas:", error);
-        message.error("Không thể tải danh sách rạp chiếu");
+        notification.error({
+          message: "Lỗi",
+          description: "Không thể tải danh sách rạp chiếu",
+          duration: 3,
+        });
         setCinemas([]);
       } finally {
         setLoadingCinemas(false);
@@ -77,11 +82,19 @@ const QuickBookingWidget = () => {
           setMovies(data);
         } else {
           setMovies([]);
-          message.info("Không có phim nào chiếu tại rạp này vào ngày đã chọn");
+          notification.info({
+            message: "Thông báo",
+            description: "Không có phim nào chiếu tại rạp này vào ngày đã chọn",
+            duration: 3,
+          });
         }
       } catch (error) {
         console.error("Error fetching movies:", error);
-        message.error("Không thể tải danh sách phim");
+        notification.error({
+          message: "Lỗi",
+          description: "Không thể tải danh sách phim",
+          duration: 3,
+        });
         setMovies([]);
       } finally {
         setLoadingMovies(false);
@@ -89,7 +102,7 @@ const QuickBookingWidget = () => {
     };
 
     fetchMovies();
-  }, [selectedCinema, selectedDate]);
+  }, [selectedCinema, selectedDate, notification]);
 
   // 3. Load danh sách suất chiếu khi chọn ngày, phim và rạp
   useEffect(() => {
@@ -113,11 +126,19 @@ const QuickBookingWidget = () => {
           setShowtimes(data);
         } else {
           setShowtimes([]);
-          message.info("Không có suất chiếu cho phim này vào ngày đã chọn");
+          notification.info({
+            message: "Thông báo",
+            description: "Không có suất chiếu cho phim này vào ngày đã chọn",
+            duration: 3,
+          });
         }
       } catch (error) {
         console.error("Error fetching showtimes:", error);
-        message.error("Không thể tải danh sách suất chiếu");
+        notification.error({
+          message: "Lỗi",
+          description: "Không thể tải danh sách suất chiếu",
+          duration: 3,
+        });
         setShowtimes([]);
       } finally {
         setLoadingShowtimes(false);
@@ -125,7 +146,7 @@ const QuickBookingWidget = () => {
     };
 
     fetchShowtimes();
-  }, [selectedCinema, selectedMovie, selectedDate]);
+  }, [selectedCinema, selectedMovie, selectedDate, notification]);
 
   // Xử lý khi chọn rạp
   const handleCinemaChange = (value) => {
@@ -155,7 +176,11 @@ const QuickBookingWidget = () => {
   // Xử lý khi nhấn nút "Đặt vé"
   const handleBooking = async () => {
     if (!selectedShowtime) {
-      message.warning("Vui lòng chọn suất chiếu");
+      notification.warning({
+        message: "Cảnh báo",
+        description: "Vui lòng chọn suất chiếu",
+        duration: 3,
+      });
       return;
     }
 
@@ -165,7 +190,11 @@ const QuickBookingWidget = () => {
     if (!isAuthenticated) {
       // Nếu chưa đăng nhập, mở modal đăng nhập với đường dẫn chuyển hướng sau khi đăng nhập
       openAuthModal("1", `/booking/seats/${selectedShowtime}`);
-      message.warning("Vui lòng đăng nhập để đặt vé");
+      notification.warning({
+        message: "Cảnh báo",
+        description: "Vui lòng đăng nhập để đặt vé",
+        duration: 3,
+      });
       setBookingLoading(false);
       return;
     }
@@ -178,7 +207,11 @@ const QuickBookingWidget = () => {
       // Nếu đã đăng nhập, chuyển hướng đến trang chọn ghế
       navigate(`/booking/seats/${selectedShowtime}`);
     } catch {
-      message.error("Có lỗi xảy ra khi chuyển hướng");
+      notification.error({
+        message: "Lỗi",
+        description: "Có lỗi xảy ra khi chuyển hướng",
+        duration: 3,
+      });
     } finally {
       setBookingLoading(false);
     }

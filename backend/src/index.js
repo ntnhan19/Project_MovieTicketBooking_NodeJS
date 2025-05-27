@@ -1,11 +1,11 @@
 //backend/src/index.js
 const dotenv = require('dotenv');
-const app = require('./App.js'); // 👈 import từ App.js
+const { server } = require('./App');
 
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });

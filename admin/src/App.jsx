@@ -72,6 +72,7 @@ import ConcessionOrderEdit from "./components/ConcessionOrders/ConcessionOrderEd
 import ConcessionOrderCreate from "./components/ConcessionOrders/ConcessionOrderCreate";
 import ConcessionOrderShow from "./components/ConcessionOrders/ConcessionOrderShow";
 
+// Tickets components
 import TicketEdit from "./components/Tickets/TicketEdit";
 import TicketList from "./components/Tickets/TicketList";
 import TicketShow from "./components/Tickets/TicketShow";
@@ -83,6 +84,8 @@ import PaymentShow from "./components/Payments/PaymentShow";
 
 // Dashboard component
 import Dashboard from "./components/Dashboard/Dashboard";
+
+import QRScanner from "./components/Common/QRScanner";
 
 // Icons
 import {

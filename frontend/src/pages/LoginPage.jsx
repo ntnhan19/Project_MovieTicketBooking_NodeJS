@@ -5,7 +5,7 @@ import {
   Button,
   Typography,
   Divider,
-  message,
+  notification,
   Space,
   ConfigProvider,
 } from "antd";
@@ -59,6 +59,12 @@ const LoginForm = ({
         borderRadius: 12,
         paddingBlock: 10,
       },
+      Notification: {
+        colorBgElevated: theme === "dark" ? "#1f2937" : "#ffffff",
+        colorText: theme === "dark" ? "#d1d5db" : "#000000",
+        colorTextHeading: theme === "dark" ? "#ffffff" : "#000000",
+        borderRadius: 12,
+      },
     },
   };
 
@@ -75,7 +81,23 @@ const LoginForm = ({
 
       if (!response || response.success === false) {
         console.error("Đăng nhập thất bại:", response?.error);
-        message.error("Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
+        if (
+          response?.error === "Invalid password" ||
+          response?.error?.includes("password") ||
+          response?.errorCode === "INVALID_PASSWORD"
+        ) {
+          notification.error({
+            message: "Lỗi",
+            description: "Mật khẩu không đúng. Vui lòng kiểm tra lại.",
+            duration: 3,
+          });
+        } else {
+          notification.error({
+            message: "Lỗi",
+            description: "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.",
+            duration: 3,
+          });
+        }
         return;
       }
 
@@ -90,14 +112,18 @@ const LoginForm = ({
         token: token,
       };
 
-      localStorage.setItem("auth", JSON.stringify(authData));
-      localStorage.setItem("token", token);
-      localStorage.setItem("userId", user.id);
+      // Sử dụng sessionStorage thay vì localStorage
+      sessionStorage.setItem("auth", JSON.stringify(authData));
+      sessionStorage.setItem("token", token);
+      sessionStorage.setItem("userId", user.id);
 
       if (user && user.role && user.role.toUpperCase() === "ADMIN") {
-        message.success(
-          "Đăng nhập thành công! Đang chuyển hướng tới trang quản trị..."
-        );
+        notification.success({
+          message: "Thành công",
+          description:
+            "Đăng nhập thành công! Đang chuyển hướng tới trang quản trị...",
+          duration: 3,
+        });
         const adminUrl = `http://localhost:3001?token=${encodeURIComponent(
           token
         )}&user=${encodeURIComponent(JSON.stringify(user))}`;
@@ -105,7 +131,11 @@ const LoginForm = ({
           window.location.href = adminUrl;
         }, 1000);
       } else {
-        message.success("Đăng nhập thành công!");
+        notification.success({
+          message: "Thành công",
+          description: "Đăng nhập thành công!",
+          duration: 3,
+        });
         if (onLoginSuccess) {
           onLoginSuccess();
         }
@@ -115,14 +145,34 @@ const LoginForm = ({
       }
     } catch (error) {
       console.error("Login error:", error);
-      message.error("Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
+      if (
+        error.message?.includes("password") ||
+        error.response?.data?.error === "Invalid password" ||
+        error.response?.data?.errorCode === "INVALID_PASSWORD"
+      ) {
+        notification.error({
+          message: "Lỗi",
+          description: "Mật khẩu không đúng. Vui lòng kiểm tra lại.",
+          duration: 3,
+        });
+      } else {
+        notification.error({
+          message: "Lỗi",
+          description: "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.",
+          duration: 3,
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleSocialLogin = (platform) => {
-    message.info(`Đăng nhập bằng ${platform} đang được phát triển.`);
+    notification.info({
+      message: "Thông báo",
+      description: `Đăng nhập bằng ${platform} đang được phát triển.`,
+      duration: 3,
+    });
   };
 
   // Sửa hàm này để trực tiếp gọi callback từ prop
