@@ -12,7 +12,7 @@ const axiosInstance = axios.create({
 // Thêm interceptor để gắn token vào header trước mỗi request
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem("token"); // Sử dụng sessionStorage
+    const token = sessionStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -25,9 +25,7 @@ axiosInstance.interceptors.request.use(
 
 // Thêm interceptor xử lý các response và error
 axiosInstance.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   (error) => {
     if (
       error.response &&
@@ -40,14 +38,14 @@ axiosInstance.interceptors.response.use(
         !error.config.url.includes("/users/verify-reset-token") &&
         !error.config.url.includes("/users/reset-password")
       ) {
-        // Xóa thông tin đăng nhập khỏi sessionStorage
-        sessionStorage.removeItem("token");
-        sessionStorage.removeItem("user");
-        sessionStorage.removeItem("userId");
-        sessionStorage.removeItem("auth");
-
-        // Chuyển hướng về trang đăng nhập
-        window.location.href = "/login?session=expired";
+        // Chỉ xóa nếu lỗi là do token hết hạn
+        if (error.response.data?.message?.includes("expired")) {
+          sessionStorage.removeItem("token");
+          sessionStorage.removeItem("user");
+          sessionStorage.removeItem("userId");
+          sessionStorage.removeItem("auth");
+          window.location.href = "/login?session=expired";
+        }
       }
     }
     return Promise.reject(error);

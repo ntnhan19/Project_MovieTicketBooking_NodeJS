@@ -6,7 +6,7 @@ import {
   processManyResponse,
   VIETNAM_TIMEZONE,
   convertToUTC,
-  convertToVietnamTime
+  convertToVietnamTime,
 } from "./utils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -37,7 +37,10 @@ const normalizeShowtimeData = (data) => {
   if (normalizedData.endTime) {
     if (normalizedData.endTime instanceof Date) {
       normalizedData.endTime = convertToUTC(normalizedData.endTime);
-    } else if (typeof normalizedData.endTime === "string" && !normalizedData.endTime.endsWith("Z")) {
+    } else if (
+      typeof normalizedData.endTime === "string" &&
+      !normalizedData.endTime.endsWith("Z")
+    ) {
       normalizedData.endTime = convertToUTC(normalizedData.endTime);
     }
   }
@@ -66,11 +69,11 @@ const formatShowtimeDisplayData = (data) => {
   const formattedData = { ...data };
 
   // Chuyển đổi các trường thời gian từ UTC sang múi giờ Việt Nam
-  if (formattedData.startTime && typeof formattedData.startTime === 'string') {
+  if (formattedData.startTime && typeof formattedData.startTime === "string") {
     formattedData.startTime = convertToVietnamTime(formattedData.startTime);
   }
 
-  if (formattedData.endTime && typeof formattedData.endTime === 'string') {
+  if (formattedData.endTime && typeof formattedData.endTime === "string") {
     formattedData.endTime = convertToVietnamTime(formattedData.endTime);
   }
 
@@ -152,7 +155,7 @@ const showtimeService = {
 
     let resultData = Array.isArray(json) ? json : [];
     resultData = resultData.map((item) => formatShowtimeDisplayData(item));
-    
+
     return {
       data: resultData,
       total: parseInt(headers.get("x-total-count")) || resultData.length,
@@ -203,7 +206,8 @@ const showtimeService = {
           .catch((e) => ({ error: "Không thể parse response JSON" }));
         console.error("Lỗi từ server:", errorData);
         throw new Error(
-          errorData.message || errorData.error ||
+          errorData.message ||
+            errorData.error ||
             `Có lỗi xảy ra khi tạo showtime (status: ${response.status})`
         );
       }
@@ -262,7 +266,8 @@ const showtimeService = {
           .catch((e) => ({ error: "Không thể parse response JSON" }));
         console.error("Lỗi từ server:", errorData);
         throw new Error(
-          errorData.message || errorData.error ||
+          errorData.message ||
+            errorData.error ||
             `Có lỗi xảy ra khi cập nhật showtime (status: ${response.status})`
         );
       }

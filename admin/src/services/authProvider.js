@@ -1,8 +1,8 @@
 // admin/src/services/authProvider.js
+import { httpClient, apiUrl } from './httpClient';
+
 const authProvider = {
   login: ({ username, password }) => {
-    // Vì người dùng đã đăng nhập từ frontend nên không cần đăng nhập lại
-    // Chỉ cần kiểm tra lại thông tin xác thực
     try {
       const auth = localStorage.getItem("auth");
       if (!auth) {
@@ -85,22 +85,27 @@ const authProvider = {
     return Promise.resolve(auth.user?.role || "");
   },
 
-  getIdentity: () => {
+  getIdentity: async () => {
     try {
       const auth = JSON.parse(localStorage.getItem("auth") || "{}");
-      if (!auth.user) {
-        console.error("Không tìm thấy thông tin người dùng");
+      if (!auth.user || !auth.user.id) {
+        console.error("Không tìm thấy thông tin người dùng trong localStorage");
         return Promise.reject("Không tìm thấy thông tin người dùng");
       }
 
+      // Gọi API để lấy thông tin người dùng đầy đủ
+      const response = await httpClient(`${apiUrl}/users/${auth.user.id}`);
+      const userData = response.json;
+
+      console.log("User data từ API:", userData);
+
       return Promise.resolve({
-        id: auth.user.id,
-        fullName:
-          auth.user.username ||
-          auth.user.name ||
-          auth.user.fullName ||
-          auth.user.email,
-        avatar: auth.user.avatar || "https://via.placeholder.com/50",
+        id: userData.id,
+        fullName: userData.fullName || userData.name || userData.username || userData.email || "Không xác định",
+        email: userData.email || "",
+        phone: userData.phone || "",
+        avatar: userData.avatar || "https://via.placeholder.com/50",
+        role: userData.role || auth.user.role || "ADMIN",
       });
     } catch (e) {
       console.error("Lỗi khi lấy thông tin người dùng:", e);

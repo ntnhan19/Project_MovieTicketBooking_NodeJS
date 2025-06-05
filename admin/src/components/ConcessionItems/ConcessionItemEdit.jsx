@@ -16,8 +16,22 @@ const ConcessionItemEdit = () => {
     const fetchItem = async () => {
       setLoading(true);
       try {
-        const response = await concessionItemService.getById(id);
-        setItem(response);
+        const response = await concessionItemService.getOne(id); // Sửa getById thành getOne
+        // Kiểm tra dữ liệu trả về
+        if (!response.data) {
+          throw new Error("Dữ liệu sản phẩm không hợp lệ");
+        }
+        // Đảm bảo dữ liệu khớp với định dạng của form
+        const formattedItem = {
+          name: response.data.name || "",
+          description: response.data.description || "",
+          price: response.data.price || 0,
+          categoryId: response.data.categoryId || "",
+          image: response.data.image || "",
+          isAvailable: response.data.isAvailable !== undefined ? response.data.isAvailable : true,
+          size: response.data.size || "",
+        };
+        setItem(formattedItem);
       } catch (err) {
         console.error("Lỗi khi tải thông tin sản phẩm:", err);
         setError("Không thể tải thông tin sản phẩm. Vui lòng thử lại sau.");

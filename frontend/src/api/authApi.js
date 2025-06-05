@@ -1,28 +1,25 @@
 import axiosInstance from './axiosInstance';
 
 export const authApi = {
-  // Đăng nhập
   login: async (credentials) => {
     try {
       const res = await axiosInstance.post("/auth/login", credentials);
       const { token, user } = res.data;
 
-      // Lưu vào sessionStorage thay vì localStorage
       sessionStorage.setItem("token", token);
       sessionStorage.setItem("user", JSON.stringify(user));
       sessionStorage.setItem("userId", user.id);
 
-      // Đặt token trong header cho các request tiếp theo
+      // Sửa lỗi template literal
       axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      return res.data; // Trả về toàn bộ kết quả từ API
+      return res.data;
     } catch (error) {
       console.error("Login error:", error);
       throw error;
     }
   },
 
-  // Đăng ký
   register: async (userData) => {
     try {
       const res = await axiosInstance.post("/auth/register", userData);
@@ -33,22 +30,25 @@ export const authApi = {
     }
   },
 
-  // Đăng xuất
   logout: () => {
-    // Xóa dữ liệu từ sessionStorage
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("user");
-    sessionStorage.removeItem("userId");
-    sessionStorage.removeItem("auth");
+    // Xóa tất cả dữ liệu auth
+    const keysToRemove = ["token", "user", "userId", "auth"];
+    keysToRemove.forEach(key => sessionStorage.removeItem(key));
+    
+    // Xóa Authorization header
+    delete axiosInstance.defaults.headers.common['Authorization'];
   },
 
-  // Lấy thông tin user hiện tại từ sessionStorage
   getCurrentUserFromStorage: () => {
-    const userStr = sessionStorage.getItem("user");
-    return userStr ? JSON.parse(userStr) : null;
+    try {
+      const userStr = sessionStorage.getItem("user");
+      return userStr ? JSON.parse(userStr) : null;
+    } catch (error) {
+      console.error("Error parsing user data:", error);
+      return null;
+    }
   },
 
-  // Gửi lại email xác thực
   resendVerificationEmail: async (email) => {
     try {
       const res = await axiosInstance.post("/auth/resend-verification", { email });
@@ -59,13 +59,12 @@ export const authApi = {
     }
   },
 
-  // Xác thực email
   verifyEmail: async (token) => {
     try {
       const res = await axiosInstance.get(`/auth/verify-email/${token}`);
       return res.data;
     } catch (error) {
-      console.error("Verify email error:", error.response?.data || error.message);
+      console.error("Verify email error:", error.response?.data || error.message);  
       throw error;
     }
   }

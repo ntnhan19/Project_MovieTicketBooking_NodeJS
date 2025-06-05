@@ -3,12 +3,13 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ticketService from "../../services/ticketService";
 import Pagination from "../Common/Pagination";
+import { debounce } from 'lodash';
 
 // Định nghĩa trạng thái vé
 const statusChoices = [
   { id: 'PENDING', name: 'Đang xử lý', color: 'bg-yellow-500 text-yellow-900 bg-opacity-20' },
   { id: 'CONFIRMED', name: 'Đã xác nhận', color: 'bg-green-500 text-green-900 bg-opacity-20' },
-  { id: 'CANCELED', name: 'Đã hủy', color: 'bg-red-500 text-red-900 bg-opacity-20' },
+  { id: 'CANCELLED', name: 'Đã hủy', color: 'bg-red-500 text-red-900 bg-opacity-20' },
   { id: 'USED', name: 'Đã sử dụng', color: 'bg-gray-500 text-gray-900 bg-opacity-20' },
 ];
 
@@ -22,14 +23,14 @@ const TicketList = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [totalItems, setTotalItems] = useState(0); 
+  const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [stats, setStats] = useState({
     PENDING: 0,
     CONFIRMED: 0,
-    CANCELED: 0,
+    CANCELLED: 0,
     USED: 0,
   });
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,6 +40,15 @@ const TicketList = () => {
     toDate: new Date().toISOString().split('T')[0]
   });
   const navigate = useNavigate();
+
+  const debouncedSearch = debounce((value) => {
+    setSearchTerm(value);
+    setCurrentPage(1); // Reset về trang 1 khi tìm kiếm
+  }, 300);
+
+  const handleSearchChange = (e) => {
+    debouncedSearch(e.target.value);
+  };
 
   const fetchData = async () => {
     try {
@@ -59,27 +69,23 @@ const TicketList = () => {
         }
       });
 
+      const statsResponse = await ticketService.getTicketStats({
+        fromDate: dateFilter.fromDate,
+        toDate: dateFilter.toDate
+      });
+
       if (response && response.data) {
         const { data, total } = response.data;
         setTickets(data || []);
         setTotalItems(total || 0);
         setTotalPages(Math.ceil((total || 0) / itemsPerPage));
 
-        // Cập nhật thống kê
-        const newStats = {
-          PENDING: 0,
-          CONFIRMED: 0,
-          CANCELED: 0,
-          USED: 0
-        };
-        
-        (data || []).forEach(ticket => {
-          if (newStats.hasOwnProperty(ticket.status)) {
-            newStats[ticket.status]++;
-          }
+        setStats({
+          PENDING: statsResponse.data.pending || 0,
+          CONFIRMED: statsResponse.data.confirmed || 0,
+          CANCELLED: statsResponse.data.cancelled || 0,
+          USED: statsResponse.data.used || 0
         });
-        
-        setStats(newStats);
       }
     } catch (err) {
       console.error("Lỗi khi tải dữ liệu:", err);
@@ -94,12 +100,23 @@ const TicketList = () => {
 
   useEffect(() => {
     fetchData();
-  }, [currentPage, statusFilter, dateFilter.fromDate, dateFilter.toDate]);
+  }, [currentPage, statusFilter, dateFilter.fromDate, dateFilter.toDate, searchTerm]);
 
   const handleExport = async () => {
     try {
-      // Nếu chưa có hàm exportTickets trong service, thông báo cho người dùng
-      alert('Chức năng xuất dữ liệu đang được phát triển!');
+      const blob = await ticketService.exportTickets({
+        status: statusFilter,
+        fromDate: dateFilter.fromDate,
+        toDate: dateFilter.toDate,
+        search: searchTerm
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'tickets_export.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error("Lỗi khi xuất dữ liệu:", err);
       setError(err.message || "Có lỗi xảy ra khi xuất dữ liệu");
@@ -110,7 +127,6 @@ const TicketList = () => {
     if (window.confirm(`Bạn có chắc chắn muốn chuyển trạng thái vé thành "${statusChoices.find(choice => choice.id === newStatus)?.name}"?`)) {
       try {
         await ticketService.updateStatus(ticketId, newStatus);
-        // Cập nhật lại danh sách vé sau khi thay đổi trạng thái
         fetchData();
       } catch (err) {
         console.error("Lỗi khi cập nhật trạng thái vé:", err);
@@ -122,16 +138,6 @@ const TicketList = () => {
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
-
-  // Lọc vé theo từ khóa tìm kiếm
-  const filteredTickets = tickets.filter(ticket => {
-    // Lọc theo từ khóa tìm kiếm (ID vé hoặc tên khách hàng)
-    const matchSearch = searchTerm === "" || 
-                        (ticket.id && ticket.id.toString().includes(searchTerm)) || 
-                        (ticket.user && ticket.user.name && ticket.user.name.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    return matchSearch;
-  });
 
   if (loading) {
     return (
@@ -148,9 +154,6 @@ const TicketList = () => {
           <h1 className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
             Danh sách vé
           </h1>
-          <p className="mt-1 text-sm text-text-secondary dark:text-text-secondary-dark">
-            Tổng số: {totalItems} vé
-          </p>
         </div>
         <div className="mt-4 sm:mt-0">
           <button
@@ -198,8 +201,7 @@ const TicketList = () => {
               type="text"
               id="search"
               placeholder="Tìm theo ID vé hoặc tên khách hàng..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
               className="block w-full pl-10 pr-3 py-2 border border-border dark:border-border-dark rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-background-paper-dark text-text-primary dark:text-text-primary-dark"
             />
           </div>
@@ -248,7 +250,7 @@ const TicketList = () => {
       )}
 
       {/* Danh sách vé */}
-      {filteredTickets.length === 0 ? (
+      {tickets.length === 0 ? (
         <div className="text-center py-12 bg-white dark:bg-background-paper-dark rounded-lg shadow-card">
           <svg className="mx-auto h-12 w-12 text-text-secondary dark:text-text-secondary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -290,7 +292,7 @@ const TicketList = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border dark:divide-border-dark">
-              {filteredTickets.map(ticket => (
+              {tickets.map(ticket => (
                 <tr key={ticket.id} className="hover:bg-gray-50 dark:hover:bg-secondary-dark/10">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Link 

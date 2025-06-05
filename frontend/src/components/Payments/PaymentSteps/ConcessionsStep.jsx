@@ -1,59 +1,124 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback, useMemo } from "react";
 import {
   Card,
   Row,
   Col,
   Spin,
   Typography,
-  Input,
   Tabs,
   Alert,
-  Modal,
+  ConfigProvider,
 } from "antd";
-import { CoffeeOutlined, SearchOutlined } from "@ant-design/icons";
+import { CoffeeOutlined, ShopOutlined } from "@ant-design/icons";
 import { ThemeContext } from "../../../context/ThemeContext";
-import CategorySection from "../../Concessions/CategorySection";
-import ComboSection from "../../Concessions/ComboSection";
+import ItemList from "../../Concessions/ItemList";
 import concessionCategoryApi from "../../../api/concessionCategoryApi";
 import concessionComboApi from "../../../api/concessionComboApi";
 import { motion } from "framer-motion";
+import debounce from "lodash/debounce";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
-const ConcessionStep = ({ onConcessionChange, selectedConcessions }) => {
+const ConcessionStep = React.memo(({ onConcessionChange, selectedConcessions, isWithTicket = true }) => {
   const { theme } = useContext(ThemeContext);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [combos, setCombos] = useState([]);
-  const [activeTab, setActiveTab] = useState("");
+  const [activeTab, setActiveTab] = useState("combos");
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedItem, setSelectedItem] = useState(null);
+
+  console.log("ConcessionStep rendered", {
+    activeTab,
+    searchQuery,
+    categoriesLength: categories.length,
+    combosLength: combos.length,
+    isWithTicket,
+  });
+
+  const antdTheme = useMemo(() => ({
+    token: {
+      colorPrimary: "#e71a0f",
+      fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+      borderRadius: 8,
+      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+      colorBgContainer: theme === "dark" ? "#1f2a44" : "#ffffff",
+      colorText: theme === "dark" ? "#d1d5db" : "#333333",
+      colorTextSecondary: theme === "dark" ? "#d1d5db" : "#666666",
+      colorBorder: theme === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)",
+    },
+    components: {
+      Tabs: {
+        itemSelectedColor: "#e71a0f",
+        itemHoverColor: "#e71a0f",
+        inkBarColor: "#e71a0f",
+        colorBgContainer: theme === "dark" ? "#1f2a44" : "#ffffff",
+        itemActiveColor: "#e71a0f",
+        itemColor: theme === "dark" ? "#d1d5db" : "#333333",
+        horizontalItemPadding: "12px 16px",
+      },
+      Input: {
+        borderRadius: 8,
+        colorBorder: theme === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)",
+        colorBgContainer: theme === "dark" ? "#374151" : "#ffffff",
+      },
+      Button: {
+        borderRadius: 8,
+        colorPrimary: "#e71a0f",
+        colorPrimaryHover: "#c41208",
+      },
+    },
+  }), [theme]);
+
+  const debouncedSearch = useMemo(
+    () => debounce((value) => {
+      console.log("Search query updated:", value);
+      setSearchQuery(value);
+    }, 300),
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [debouncedSearch]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const categoriesData =
-          await concessionCategoryApi.getActiveCategories();
-        setCategories(categoriesData.data || []);
+        setError(null);
+
+        const categoriesResponse = await concessionCategoryApi.getActiveCategories();
+        const categoriesData = Array.isArray(categoriesResponse.data)
+          ? categoriesResponse.data
+          : [];
+        setCategories(categoriesData);
+
         const combosData = await concessionComboApi.getAvailableCombos();
         setCombos(Array.isArray(combosData) ? combosData : []);
-        setActiveTab("combos");
-      } catch {
+
+        if (categoriesData.length === 0 && combosData.length === 0) {
+          setError("Không có danh mục hoặc combo nào hiện có.");
+        } else if (categoriesData.length > 0) {
+          setActiveTab(categoriesData[0].id);
+        }
+      } catch (error) {
+        console.error("Lỗi khi tải dữ liệu:", error);
         setError("Không thể tải dữ liệu bắp nước. Vui lòng thử lại sau!");
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
-  const addItem = (item, quantity) => {
-    let updatedItems = [...selectedConcessions];
+  const addItem = useCallback((item, quantity) => {
+    const updatedItems = [...selectedConcessions];
     const existingItemIndex = updatedItems.findIndex(
-      (selectedItem) =>
-        selectedItem.id === item.id && selectedItem.type === item.type
+      (selectedItem) => selectedItem.id === item.id && selectedItem.type === item.type
     );
 
     if (existingItemIndex >= 0) {
@@ -62,70 +127,84 @@ const ConcessionStep = ({ onConcessionChange, selectedConcessions }) => {
         quantity: updatedItems[existingItemIndex].quantity + quantity,
       };
     } else {
-      updatedItems.push({ ...item, quantity });
+      updatedItems.push({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity,
+        type: item.type || (activeTab === "combos" ? "combo" : "item"),
+        orderType: isWithTicket ? "WITH_TICKET" : "STANDALONE",
+      });
     }
 
-    console.log("Updated selectedConcessions:", updatedItems);
+    console.log("Updated concessions:", updatedItems);
+    console.log("Order type will be:", isWithTicket ? "WITH_TICKET" : "STANDALONE");
     onConcessionChange(updatedItems);
-  };
+  }, [selectedConcessions, onConcessionChange, activeTab, isWithTicket]);
 
-  const buildTabs = () => {
-    const tabItems = [];
+  const getItemsForTab = useCallback(() => {
+    if (activeTab === "combos") {
+      return combos
+        .filter((combo) => combo.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        .map((combo) => ({ ...combo, type: "combo" }));
+    }
 
-    tabItems.push({
-      key: "combos",
-      label: (
-        <span className="flex items-center font-medium text-base">
-          <span className="mr-2 text-yellow-500 dark:text-yellow-400">•</span>
-          Combo
-        </span>
-      ),
-      children: (
-        <ComboSection
-          combos={combos}
-          onAddItem={addItem}
-          onItemClick={setSelectedItem}
-          searchQuery={searchQuery}
-        />
-      ),
-    });
+    const category = categories.find((cat) => cat.id === activeTab);
+    if (category) {
+      return (
+        category.items?.filter((item) =>
+          item.name.toLowerCase().includes(searchQuery.toLowerCase())
+        ).map((item) => ({ ...item, type: "item" })) || []
+      );
+    }
 
-    const categoryTabs = categories.map((category) => ({
-      key: category.id,
-      label: (
-        <span className="flex items-center font-medium text-base">
-          <span className="mr-2 text-red-600 dark:text-red-500">•</span>
-          {category.name}
-        </span>
-      ),
-      children: (
-        <CategorySection
-          categoryId={category.id}
-          onAddItem={addItem}
-          onItemClick={setSelectedItem}
-          searchQuery={searchQuery}
-        />
-      ),
-    }));
+    return [];
+  }, [activeTab, categories, combos, searchQuery]);
 
-    return [...tabItems, ...categoryTabs];
-  };
+  const tabItems = useMemo(() => {
+    const items = [
+      {
+        key: "combos",
+        label: (
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className={`flex items-center font-medium text-base px-4 py-2 rounded-lg transition-all duration-300 ${
+              activeTab === "combos"
+                ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                : "text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-500"
+            }`}
+          >
+            <CoffeeOutlined className="mr-2" />
+            Combo
+          </motion.div>
+        ),
+      },
+      ...categories.map((category) => ({
+        key: category.id,
+        label: (
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className={`flex items-center font-medium text-base px-4 py-2 rounded-lg transition-all duration-300 ${
+              activeTab === category.id
+                ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                : "text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-500"
+            }`}
+          >
+            <ShopOutlined className="mr-2" />
+            {category.name}
+          </motion.div>
+        ),
+      })),
+    ];
 
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-  };
+    return items;
+  }, [activeTab, categories]);
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <Spin size="large" />
-        <Text
-          className={`mt-4 ${
-            theme === "dark"
-              ? "text-dark-text-secondary"
-              : "text-text-secondary"
-          }`}
-        >
+        <Text className={`mt-4 ${theme === "dark" ? "text-dark-text-secondary" : "text-text-secondary"}`}>
           Đang tải danh sách bắp nước...
         </Text>
       </div>
@@ -144,105 +223,53 @@ const ConcessionStep = ({ onConcessionChange, selectedConcessions }) => {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto animate-fadeIn">
-      <Title
-        level={4}
-        className="mb-6 text-text-primary dark:text-dark-text-primary"
-      >
-        Chọn bắp nước
-      </Title>
-      <Row gutter={[24, 24]}>
-        <Col xs={24}>
-          <Card
-            className={`content-card shadow-md border ${
-              theme === "dark"
-                ? "border-gray-600 bg-gray-800"
-                : "border-border-light bg-white"
-            }`}
-          >
-            <div className="mb-6">
-              <Input
-                placeholder="Tìm kiếm món ăn, combo..."
-                prefix={
-                  <SearchOutlined className="text-red-600 dark:text-red-500" />
-                }
-                className="form-input shadow-md hover:shadow-lg focus:shadow-lg transition-all duration-300"
-                value={searchQuery}
-                onChange={handleSearch}
-                size="large"
-              />
-            </div>
-            <Tabs
-              activeKey={activeTab}
-              onChange={setActiveTab}
-              items={buildTabs()}
-              className="custom-movie-tabs"
-              animated={{ tabPane: true }}
-              size="large"
-              tabBarStyle={{ marginBottom: 0 }}
-            />
-          </Card>
-        </Col>
-      </Row>
-      <Modal
-        title={
-          <span className="text-gray-800 dark:text-white">
-            {selectedItem?.name}
-          </span>
-        }
-        open={!!selectedItem}
-        onCancel={() => setSelectedItem(null)}
-        footer={null}
-        className="auth-modal rounded-xl shadow-xl"
-        centered
-        width={500}
-      >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
-          className="flex flex-col items-center p-6"
-        >
-          {selectedItem?.image && (
-            <img
-              src={selectedItem.image}
-              alt={selectedItem.name}
-              className="w-full h-64 object-cover rounded-xl mb-6 shadow-lg"
-            />
-          )}
-          <p
-            className={`text-base mb-4 text-center ${
-              theme === "dark"
-                ? "text-dark-text-secondary"
-                : "text-text-secondary"
-            }`}
-          >
-            {selectedItem?.description}
-          </p>
-          <div className="flex items-center justify-between w-full mb-6">
-            <p className="text-red-600 font-bold text-2xl dark:text-red-500">
-              {new Intl.NumberFormat("vi-VN", {
-                style: "currency",
-                currency: "VND",
-              }).format(selectedItem?.price || 0)}
-            </p>
-          </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="btn-primary w-full py-3 text-lg flex items-center justify-center gap-2 hover:shadow-xl transition-all duration-300 ripple-btn"
-            onClick={() => {
-              addItem(selectedItem, 1);
-              setSelectedItem(null);
-            }}
-          >
-            <CoffeeOutlined />
-            Thêm bắp nước
-          </motion.button>
-        </motion.div>
-      </Modal>
-    </div>
+    <ConfigProvider theme={antdTheme}>
+      <div className={`w-full max-w-7xl mx-auto py-6 px-4 ${theme === "dark" ? "bg-dark-bg" : "bg-white"}`}>
+        <Row gutter={[24, 24]}>
+          <Col xs={24}>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <Card
+                className={`content-card custom-movie-tabs rounded-xl shadow-md p-6 ${
+                  theme === "dark" ? "bg-gray-800" : "bg-white"
+                }`}
+              >
+                <Tabs
+                  activeKey={activeTab}
+                  onChange={setActiveTab}
+                  items={tabItems}
+                  animated={{ tabPane: true }}
+                  size="middle"
+                  tabBarStyle={{
+                    marginBottom: "24px",
+                    padding: "0 16px",
+                    borderBottom: "none",
+                  }}
+                />
+                <ItemList
+                  items={getItemsForTab()}
+                  loading={loading}
+                  onAddItem={addItem}
+                  isCombo={activeTab === "combos"}
+                  emptyMessage={
+                    activeTab === "combos"
+                      ? "Không có combo nào hiện có"
+                      : "Không có sản phẩm nào trong danh mục này"
+                  }
+                  selectedItems={selectedConcessions}
+                />
+              </Card>
+            </motion.div>
+          </Col>
+        </Row>
+      </div>
+    </ConfigProvider>
   );
-};
+});
+
+ConcessionStep.displayName = "ConcessionStep";
 
 export default ConcessionStep;

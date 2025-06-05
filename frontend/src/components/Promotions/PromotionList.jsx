@@ -1,26 +1,23 @@
-import React, { useState, useEffect, useContext } from "react";
-import { ThemeContext } from "../../context/ThemeContext";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom"; // Thêm useNavigate
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { promotionApi } from "../../api/promotionApi";
 import {
-  FiTag,
   FiCalendar,
   FiClock,
   FiCopy,
   FiChevronRight,
   FiGift,
 } from "react-icons/fi";
-import { Modal, Tooltip, Empty, Spin } from "antd";
+import { Tooltip } from "antd";
 
 const PromotionList = () => {
-  const { theme } = useContext(ThemeContext);
   const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copiedCode, setCopiedCode] = useState(null);
-  const [selectedPromo, setSelectedPromo] = useState(null);
+  const navigate = useNavigate(); // Khởi tạo useNavigate
 
   useEffect(() => {
     const fetchPromotions = async () => {
@@ -80,23 +77,19 @@ const PromotionList = () => {
 
   const handleRipple = (e) => {
     const btn = e.currentTarget;
-    btn.style.setProperty(
-      "--ripple-x",
-      `${e.clientX - btn.getBoundingClientRect().left}px`
-    );
-    btn.style.setProperty(
-      "--ripple-y",
-      `${e.clientY - btn.getBoundingClientRect().top}px`
-    );
+    btn.style.setProperty("--ripple-x", `${e.clientX - btn.getBoundingClientRect().left}px`);
+    btn.style.setProperty("--ripple-y", `${e.clientY - btn.getBoundingClientRect().top}px`);
+  };
+
+  const handleDetailClick = (promotionId) => {
+    navigate(`/promotions/${promotionId}`); // Điều hướng thủ công
   };
 
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-[200px]">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary"></div>
-        <p className="mt-4 text-text-secondary dark:text-gray-300">
-          Đang tải khuyến mãi...
-        </p>
+        <p className="mt-4 text-text-secondary dark:text-gray-300">Đang tải khuyến mãi...</p>
       </div>
     );
   }
@@ -104,12 +97,10 @@ const PromotionList = () => {
   if (error) {
     return (
       <div className="min-h-[200px] flex flex-col items-center justify-center p-4">
-        <div className="text-primary text-xl font-semibold dark:text-white">
-          {error}
-        </div>
+        <div className="text-primary text-xl font-semibold dark:text-white">{error}</div>
         <Link
           to="/"
-          className="mt-4 btn-primary ripple-btn py-2 px-4 rounded-lg"
+          className="mt-4 btn-primary ripple-btn py-2 px-4 rounded-lg text-white bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary transition-all duration-300"
           onClick={handleRipple}
         >
           Về trang chủ
@@ -125,11 +116,17 @@ const PromotionList = () => {
           <FiGift className="mr-2 text-red-600" />
           <span>Ưu đãi hấp dẫn dành cho bạn</span>
         </div>
-        <div className="flex items-center text-text-secondary text-sm dark:text-gray-300">
-          <FiCalendar className="mr-1 text-red-600" />
-          <span>
-            Cập nhật ngày: {format(new Date(), "dd/MM/yyyy", { locale: vi })}
-          </span>
+        <div className="flex items-center gap-4 text-text-secondary text-sm dark:text-gray-300">
+          <div className="flex items-center">
+            <FiCalendar className="mr-1 text-red-600" />
+            <span>Cập nhật ngày: {format(new Date(), "dd/MM/yyyy", { locale: vi })}</span>
+          </div>
+          <Link
+            to="/promotions"
+            className="text-primary hover:underline dark:text-blue-400 dark:hover:text-blue-300"
+          >
+            Xem tất cả khuyến mãi
+          </Link>
         </div>
       </div>
 
@@ -161,31 +158,25 @@ const PromotionList = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fadeIn">
           {promotions.map((promotion, index) => (
-            <div
+            <Link
+              to={`/promotions/${promotion.id}`}
               key={promotion.id}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-card overflow-hidden transform transition-all duration-500 hover:-translate-y-2 hover:shadow-card-hover border border-gray-100/50 dark:border-gray-600/50 animate-fadeIn"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-card overflow-hidden transform transition-all duration-300 hover:-translate-y-2 hover:shadow-card-hover border border-gray-100/50 dark:border-gray-600/50 animate-fadeIn"
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              <div className="h-48 relative overflow-hidden group">
+              <div className="relative overflow-hidden pb-[100%] group">
                 {promotion.image ? (
-                  <div
-                    className="w-full h-full bg-gradient-to-r from-primary-dark to-primary flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500"
-                    style={{
-                      backgroundImage: promotion.image
-                        ? `url(${promotion.image})`
-                        : "none",
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
+                  <img
+                    src={promotion.image}
+                    alt={promotion.title}
+                    className="absolute top-0 left-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      e.target.src = "https://via.placeholder.com/300x300?text=No+Image";
+                      e.target.alt = "Hình ảnh không tồn tại";
                     }}
-                  >
-                    {!promotion.image && (
-                      <span className="text-xl font-bold text-white shadow-text">
-                        {promotion.title}
-                      </span>
-                    )}
-                  </div>
+                  />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-button-gradient relative">
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-primary/50 to-primary-dark/50 relative">
                     <div
                       className="absolute top-0 left-0 w-full h-full opacity-10"
                       style={{
@@ -194,124 +185,71 @@ const PromotionList = () => {
                         backgroundSize: "15px 15px",
                       }}
                     ></div>
-                    <span className="text-3xl font-bold text-white shadow-text">
+                    <span className="text-2xl font-bold text-white shadow-text">
                       {getDiscountText(promotion)}
                     </span>
                   </div>
                 )}
                 <div className="absolute top-4 right-4">
-                  <span className="inline-block px-3 py-1 bg-red-600 text-white text-xs font-semibold rounded-full shadow-button">
+                  <span className="inline-block px-3 py-1 bg-gradient-to-r from-red-600 to-red-700 text-white text-xs font-semibold rounded-full shadow-lg">
                     {getDiscountText(promotion)}
                   </span>
                 </div>
               </div>
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-3">
+              <div className="p-4">
+                <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center text-xs text-text-secondary dark:text-gray-300">
                     <FiClock className="mr-1 text-red-600" />
                     <span>Hết hạn: {formatDate(promotion.validUntil)}</span>
                   </div>
                 </div>
-                <h2 className="text-xl font-bold text-text-primary dark:text-white mb-2 line-clamp-2 h-14">
+                <h2 className="text-lg font-bold text-text-primary dark:text-white mb-2 line-clamp-2 h-12 hover:text-primary transition-colors duration-300">
                   {promotion.title}
                 </h2>
                 {promotion.description && (
-                  <p className="text-text-secondary dark:text-gray-300 text-sm mb-4 line-clamp-2 h-10">
+                  <p className="text-text-secondary dark:text-gray-300 text-sm mb-4 line-clamp-2 h-12">
                     {promotion.description}
                   </p>
                 )}
-                <div className="flex justify-between items-center mt-4">
+                <div className="flex justify-between items-center mt-2">
                   <Tooltip title="Nhấn để sao chép mã khuyến mãi">
                     <div
-                      className="bg-light-bg-secondary dark:bg-gray-700 flex items-center px-3 py-2 rounded-lg font-mono text-sm border border-border-light dark:border-gray-600 cursor-pointer hover:bg-gray-bg dark:hover:bg-gray-600 transition-all hover:shadow-md ripple-btn"
+                      className="bg-light-bg-secondary dark:bg-gray-700 flex items-center px-3 py-1.5 rounded-lg font-mono text-sm border border-border-light dark:border-gray-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-all hover:shadow-md"
                       onClick={(e) => {
+                        e.preventDefault(); // Ngăn điều hướng khi sao chép mã
                         handleRipple(e);
                         copyPromoCode(promotion.code);
                       }}
                       role="button"
                       aria-label={`Sao chép mã ${promotion.code}`}
                       tabIndex={0}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" && copyPromoCode(promotion.code)
-                      }
+                      onKeyDown={(e) => e.key === "Enter" && copyPromoCode(promotion.code)}
                     >
                       <span className="mr-2">{promotion.code}</span>
                       <FiCopy className="text-red-600" />
                       {copiedCode === promotion.code && (
-                        <span className="absolute mt-8 ml-2 bg-text-primary dark:bg-gray-700 text-white text-xs py-1 px-2 rounded">
+                        <span className="absolute mt-8 ml-2 bg-text-primary dark:bg-gray-700 text-white text-xs py-1 px-2 rounded transition-opacity duration-300">
                           Đã sao chép
                         </span>
                       )}
                     </div>
                   </Tooltip>
                   <button
-                    className="btn-primary ripple-btn flex items-center py-2 px-4 rounded-lg"
+                    className="btn-primary ripple-btn flex items-center py-1.5 px-3 rounded-lg bg-gradient-to-r from-primary to-primary-dark text-white hover:from-primary-dark hover:to-primary transition-all duration-300 hover:shadow-lg text-sm"
                     onClick={(e) => {
+                      e.preventDefault(); // Ngăn điều hướng mặc định
                       handleRipple(e);
-                      setSelectedPromo(promotion);
+                      handleDetailClick(promotion.id);
                     }}
                   >
                     Chi tiết <FiChevronRight className="ml-1" />
                   </button>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
-
-      <Modal
-        open={!!selectedPromo}
-        onCancel={() => setSelectedPromo(null)}
-        footer={null}
-        title={
-          <span className="text-2xl dark:text-white">
-            {selectedPromo?.title}
-          </span>
-        }
-        className="rounded-xl"
-        bodyStyle={{
-          backgroundColor:
-            theme === "dark" ? "#1f2a44" : "var(--antd-background, #fff)",
-          color: "var(--antd-color-text, #000)",
-        }}
-      >
-        <div className="dark:bg-gray-800 dark:text-gray-300 p-4 rounded-xl">
-          {selectedPromo?.image && (
-            <img
-              src={selectedPromo.image}
-              alt={selectedPromo.title}
-              className="w-full h-48 object-cover rounded-xl mb-4"
-            />
-          )}
-          <p className="text-lg mb-4">{selectedPromo?.description}</p>
-          <p className="mb-4">
-            <strong>Hết hạn:</strong>{" "}
-            {selectedPromo && formatDate(selectedPromo.validUntil)}
-          </p>
-          <p className="mb-4">
-            <strong>Mã khuyến mãi:</strong> {selectedPromo?.code}
-          </p>
-          <div className="flex gap-4">
-            <button
-              className="btn-primary ripple-btn py-2 px-4 rounded-lg flex-1"
-              onClick={(e) => {
-                handleRipple(e);
-                copyPromoCode(selectedPromo?.code);
-              }}
-            >
-              Sao chép mã
-            </button>
-            <Link
-              to={`/promotions/${selectedPromo?.id}`}
-              className="btn-outline ripple-btn py-2 px-4 rounded-lg flex-1 text-center"
-              onClick={handleRipple}
-            >
-              Xem chi tiết đầy đủ
-            </Link>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 };

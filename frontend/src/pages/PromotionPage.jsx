@@ -396,7 +396,7 @@ const PromotionsPage = ({ isHomepage = false }) => {
             Đặt vé ngay để tận hưởng những ưu đãi đặc biệt
           </p>
           <Link
-            to="/movies"
+            to="/booking"
             className="btn-primary ripple-btn inline-block py-3 px-8 rounded-lg text-lg font-semibold shadow-button hover:shadow-button-hover transition-all duration-500 transform hover:-translate-y-1"
             onClick={handleRipple}
           >

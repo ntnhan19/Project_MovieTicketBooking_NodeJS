@@ -4,18 +4,25 @@ const prisma = require("../../prisma/prisma");
 // Tạo đánh giá phim mới
 const createReview = async (reviewData) => {
   const { userId, movieId, rating, comment, isAnonymous } = reviewData;
-  
-  console.log("Service processing - userId:", userId, "movieId:", movieId, "Full data:", reviewData);
-  
+
+  console.log(
+    "Service processing - userId:",
+    userId,
+    "movieId:",
+    movieId,
+    "Full data:",
+    reviewData
+  );
+
   if (!userId) {
     throw new Error("Không có thông tin userId");
   }
-  
+
   // Check user tồn tại
   const user = await prisma.user.findUnique({
     where: { id: userId },
   });
-  
+
   if (!user) {
     throw new Error("Không tìm thấy người dùng");
   }
@@ -329,34 +336,364 @@ const getReviewStatsByMovie = async (movieId) => {
 };
 
 const checkUserHasTicket = async (userId, movieId) => {
-  const ticket = await prisma.ticket.findFirst({
-    where: {
-      userId: userId,
-      showtime: {
-        movieId: movieId,
-      },
-      status: {
-        in: ["PENDING", "CONFIRMED"],
-      },
-      payment: {
-        status: "COMPLETED",
-      },
-    },
-  });
+  try {
+    console.log("=== CHECKING USER TICKET ===");
+    console.log(
+      "Input - userId:",
+      userId,
+      "movieId:",
+      movieId,
+      "movieId type:",
+      typeof movieId
+    );
 
-  return ticket !== null;
+    // Đảm bảo movieId là số nguyên
+    const parsedMovieId = parseInt(movieId);
+    const parsedUserId = parseInt(userId);
+
+    console.log("Parsed - userId:", parsedUserId, "movieId:", parsedMovieId);
+
+    // Debug: Kiểm tra tất cả vé của user
+    const allUserTickets = await prisma.ticket.findMany({
+      where: {
+        userId: parsedUserId,
+      },
+      include: {
+        payment: true,
+        showtime: {
+          include: {
+            movie: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    console.log("All user tickets count:", allUserTickets.length);
+    allUserTickets.forEach((ticket, index) => {
+      console.log(`Ticket ${index + 1}:`, {
+        ticketId: ticket.id,
+        ticketStatus: ticket.status,
+        movieId: ticket.showtime?.movieId,
+        movieTitle: ticket.showtime?.movie?.title,
+        paymentId: ticket.payment?.id,
+        paymentStatus: ticket.payment?.status,
+        paymentAmount: ticket.payment?.totalAmount,
+        createdAt: ticket.createdAt,
+      });
+    });
+
+    // Kiểm tra vé cho phim cụ thể với các điều kiện khác nhau
+    console.log("--- Checking specific movie tickets ---");
+
+    // Cách 1: Kiểm tra với điều kiện cơ bản
+    const basicTickets = await prisma.ticket.findMany({
+      where: {
+        userId: parsedUserId,
+        showtime: {
+          movieId: parsedMovieId,
+        },
+      },
+      include: {
+        payment: true,
+        showtime: {
+          include: {
+            movie: true,
+          },
+        },
+      },
+    });
+
+    console.log("Basic tickets for movie:", basicTickets.length);
+
+    // Cách 2: Kiểm tra với điều kiện payment hoàn thành
+    const paidTickets = await prisma.ticket.findMany({
+      where: {
+        userId: parsedUserId,
+        showtime: {
+          movieId: parsedMovieId,
+        },
+        payment: {
+          status: "COMPLETED",
+        },
+      },
+      include: {
+        payment: true,
+        showtime: {
+          include: {
+            movie: true,
+          },
+        },
+      },
+    });
+
+    console.log("Paid tickets for movie:", paidTickets.length);
+
+    // Cách 3: Kiểm tra vé hợp lệ (không bị hủy và đã thanh toán)
+    const validTickets = await prisma.ticket.findMany({
+      where: {
+        userId: parsedUserId,
+        showtime: {
+          movieId: parsedMovieId,
+        },
+        status: {
+          not: "CANCELLED", // Không bị hủy
+        },
+        payment: {
+          status: "COMPLETED",
+        },
+      },
+      include: {
+        payment: true,
+        showtime: {
+          include: {
+            movie: true,
+          },
+        },
+      },
+    });
+
+    console.log("Valid tickets for movie:", validTickets.length);
+
+    validTickets.forEach((ticket, index) => {
+      console.log(`Valid Ticket ${index + 1}:`, {
+        ticketId: ticket.id,
+        ticketStatus: ticket.status,
+        seatNumber: ticket.seatNumber,
+        paymentStatus: ticket.payment?.status,
+        paymentAmount: ticket.payment?.totalAmount,
+        showtimeId: ticket.showtimeId,
+        movieId: ticket.showtime?.movieId,
+        movieTitle: ticket.showtime?.movie?.title,
+      });
+    });
+
+    const hasValidTicket = validTickets.length > 0;
+
+    console.log("=== FINAL TICKET CHECK RESULT ===");
+    console.log("Has valid ticket:", hasValidTicket);
+    console.log("================================");
+
+    return hasValidTicket;
+  } catch (error) {
+    console.error("Error in checkUserHasTicket:", error);
+    return false;
+  }
 };
 
 // Kiểm tra người dùng đã đánh giá phim chưa
+// Kiểm tra người dùng đã đánh giá phim chưa
 const checkUserHasReviewed = async (userId, movieId) => {
-  const review = await prisma.review.findFirst({
-    where: {
-      userId: userId,
-      movieId: movieId,
-    },
-  });
+  try {
+    console.log("=== CHECKING USER REVIEW ===");
+    console.log("Input - userId:", userId, "movieId:", movieId);
 
-  return review !== null;
+    const parsedUserId = parseInt(userId);
+    const parsedMovieId = parseInt(movieId);
+
+    console.log("Parsed - userId:", parsedUserId, "movieId:", parsedMovieId);
+
+    const existingReview = await prisma.review.findFirst({
+      where: {
+        userId: parsedUserId,
+        movieId: parsedMovieId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    console.log(
+      "Existing review found:",
+      existingReview
+        ? {
+            reviewId: existingReview.id,
+            rating: existingReview.rating,
+            comment: existingReview.comment,
+            createdAt: existingReview.createdAt,
+            userName: existingReview.user?.name,
+          }
+        : null
+    );
+
+    const hasReviewed = existingReview !== null;
+
+    console.log("=== REVIEW CHECK RESULT ===");
+    console.log("Has reviewed:", hasReviewed);
+    console.log("===========================");
+
+    return hasReviewed;
+  } catch (error) {
+    console.error("Error in checkUserHasReviewed:", error);
+    return false;
+  }
+};
+
+const debugUserTickets = async (userId, movieId) => {
+  try {
+    console.log("=== DEBUG USER TICKETS ===");
+    console.log("userId:", userId, "movieId:", movieId);
+
+    // Kiểm tra tất cả vé của user
+    const allUserTickets = await prisma.ticket.findMany({
+      where: {
+        userId: userId,
+      },
+      include: {
+        payment: true,
+        showtime: {
+          include: {
+            movie: true,
+          },
+        },
+      },
+    });
+
+    console.log("All user tickets:", allUserTickets.length);
+    allUserTickets.forEach((ticket, index) => {
+      console.log(`Ticket ${index + 1}:`, {
+        id: ticket.id,
+        status: ticket.status,
+        movieId: ticket.showtime?.movieId,
+        movieTitle: ticket.showtime?.movie?.title,
+        paymentStatus: ticket.payment?.status,
+      });
+    });
+
+    // Kiểm tra vé cho phim cụ thể
+    const movieTickets = await prisma.ticket.findMany({
+      where: {
+        userId: userId,
+        showtime: {
+          movieId: parseInt(movieId),
+        },
+      },
+      include: {
+        payment: true,
+        showtime: {
+          include: {
+            movie: true,
+          },
+        },
+      },
+    });
+
+    console.log("Movie specific tickets:", movieTickets.length);
+    movieTickets.forEach((ticket, index) => {
+      console.log(`Movie Ticket ${index + 1}:`, {
+        id: ticket.id,
+        status: ticket.status,
+        paymentStatus: ticket.payment?.status,
+        paymentId: ticket.payment?.id,
+      });
+    });
+
+    console.log("=== END DEBUG ===");
+
+    return movieTickets;
+  } catch (error) {
+    console.error("Debug error:", error);
+    return [];
+  }
+};
+
+const debugUserEligibility = async (userId, movieId) => {
+  try {
+    console.log("=== COMPREHENSIVE DEBUG FOR USER ELIGIBILITY ===");
+    console.log("userId:", userId, "movieId:", movieId);
+    console.log("Time:", new Date().toISOString());
+
+    const parsedUserId = parseInt(userId);
+    const parsedMovieId = parseInt(movieId);
+
+    // 1. Kiểm tra user tồn tại
+    const user = await prisma.user.findUnique({
+      where: { id: parsedUserId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    console.log(
+      "1. User exists:",
+      user
+        ? {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+          }
+        : null
+    );
+
+    // 2. Kiểm tra movie tồn tại
+    const movie = await prisma.movie.findUnique({
+      where: { id: parsedMovieId },
+      select: {
+        id: true,
+        title: true,
+        releaseDate: true,
+      },
+    });
+
+    console.log(
+      "2. Movie exists:",
+      movie
+        ? {
+            id: movie.id,
+            title: movie.title,
+            releaseDate: movie.releaseDate,
+          }
+        : null
+    );
+
+    // 3. Kiểm tra vé chi tiết
+    const hasTicket = await checkUserHasTicket(parsedUserId, parsedMovieId);
+
+    // 4. Kiểm tra review
+    const hasReviewed = await checkUserHasReviewed(parsedUserId, parsedMovieId);
+
+    // 5. Kết quả cuối cùng
+    const canReview = hasTicket && !hasReviewed && user && movie;
+
+    console.log("=== FINAL ELIGIBILITY SUMMARY ===");
+    console.log("User exists:", !!user);
+    console.log("Movie exists:", !!movie);
+    console.log("Has ticket:", hasTicket);
+    console.log("Has reviewed:", hasReviewed);
+    console.log("Can review:", canReview);
+    console.log("================================");
+
+    return {
+      userExists: !!user,
+      movieExists: !!movie,
+      hasTicket,
+      hasReviewed,
+      canReview,
+    };
+  } catch (error) {
+    console.error("Error in debugUserEligibility:", error);
+    return {
+      userExists: false,
+      movieExists: false,
+      hasTicket: false,
+      hasReviewed: false,
+      canReview: false,
+      error: error.message,
+    };
+  }
 };
 
 module.exports = {
@@ -370,4 +707,6 @@ module.exports = {
   getReviewStatsByMovie,
   checkUserHasTicket,
   checkUserHasReviewed,
+  debugUserTickets,
+  debugUserEligibility 
 };

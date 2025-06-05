@@ -33,7 +33,7 @@ const MovieReviews = ({ movieId }) => {
   const { theme } = useContext(ThemeContext);
   const navigate = useNavigate();
   const openLoginModal = useCallback(() => {
-    openAuthModal('1');
+    openAuthModal("1");
   }, [openAuthModal]);
 
   const [reviews, setReviews] = useState([]);
@@ -103,37 +103,60 @@ const MovieReviews = ({ movieId }) => {
 
       setReviews(reviewsResponse.data || []);
       setTotalReviews(reviewsResponse.meta?.total || 0);
-      setReviewStats(statsResponse || {
-        averageRating: 0,
-        totalReviews: 0,
-        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-      });
+      setReviewStats(
+        statsResponse || {
+          averageRating: 0,
+          totalReviews: 0,
+          ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        }
+      );
 
-      if (currentUser && localStorage.getItem("token")) {
+      const token = sessionStorage.getItem("token");
+      let user = currentUser;
+      if (!user) {
+        const userStr = sessionStorage.getItem("user");
+        user = userStr ? JSON.parse(userStr) : null;
+      }
+
+      if (user && token) {
         setCheckingEligibility(true);
         try {
-          const eligibilityResponse = await reviewApi.checkReviewEligibility(movieId);
-          setCanReview(
-            eligibilityResponse?.canReview === true ||
-            eligibilityResponse?.hasTicket === true ||
-            eligibilityResponse?.hasWatched === true
+          console.log(
+            "Checking eligibility for user:",
+            user.id,
+            "movie:",
+            movieId
           );
 
-          if (currentUser.id) {
+          const eligibilityResponse = await reviewApi.checkReviewEligibility(
+            movieId
+          );
+          console.log("Eligibility response:", eligibilityResponse);
+
+          setCanReview(eligibilityResponse.canReview === true);
+
+          if (user.id) {
             const myReviews = await reviewApi.getMyReviews();
             const myReview = Array.isArray(myReviews)
-              ? myReviews.find(r => r.movieId === movieId)
+              ? myReviews.find((r) => r.movieId === parseInt(movieId))
               : null;
+
+            console.log("My review found:", myReview);
 
             setUserReview(myReview);
             if (myReview) {
               setNewReviewRating(myReview.rating);
               setNewReviewComment(myReview.comment || "");
               setIsAnonymous(myReview.isAnonymous || false);
+              setCanReview(false); 
             } else {
               setNewReviewRating(0);
               setNewReviewComment("");
               setIsAnonymous(false);
+              setCanReview(
+                eligibilityResponse.hasTicket === true &&
+                  !eligibilityResponse.hasReviewed
+              );
             }
           }
         } catch (error) {
@@ -143,18 +166,16 @@ const MovieReviews = ({ movieId }) => {
         } finally {
           setCheckingEligibility(false);
         }
+      } else {
+        console.log("No user or token, skipping eligibility check");
+        setCanReview(false);
       }
     } catch (error) {
       console.error("Error fetching review data:", error);
     } finally {
       setLoadingReviews(false);
     }
-  }, [
-    movieId,
-    currentPage,
-    reviewsPerPage,
-    currentUser,
-  ]);
+  }, [movieId, currentPage, reviewsPerPage, currentUser]);
 
   useEffect(() => {
     fetchReviewData();
@@ -178,7 +199,9 @@ const MovieReviews = ({ movieId }) => {
     notification.open({
       key,
       message: "Đang xử lý",
-      description: userReview ? "Đang cập nhật đánh giá..." : "Đang gửi đánh giá...",
+      description: userReview
+        ? "Đang cập nhật đánh giá..."
+        : "Đang gửi đánh giá...",
       duration: 0,
     });
 
@@ -198,7 +221,9 @@ const MovieReviews = ({ movieId }) => {
 
       notification.success({
         message: "Thành công",
-        description: userReview ? "Cập nhật đánh giá thành công!" : "Gửi đánh giá thành công!",
+        description: userReview
+          ? "Cập nhật đánh giá thành công!"
+          : "Gửi đánh giá thành công!",
         duration: 3,
       });
 
@@ -208,7 +233,8 @@ const MovieReviews = ({ movieId }) => {
       notification.error({
         key,
         message: "Lỗi",
-        description: error.response?.data?.message || "Có lỗi xảy ra khi gửi đánh giá",
+        description:
+          error.response?.data?.message || "Có lỗi xảy ra khi gửi đánh giá",
         duration: 3,
       });
     }
@@ -264,7 +290,9 @@ const MovieReviews = ({ movieId }) => {
 
           return (
             <div key={star} className="flex items-center">
-              <span className="w-12 text-right mr-3 text-text-primary dark:text-dark-text-primary">{star} sao</span>
+              <span className="w-12 text-right mr-3 text-text-primary dark:text-dark-text-primary">
+                {star} sao
+              </span>
               <Progress
                 percent={percentage}
                 size="small"
@@ -282,6 +310,13 @@ const MovieReviews = ({ movieId }) => {
 
   const handleBookTicket = () => {
     navigate(`/movies/${movieId}`);
+  };
+
+  const getReviewMessage = () => {
+    if (!currentUser) return "Bạn cần đăng nhập để đánh giá";
+    if (userReview) return "Bạn đã đánh giá phim này";
+    if (canReview) return "Hãy chia sẻ cảm nhận của bạn về bộ phim này";
+    return "Bạn cần mua vé để đánh giá";
   };
 
   return (
@@ -317,11 +352,7 @@ const MovieReviews = ({ movieId }) => {
                   Chia sẻ đánh giá của bạn
                 </h3>
                 <p className="text-text-secondary dark:text-dark-text-secondary mb-4">
-                  {!currentUser
-                    ? "Bạn cần đăng nhập để đánh giá"
-                    : canReview
-                    ? "Hãy chia sẻ cảm nhận của bạn về bộ phim này"
-                    : "Bạn cần xem phim để đánh giá"}
+                  {getReviewMessage()}
                 </p>
                 <Rate
                   disabled={!currentUser || !canReview}
@@ -388,7 +419,7 @@ const MovieReviews = ({ movieId }) => {
                   className="btn-primary"
                   onClick={handleBookTicket}
                 >
-                  Đặt vé để đánh giá
+                  Mua vé để đánh giá
                 </Button>
               )}
             </div>
@@ -418,7 +449,9 @@ const MovieReviews = ({ movieId }) => {
                       <div className="flex justify-between items-start">
                         <div>
                           <div className="font-semibold text-lg text-text-primary dark:text-dark-text-primary">
-                            {review.isAnonymous ? "Người dùng ẩn danh" : (review.user?.name || "Người dùng")}
+                            {review.isAnonymous
+                              ? "Người dùng ẩn danh"
+                              : review.user?.name || "Người dùng"}
                           </div>
                           <div className="flex items-center">
                             <Rate
@@ -431,37 +464,40 @@ const MovieReviews = ({ movieId }) => {
                             </span>
                           </div>
                         </div>
-                        {currentUser && ((review.user && currentUser.id === review.user.id) || currentUser.id === review.userId) && (
-                          <div className="flex gap-2">
-                            <Button
-                              size="small"
-                              type="primary"
-                              icon={<EditOutlined />}
-                              onClick={() => handleEditReview(review)}
-                              className="btn-primary"
-                            >
-                              Sửa
-                            </Button>
-                            <Button
-                              danger
-                              size="small"
-                              icon={<DeleteOutlined />}
-                              onClick={() => {
-                                Modal.confirm({
-                                  title: "Xác nhận xóa",
-                                  content: "Bạn có chắc chắn muốn xóa đánh giá này?",
-                                  okText: "Xóa",
-                                  cancelText: "Hủy",
-                                  okButtonProps: { danger: true },
-                                  onOk: () => handleDeleteReview(review.id),
-                                });
-                              }}
-                              className="btn-outline"
-                            >
-                              Xóa
-                            </Button>
-                          </div>
-                        )}
+                        {currentUser &&
+                          ((review.user && currentUser.id === review.user.id) ||
+                            currentUser.id === review.userId) && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="small"
+                                type="primary"
+                                icon={<EditOutlined />}
+                                onClick={() => handleEditReview(review)}
+                                className="btn-primary"
+                              >
+                                Sửa
+                              </Button>
+                              <Button
+                                danger
+                                size="small"
+                                icon={<DeleteOutlined />}
+                                onClick={() => {
+                                  Modal.confirm({
+                                    title: "Xác nhận xóa",
+                                    content:
+                                      "Bạn có chắc chắn muốn xóa đánh giá này?",
+                                    okText: "Xóa",
+                                    cancelText: "Hủy",
+                                    okButtonProps: { danger: true },
+                                    onOk: () => handleDeleteReview(review.id),
+                                  });
+                                }}
+                                className="btn-outline"
+                              >
+                                Xóa
+                              </Button>
+                            </div>
+                          )}
                       </div>
                       {review.comment && (
                         <div className="mt-3 text-text-secondary dark:text-dark-text-secondary">
@@ -539,8 +575,12 @@ const MovieReviews = ({ movieId }) => {
                 },
               }}
             >
-              <div className="mb-4"> {/* Giảm margin-bottom để giảm khoảng trống */}
-                <div className="mb-2 font-medium text-text-primary dark:text-dark-text-primary">Đánh giá phim:</div>
+              <div className="mb-4">
+                {" "}
+                {/* Giảm margin-bottom để giảm khoảng trống */}
+                <div className="mb-2 font-medium text-text-primary dark:text-dark-text-primary">
+                  Đánh giá phim:
+                </div>
                 <Rate
                   value={newReviewRating}
                   onChange={(value) => setNewReviewRating(value)}
@@ -552,8 +592,12 @@ const MovieReviews = ({ movieId }) => {
                   </div>
                 )}
               </div>
-              <div className="mb-4"> {/* Giảm margin-bottom */}
-                <div className="mb-2 font-medium text-text-primary dark:text-dark-text-primary">Bình luận:</div>
+              <div className="mb-4">
+                {" "}
+                {/* Giảm margin-bottom */}
+                <div className="mb-2 font-medium text-text-primary dark:text-dark-text-primary">
+                  Bình luận:
+                </div>
                 <TextArea
                   value={newReviewComment}
                   onChange={(e) => setNewReviewComment(e.target.value)}
@@ -562,7 +606,9 @@ const MovieReviews = ({ movieId }) => {
                   className="form-input"
                 />
               </div>
-              <div className="mb-0"> {/* Loại bỏ margin-bottom ở phần cuối */}
+              <div className="mb-0">
+                {" "}
+                {/* Loại bỏ margin-bottom ở phần cuối */}
                 <Checkbox
                   checked={isAnonymous}
                   onChange={(e) => setIsAnonymous(e.target.checked)}

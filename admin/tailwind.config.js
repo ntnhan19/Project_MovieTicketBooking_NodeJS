@@ -2,7 +2,7 @@
 module.exports = {
   darkMode: ["class", '[data-theme="dark"]'],
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
-  important: true, // Để đảm bảo Tailwind có thể ghi đè lên MUI trong quá trình chuyển đổi
+  important: true,
   theme: {
     extend: {
       colors: {

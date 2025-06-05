@@ -62,7 +62,6 @@ export const userApi = {
         },
       });
 
-      // Cập nhật avatar trong sessionStorage
       const currentUser = JSON.parse(sessionStorage.getItem("user") || "{}");
       currentUser.avatar = res.data.avatar;
       sessionStorage.setItem("user", JSON.stringify(currentUser));

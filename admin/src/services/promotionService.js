@@ -12,7 +12,7 @@ import {
  * @returns {number} ID đã được xử lý
  */
 const processPromotionId = (id) => {
-  if (typeof id === 'string' && isNaN(parseInt(id, 10))) {
+  if (typeof id === "string" && isNaN(parseInt(id, 10))) {
     const matches = id.match(/\d+/);
     if (matches && matches.length > 0) {
       return parseInt(matches[0], 10);
@@ -34,16 +34,22 @@ const processPromotionId = (id) => {
 const normalizePromotionData = (data) => {
   const normalizedData = { ...data };
 
-  // Xử lý các trường ngày tháng
-  if (normalizedData.validFrom && typeof normalizedData.validFrom === "string") {
+  if (
+    normalizedData.validFrom &&
+    typeof normalizedData.validFrom === "string"
+  ) {
     normalizedData.validFrom = new Date(normalizedData.validFrom).toISOString();
   }
 
-  if (normalizedData.validUntil && typeof normalizedData.validUntil === "string") {
-    normalizedData.validUntil = new Date(normalizedData.validUntil).toISOString();
+  if (
+    normalizedData.validUntil &&
+    typeof normalizedData.validUntil === "string"
+  ) {
+    normalizedData.validUntil = new Date(
+      normalizedData.validUntil
+    ).toISOString();
   }
 
-  // Xử lý các trường số và boolean
   if (normalizedData.discount !== undefined) {
     normalizedData.discount = parseFloat(normalizedData.discount);
   }
@@ -118,7 +124,7 @@ const promotionService = {
   // Lấy nhiều khuyến mãi theo danh sách ID
   getMany: async (ids) => {
     try {
-      const processedIds = ids.map(id => processPromotionId(id));
+      const processedIds = ids.map((id) => processPromotionId(id));
       const query = processedIds.map((id) => `id=${id}`).join("&");
       const { json } = await httpClient(`${apiUrl}/promotions?${query}`);
 
@@ -158,7 +164,7 @@ const promotionService = {
     try {
       const cleanedData = removeIdField(data);
       const normalizedData = normalizePromotionData(cleanedData);
-      
+
       const response = await fetch(`${apiUrl}/promotions`, {
         method: "POST",
         body: JSON.stringify(normalizedData),
@@ -169,7 +175,7 @@ const promotionService = {
         const errorData = await response
           .json()
           .catch(() => ({ error: "Không thể parse response JSON" }));
-        
+
         throw new Error(
           errorData.message ||
             `Có lỗi xảy ra khi tạo khuyến mãi (status: ${response.status})`
@@ -191,6 +197,8 @@ const promotionService = {
       const promotionId = processPromotionId(id);
       const normalizedData = normalizePromotionData(dataWithoutId);
 
+      console.log("Dữ liệu gửi đi đến API:", normalizedData); // Thêm log
+
       const response = await fetch(`${apiUrl}/promotions/${promotionId}`, {
         method: "PUT",
         body: JSON.stringify(normalizedData),
@@ -201,7 +209,6 @@ const promotionService = {
         const errorData = await response
           .json()
           .catch(() => ({ error: "Không thể parse response JSON" }));
-        
         throw new Error(
           errorData.message ||
             `Có lỗi xảy ra khi cập nhật khuyến mãi (status: ${response.status})`
@@ -226,7 +233,7 @@ const promotionService = {
   delete: async (id) => {
     try {
       const promotionId = processPromotionId(id);
-      
+
       const response = await fetch(`${apiUrl}/promotions/${promotionId}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
@@ -236,7 +243,7 @@ const promotionService = {
         const errorData = await response
           .json()
           .catch(() => ({ error: "Không thể parse response JSON" }));
-        
+
         throw new Error(
           errorData.message ||
             `Có lỗi xảy ra khi xóa khuyến mãi (status: ${response.status})`
@@ -254,8 +261,8 @@ const promotionService = {
   deleteMany: async (ids) => {
     try {
       // Xử lý mỗi ID trong mảng để đảm bảo định dạng đúng
-      const processedIds = ids.map(id => processPromotionId(id));
-      
+      const processedIds = ids.map((id) => processPromotionId(id));
+
       const promises = processedIds.map((id) =>
         fetch(`${apiUrl}/promotions/${id}`, {
           method: "DELETE",
@@ -282,7 +289,7 @@ const promotionService = {
         const errorData = await response
           .json()
           .catch(() => ({ error: "Không thể parse response JSON" }));
-        
+
         throw new Error(
           errorData.message ||
             `Có lỗi xảy ra khi xác thực mã khuyến mãi (status: ${response.status})`

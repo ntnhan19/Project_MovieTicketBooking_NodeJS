@@ -51,11 +51,21 @@ const VNPayPayment = ({
   );
 
   useEffect(() => {
+    const userId = parseInt(sessionStorage.getItem("userId"));
+    setUserId(userId);
+
     const cleanup = () => {
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
       if (pendingTimeoutRef.current) clearTimeout(pendingTimeoutRef.current);
       processingRequest.current = false;
     };
+
+    // Kiểm tra trạng thái thanh toán khi tải lại trang
+    const paymentId = sessionStorage.getItem(`lastPaymentId_${userId}`);
+    if (paymentId && !isCallback) {
+      checkPaymentStatus(paymentId, true);
+    }
+
     if (payment && payment.id) currentPaymentId.current = payment.id;
     if (isCallback && callbackUrl) {
       handleVNPayCallback(callbackUrl);
@@ -66,7 +76,21 @@ const VNPayPayment = ({
       setError("Không tìm thấy thông tin thanh toán");
       setStatus("error");
     }
-    return cleanup;
+
+    // Thêm sự kiện beforeunload
+    const handleBeforeUnload = () => {
+      paymentApi.clearPaymentCache(userId);
+      // Gửi yêu cầu đến backend để mở khóa ghế hoặc hủy vé PENDING nếu cần
+      if (currentPaymentId.current) {
+        paymentApi.cancelPayment(currentPaymentId.current).catch(() => {});
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      cleanup();
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
   }, [payment, isCallback, callbackUrl]);
 
   const delayBetweenRequests = async (minDelay = 8000) => {
@@ -110,6 +134,17 @@ const VNPayPayment = ({
         setStatus("success");
         setPaymentResult(result);
         paymentChecked.current = true;
+        // Kiểm tra vé liên quan và cập nhật trạng thái
+        const ticketIds = await ticketApi.getTicketsByPaymentId(paymentId);
+        if (ticketIds.length > 0) {
+          await ticketApi.updateTicketsStatus(
+            ticketIds.map((t) => t.id),
+            "CONFIRMED"
+          );
+          message.success(
+            "Vé đã được xác nhận! Vui lòng kiểm tra email của bạn."
+          );
+        }
         onPaymentComplete(true, result);
       } else if (result.status === "FAILED" || result.status === "CANCELLED") {
         setStatus("error");
@@ -128,9 +163,9 @@ const VNPayPayment = ({
           11: "Giao dịch thất bại",
           24: "Khách hàng đã hủy giao dịch",
           51: "Tài khoản không đủ số dư để thực hiện giao dịch",
-          65: "Tài khoản của quý khách đã vượt quá hạn mức thanh toán trong ngày",
+          65: "Tài khoản vượt quá hạn mức thanh toán trong ngày",
           75: "Ngân hàng thanh toán đang bảo trì",
-          79: "Đã vượt quá số lần thanh toán cho phép",
+          79: "Vượt quá số lần thanh toán cho phép",
           91: "Không tìm thấy giao dịch yêu cầu",
           94: "Yêu cầu bị trùng lặp trong thời gian giới hạn",
           97: "Chữ ký không hợp lệ",
@@ -181,6 +216,7 @@ const VNPayPayment = ({
     }
   };
 
+  //Còn đây là các phương thức xử lý VNPAY ở frontend
   const fallbackPaymentCheck = async (paymentId) => {
     if (processingRequest.current || paymentChecked.current) return;
     try {
@@ -196,6 +232,17 @@ const VNPayPayment = ({
           setStatus("success");
           setPaymentResult(trackResult);
           paymentChecked.current = true;
+          // Cập nhật trạng thái vé
+          const ticketIds = await ticketApi.getTicketsByPaymentId(paymentId);
+          if (ticketIds.length > 0) {
+            await ticketApi.updateTicketsStatus(
+              ticketIds.map((t) => t.id),
+              "CONFIRMED"
+            );
+            message.success(
+              "Vé đã được xác nhận! Vui lòng kiểm tra email của bạn."
+            );
+          }
           onPaymentComplete(true, trackResult);
           return;
         } else if (
@@ -216,6 +263,17 @@ const VNPayPayment = ({
         setStatus("success");
         setPaymentResult(paymentInfo);
         paymentChecked.current = true;
+        // Cập nhật trạng thái vé
+        const ticketIds = await ticketApi.getTicketsByPaymentId(paymentId);
+        if (ticketIds.length > 0) {
+          await ticketApi.updateTicketsStatus(
+            ticketIds.map((t) => t.id),
+            "CONFIRMED"
+          );
+          message.success(
+            "Vé đã được xác nhận! Vui lòng kiểm tra email của bạn."
+          );
+        }
         onPaymentComplete(true, paymentInfo);
       } else if (
         paymentInfo.status === "FAILED" ||
@@ -235,7 +293,7 @@ const VNPayPayment = ({
         setStatus("error");
         setError(
           paymentInfo.status === "PENDING"
-            ? "Hệ thống đang xử lý thanh toán của bạn. Vui lòng kiểm tra lại sau."
+            ? "Hệ thống đang xử lý thanh toán. Vui lòng kiểm tra lại sau."
             : "Không thể xác định trạng thái thanh toán. Vui lòng liên hệ hỗ trợ."
         );
         setLoading(false);
@@ -251,9 +309,7 @@ const VNPayPayment = ({
         }, waitTime);
       } else {
         setStatus("error");
-        setError(
-          "Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại thanh toán của bạn sau."
-        );
+        setError("Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại sau.");
         setLoading(false);
         processingRequest.current = false;
       }
@@ -302,6 +358,19 @@ const VNPayPayment = ({
       if (updatedResult.success) {
         setStatus("success");
         paymentChecked.current = true;
+        // Cập nhật trạng thái vé
+        const ticketIds = await ticketApi.getTicketsByPaymentId(
+          updatedResult.paymentId
+        );
+        if (ticketIds.length > 0) {
+          await ticketApi.updateTicketsStatus(
+            ticketIds.map((t) => t.id),
+            "CONFIRMED"
+          );
+          message.success(
+            "Vé đã được xác nhận! Vui lòng kiểm tra email của bạn."
+          );
+        }
         onPaymentComplete(true, updatedResult);
       } else if (
         updatedResult.statusData &&
@@ -343,6 +412,17 @@ const VNPayPayment = ({
             setStatus("success");
             setPaymentResult(trackResult);
             paymentChecked.current = true;
+            // Cập nhật trạng thái vé
+            const ticketIds = await ticketApi.getTicketsByPaymentId(paymentId);
+            if (ticketIds.length > 0) {
+              await ticketApi.updateTicketsStatus(
+                ticketIds.map((t) => t.id),
+                "CONFIRMED"
+              );
+              message.success(
+                "Vé đã được xác nhận! Vui lòng kiểm tra email của bạn."
+              );
+            }
             onPaymentComplete(true, trackResult);
             return;
           }
@@ -368,7 +448,7 @@ const VNPayPayment = ({
 
   const handleCancel = async () => {
     const confirmCancel = window.confirm(
-      "Bạn có chắc muốn quay lại? Bạn sẽ được chuyển về chọn phương thức thanh toán khác."
+      "Bạn có chắc muốn quay lại? Hành động này sẽ hủy các vé đang giữ."
     );
     if (!confirmCancel) return;
 
@@ -378,6 +458,16 @@ const VNPayPayment = ({
 
     if (seatIds.length > 0) {
       try {
+        // Kiểm tra trạng thái thanh toán trước
+        const paymentId = sessionStorage.getItem(`lastPaymentId_${userId}`);
+        if (paymentId) {
+          const paymentStatus = await paymentApi.checkVNPayStatus(paymentId);
+          if (paymentStatus.status === "COMPLETED") {
+            message.error("Thanh toán đã hoàn tất, không thể hủy vé.");
+            return;
+          }
+        }
+
         // Kiểm tra trạng thái ghế
         const seats = await Promise.all(
           seatIds.map((seatId) => seatApi.getSeatById(seatId))
@@ -389,25 +479,21 @@ const VNPayPayment = ({
         );
 
         if (unavailableSeats.length > 0) {
-          // Kiểm tra vé PENDING liên quan đến ghế
-          const ticketIdsToCancel = [];
           for (const seat of unavailableSeats) {
             try {
               const ticket = await ticketApi.getTicketBySeatId(seat.id, userId);
-              if (ticket && ticket.status === "PENDING" && ticket.userId === userId) {
-                ticketIdsToCancel.push(ticket.id);
+              if (
+                ticket &&
+                ticket.status === "PENDING" &&
+                ticket.userId === userId
+              ) {
+                await ticketApi.cancelTicket(ticket.id);
               }
             } catch (error) {
               console.warn(`Không tìm thấy vé cho ghế ${seat.id}:`, error);
-              // Bỏ qua nếu không tìm thấy vé
             }
           }
-
-          if (ticketIdsToCancel.length > 0) {
-            await ticketApi.updateTicketsStatus(ticketIdsToCancel, "CANCELLED");
-            await seatApi.unlockSeats(seatIds);
-          }
-
+          await seatApi.unlockSeats(seatIds);
           sessionStorage.removeItem(`selectedSeats_${userId}`);
           sessionStorage.removeItem(`seatLockTime_${userId}`);
           sessionStorage.removeItem(`ticketIds_${userId}`);
@@ -418,25 +504,29 @@ const VNPayPayment = ({
           return;
         }
 
-        // Gia hạn khóa ghế
-        await Promise.all(
-          seatIds.map((seatId) => seatApi.renewSeatLock(seatId))
+        // Hủy vé PENDING
+        const ticketIds = JSON.parse(
+          sessionStorage.getItem(`ticketIds_${userId}`) || "[]"
         );
-        sessionStorage.setItem(`seatLockTime_${userId}`, Date.now().toString());
-      } catch (error) {
-        console.error("Lỗi gia hạn khóa ghế:", error);
-        try {
-          await seatApi.unlockSeats(seatIds);
-        } catch (unlockError) {
-          console.error("Lỗi mở khóa ghế:", unlockError);
+        for (const ticketId of ticketIds) {
+          try {
+            const ticket = await ticketApi.getTicketById(ticketId);
+            if (ticket.userId === userId && ticket.status === "PENDING") {
+              await ticketApi.cancelTicket(ticketId);
+            }
+          } catch (error) {
+            console.warn(`Không thể hủy vé ${ticketId}:`, error);
+          }
         }
+
+        // Mở khóa ghế
+        await seatApi.unlockSeats(seatIds);
         sessionStorage.removeItem(`selectedSeats_${userId}`);
         sessionStorage.removeItem(`seatLockTime_${userId}`);
         sessionStorage.removeItem(`ticketIds_${userId}`);
-        message.error(
-          "Không thể gia hạn thời gian giữ ghế. Vui lòng chọn lại."
-        );
-        onBack();
+      } catch (error) {
+        console.error("Lỗi khi hủy vé hoặc mở khóa ghế:", error);
+        message.error("Không thể hủy vé. Vui lòng thử lại.");
         return;
       }
     }
@@ -470,6 +560,8 @@ const VNPayPayment = ({
       const result = await paymentApi.processPayment(paymentData);
       if (result && result.paymentUrl) {
         currentPaymentId.current = result.id;
+        // Cập nhật paymentId cho vé
+        await ticketApi.updateTicketsPayment(paymentData.ticketIds, result.id);
         window.location.href = result.paymentUrl;
       } else {
         throw new Error("Không nhận được URL thanh toán từ VNPay");
@@ -544,7 +636,7 @@ const VNPayPayment = ({
           status="success"
           icon={<CheckCircleOutlined className="text-green-500" />}
           title="Thanh toán thành công"
-          subTitle={`Mã giao dịch: ${transactionId}`}
+          subTitle={`Mã giao dịch: ${transactionId}. Vé đã được xác nhận và gửi qua email.`}
           extra={[
             <Button
               type="primary"
@@ -963,30 +1055,28 @@ const VNPayPayment = ({
                   Chọn phương thức thanh toán trên cổng VNPay
                 </Text>
               </div>
-              <div className="mb-2 flex items-start">
-                <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${
-                    theme === "dark"
-                      ? "bg-blue-400 text-dark-bg"
-                      : "bg-blue-600 text-white"
-                  }`}
-                >
-                  <Text
-                    className={theme === "dark" ? "text-dark-bg" : "text-white"}
-                  >
-                    3
-                  </Text>
-                </div>
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${
+                  theme === "dark"
+                    ? "bg-blue-400 text-dark-bg"
+                    : "bg-blue-600 text-white"
+                }`}
+              >
                 <Text
-                  className={
-                    theme === "dark"
-                      ? "text-dark-text-primary"
-                      : "text-text-primary"
-                  }
+                  className={theme === "dark" ? "text-dark-bg" : "text-white"}
                 >
-                  Hoàn tất giao dịch và quay lại trang web
+                  3
                 </Text>
               </div>
+              <Text
+                className={
+                  theme === "dark"
+                    ? "text-dark-text-primary"
+                    : "text-text-primary"
+                }
+              >
+                Hoàn tất giao dịch và quay lại trang web
+              </Text>
             </div>
           </div>
         </Card>

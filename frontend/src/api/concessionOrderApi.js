@@ -110,9 +110,7 @@ export const concessionOrderApi = {
 function getStatusMessage(status) {
   const statusMessages = {
     PENDING: "Đang chờ xác nhận",
-    CONFIRMED: "Đã xác nhận",
-    PREPARING: "Đang chuẩn bị",
-    READY: "Sẵn sàng để lấy",
+    PAID: "Đã thanh toán",
     COMPLETED: "Đã hoàn thành",
     CANCELLED: "Đã hủy",
   };

@@ -65,48 +65,51 @@ exports.getCategoryById = async (id) => {
 // Create new category
 exports.createCategory = async (categoryData) => {
   const { name, description, image, isActive, status } = categoryData;
-  
+
   // Ưu tiên sử dụng isActive, nếu không có thì sử dụng status
-  const activeStatus = isActive !== undefined ? 
-    isActive : 
-    (status ? mapStatusToBoolean(status) : true);
-  
+  const activeStatus =
+    isActive !== undefined
+      ? isActive
+      : status
+      ? mapStatusToBoolean(status)
+      : true;
+
   return await prisma.concessionCategory.create({
     data: {
       name,
       description,
       image,
-      isActive: activeStatus
-    }
+      isActive: activeStatus,
+    },
   });
 };
 
 // Update category
 exports.updateCategory = async (id, categoryData) => {
   const { status, ...restData } = categoryData;
-  
+
   // Filter out undefined values
   const updateData = {};
-  
-  Object.keys(restData).forEach(key => {
+
+  Object.keys(restData).forEach((key) => {
     if (restData[key] !== undefined) {
       updateData[key] = restData[key];
     }
   });
-  
+
   // Nếu có status thì chuyển đổi thành isActive
   if (status !== undefined) {
     updateData.isActive = mapStatusToBoolean(status);
   }
-  
+
   const updated = await prisma.concessionCategory.update({
     where: { id },
-    data: updateData
+    data: updateData,
   });
-  
+
   return {
     ...updated,
-    status: mapBooleanToStatus(updated.isActive)
+    status: mapBooleanToStatus(updated.isActive),
   };
 };
 
@@ -156,6 +159,11 @@ exports.getActiveCategories = async () => {
   const activeCategories = await prisma.concessionCategory.findMany({
     where: {
       isActive: true,
+      name: {
+        not: {
+          in: ["Popcorn", "Bắp rang"], // Loại bỏ danh mục "Bắp rang"
+        },
+      },
     },
     include: {
       items: {
@@ -177,7 +185,6 @@ exports.getActiveCategories = async () => {
     },
   });
 
-  // Chuyển đổi isActive thành ACTIVE/INACTIVE để đồng nhất với phần frontend
   return activeCategories.map((category) => ({
     ...category,
     status: mapBooleanToStatus(category.isActive),

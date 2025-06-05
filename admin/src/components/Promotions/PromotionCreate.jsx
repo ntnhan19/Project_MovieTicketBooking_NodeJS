@@ -19,7 +19,7 @@ const PromotionCreate = () => {
       if (formData.type === 'percentage') {
         promoType = 'PERCENTAGE';
       } else if (formData.type === 'fixed') {
-        promoType = 'FIXED_AMOUNT';
+        promoType = 'FIXED';
       }
       
       // Gửi dữ liệu tạo khuyến mãi mới

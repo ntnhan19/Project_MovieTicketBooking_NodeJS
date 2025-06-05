@@ -215,9 +215,6 @@ const generateSeats = async (showtimeId, hall) => {
     throw new Error("Showtime not found");
   }
 
-  const basePrice = showtime.price || 0;
-  const priceMultiplier = { STANDARD: 1, VIP: 1.5, COUPLE: 2 };
-
   const seats = [];
   for (let r = 0; r < hall.rows; r++) {
     const rowLetter = String.fromCharCode(65 + r);
@@ -231,14 +228,12 @@ const generateSeats = async (showtimeId, hall) => {
       if (r === hall.rows - 1) {
         seatType = "COUPLE";
       }
-      const multiplier = priceMultiplier[seatType] || 1;
       seats.push({
         showtimeId,
         row: rowLetter,
         column: c.toString(),
         status: "AVAILABLE",
         type: seatType,
-        price: basePrice * multiplier,
       });
     }
   }

@@ -20,11 +20,10 @@ const validatePromotionId = (id) => {
  */
 const getValidPromoTypes = async () => {
   try {
-    // Có thể mở rộng để truy vấn trực tiếp từ database nếu cần
-    return ["PERCENTAGE", "FIXED_AMOUNT"];
+    return ["PERCENTAGE", "FIXED"]; // Đảm bảo danh sách khớp với enum PromoType
   } catch (error) {
     console.error("Lỗi khi lấy các giá trị PromoType:", error);
-    return ["PERCENTAGE", "FIXED_AMOUNT"]; // Giá trị mặc định
+    return ["PERCENTAGE", "FIXED"]; // Giá trị mặc định
   }
 };
 
@@ -35,17 +34,16 @@ const getValidPromoTypes = async () => {
  */
 const validatePromotionType = async (type) => {
   const promoTypeValues = await getValidPromoTypes();
-  
-  if (promoTypeValues.includes(type)) {
-    return type;
+
+  if (promoTypeValues.includes(type.toUpperCase())) {
+    return type.toUpperCase(); // Chuyển thành UPPERCASE để khớp với enum
   }
-  
-  // Nếu không hợp lệ, ánh xạ sang giá trị hợp lệ nếu có thể
+
   const typeMapping = {
     percentage: "PERCENTAGE",
-    fixed: "FIXED_AMOUNT",
+    fixed: "FIXED",
   };
-  
+
   return typeMapping[type?.toLowerCase()] || "PERCENTAGE";
 };
 
@@ -55,7 +53,6 @@ const validatePromotionType = async (type) => {
  * @returns {Promise<Object>} Khuyến mãi đã được tạo
  */
 const createPromotion = async (promotionData) => {
-  // Kiểm tra mã khuyến mãi đã tồn tại chưa
   const existingPromotion = await prisma.promotion.findUnique({
     where: { code: promotionData.code },
   });
@@ -64,11 +61,12 @@ const createPromotion = async (promotionData) => {
     throw new Error("Mã khuyến mãi đã tồn tại");
   }
 
-  // Chuẩn hóa dữ liệu
-  const validatedData = { 
+  const validatedData = {
     ...promotionData,
-    type: await validatePromotionType(promotionData.type)
+    type: await validatePromotionType(promotionData.type),
   };
+
+  console.log("Dữ liệu validated:", validatedData); // Kiểm tra log
 
   return await prisma.promotion.create({
     data: validatedData,
@@ -103,7 +101,7 @@ const getAllPromotions = async (isActive) => {
 const getPromotionById = async (id) => {
   try {
     const promotionId = validatePromotionId(id);
-    
+
     return await prisma.promotion.findUnique({
       where: { id: promotionId },
     });
@@ -133,7 +131,6 @@ const getPromotionByCode = async (code) => {
 const updatePromotion = async (id, updateData) => {
   const promotionId = validatePromotionId(id);
 
-  // Kiểm tra mã khuyến mãi đã tồn tại chưa
   if (updateData.code) {
     const existingPromotion = await prisma.promotion.findUnique({
       where: { code: updateData.code },
@@ -144,12 +141,14 @@ const updatePromotion = async (id, updateData) => {
     }
   }
 
-  // Chuẩn hóa dữ liệu cập nhật
   const validatedData = { ...updateData };
-  
+
   if (updateData.type) {
     validatedData.type = await validatePromotionType(updateData.type);
+    console.log("Type sau khi validate:", validatedData.type); // Thêm log
   }
+
+  console.log("Dữ liệu trước khi cập nhật:", validatedData); // Thêm log
 
   return await prisma.promotion.update({
     where: { id: promotionId },

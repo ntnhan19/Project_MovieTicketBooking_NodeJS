@@ -1,5 +1,5 @@
-// src/App.jsx
-import { Admin, Resource } from "react-admin";
+import { Admin, Resource, CustomRoutes } from "react-admin";
+import { Route } from "react-router-dom";
 import dataProvider from "./services/dataProvider";
 import authProvider from "./services/authProvider";
 
@@ -85,7 +85,8 @@ import PaymentShow from "./components/Payments/PaymentShow";
 // Dashboard component
 import Dashboard from "./components/Dashboard/Dashboard";
 
-import QRScanner from "./components/Common/QRScanner";
+// Profile component
+import ProfilePage from "./components/Profile/ProfilePage";
 
 // Icons
 import {
@@ -101,7 +102,7 @@ import {
   CubeIcon,
   QueueListIcon,
   ShoppingCartIcon,
-  CreditCardIcon, // Thêm CreditCardIcon
+  CreditCardIcon,
 } from "@heroicons/react/24/outline";
 
 function App() {
@@ -114,9 +115,13 @@ function App() {
         dashboard={Dashboard}
         disableTelemetry
         requireAuth
-      >          <Resource
+      >
+        <CustomRoutes>
+          <Route path="/profile" element={<ProfilePage />} />
+        </CustomRoutes>
+        <Resource
           name="movies"
-          list={MovieList} 
+          list={MovieList}
           edit={MovieEdit}
           create={MovieCreate}
           show={MovieShow}
@@ -133,9 +138,9 @@ function App() {
           edit={GenreEdit}
           create={GenreCreate}
           show={GenreShow}
-          options={{ 
+          options={{
             label: 'Quản lý thể loại',
-            menuIcon: <TagIcon className="w-5 h-5" /> 
+            menuIcon: <TagIcon className="w-5 h-5" />
           }}
         />
         <Resource
@@ -144,9 +149,9 @@ function App() {
           edit={ShowtimeEdit}
           create={ShowtimeCreate}
           show={ShowtimeShow}
-          options={{ 
+          options={{
             label: 'Quản lý lịch chiếu',
-            menuIcon: <ClockIcon className="w-5 h-5" /> 
+            menuIcon: <ClockIcon className="w-5 h-5" />
           }}
         />
         <Resource
@@ -155,9 +160,9 @@ function App() {
           edit={HallEdit}
           create={HallCreate}
           show={HallShow}
-          options={{ 
+          options={{
             label: 'Quản lý phòng chiếu',
-            menuIcon: <BuildingOffice2Icon className="w-5 h-5" /> 
+            menuIcon: <BuildingOffice2Icon className="w-5 h-5" />
           }}
         />
         <Resource
@@ -166,9 +171,9 @@ function App() {
           edit={CinemaEdit}
           create={CinemaCreate}
           show={CinemaShow}
-          options={{ 
+          options={{
             label: 'Quản lý rạp phim',
-            menuIcon: <MapPinIcon className="w-5 h-5" /> 
+            menuIcon: <MapPinIcon className="w-5 h-5" />
           }}
         />
         <Resource
@@ -177,9 +182,9 @@ function App() {
           edit={PromotionEdit}
           create={PromotionCreate}
           show={PromotionShow}
-          options={{ 
+          options={{
             label: 'Quản lý khuyến mãi',
-            menuIcon: <PromotionIcon className="w-5 h-5" /> 
+            menuIcon: <PromotionIcon className="w-5 h-5" />
           }}
         />
         <Resource
@@ -188,15 +193,15 @@ function App() {
           edit={UserEdit}
           create={UserCreate}
           show={UserShow}
-          options={{ 
+          options={{
             label: 'Quản lý người dùng',
-            menuIcon: <UserIcon className="w-5 h-5" /> 
+            menuIcon: <UserIcon className="w-5 h-5" />
           }}
         />
         <Resource
           name="tickets"
           list={TicketList}
-          edit={TicketEdit} 
+          edit={TicketEdit}
           create={TicketCreate}
           show={TicketShow}
           options={{
@@ -204,60 +209,50 @@ function App() {
             menuIcon: <TicketIcon className="w-5 h-5" />
           }}
         />
-
-        {/* Concession Category */}
         <Resource
           name="concession-categories"
           list={ConcessionCategoryList}
           edit={ConcessionCategoryEdit}
           create={ConcessionCategoryCreate}
           show={ConcessionCategoryShow}
-          options={{ 
+          options={{
             label: 'Danh mục bắp nước',
-            menuIcon: <QueueListIcon className="w-5 h-5" /> 
+            menuIcon: <QueueListIcon className="w-5 h-5" />
           }}
         />
-        
-        {/* Concession Item */}
         <Resource
           name="concession-items"
           list={ConcessionItemList}
           edit={ConcessionItemEdit}
           create={ConcessionItemCreate}
           show={ConcessionItemShow}
-          options={{ 
+          options={{
             label: 'Sản phẩm bắp nước',
-            menuIcon: <CubeIcon className="w-5 h-5" /> 
+            menuIcon: <CubeIcon className="w-5 h-5" />
           }}
         />
-
-        {/* Concession Combo */}
         <Resource
           name="concession-combos"
           list={ConcessionComboList}
           edit={ConcessionComboEdit}
           create={ConcessionComboCreate}
           show={ConcessionComboShow}
-          options={{ 
+          options={{
             label: 'Combo bắp nước',
-            menuIcon: <ShoppingBagIcon className="w-5 h-5" /> 
+            menuIcon: <ShoppingBagIcon className="w-5 h-5" />
           }}
         />
-
-        {/* Concession Order */}
         <Resource
           name="concession-orders"
           list={ConcessionOrderList}
           edit={ConcessionOrderEdit}
           create={ConcessionOrderCreate}
           show={ConcessionOrderShow}
-          options={{ 
+          options={{
             label: 'Đơn hàng bắp nước',
-            menuIcon: <ShoppingCartIcon className="w-5 h-5" /> 
+            menuIcon: <ShoppingCartIcon className="w-5 h-5" />
           }}
         />
-
-        {/* Payment Resource */}
         <Resource
           name="payments"
           list={PaymentList}

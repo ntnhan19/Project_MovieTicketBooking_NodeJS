@@ -33,10 +33,22 @@ body:not([data-theme="dark"]) {
 .page-header {
   margin-bottom: 20px;
   padding: 1rem 1.5rem;
-  background-color: #1e293b;
-  color: #fff;
+  background-color: transparent; /* Loại bỏ màu nền cố định */
   border-radius: 8px;
   text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.page-header .bg-gradient-to-r {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.7;
+}
+
+.page-header [data-theme="dark"] .bg-gradient-to-r {
+  background: linear-gradient(to right, #ef4444, #dc2626); /* Red-500 to Red-600 */
 }
 
 /* ======================= */

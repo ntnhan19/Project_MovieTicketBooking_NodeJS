@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Spin, Empty, Button, Carousel, Typography, Divider } from "antd";
+import { Spin, Empty, Button, Carousel, Typography } from "antd";
 import { RightOutlined, LeftOutlined, FireOutlined, CalendarOutlined } from "@ant-design/icons";
 import useMovies from "../hooks/useMovies";
 import { movieApi } from "../api/movieApi";
@@ -20,7 +20,6 @@ const HomePage = () => {
 
   const moviesToShow = activeTab === "nowShowing" ? nowShowing : comingSoon;
 
-  // Fetch banner movies from API
   useEffect(() => {
     const fetchBannerMovies = async () => {
       try {

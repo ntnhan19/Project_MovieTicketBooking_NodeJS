@@ -10,7 +10,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 // Thiết lập múi giờ Việt Nam
-const VIETNAM_TIMEZONE = 'Asia/Ho_Chi_Minh'; // UTC+7
+const VIETNAM_TIMEZONE = "Asia/Ho_Chi_Minh"; // UTC+7
 
 /**
  * Chuyển đổi thời gian bất kỳ sang đối tượng dayjs với múi giờ Việt Nam
@@ -18,7 +18,7 @@ const VIETNAM_TIMEZONE = 'Asia/Ho_Chi_Minh'; // UTC+7
  */
 const formatToVietnamTime = (timeInput) => {
   if (!timeInput) return null;
-  
+
   try {
     return dayjs(timeInput).tz(VIETNAM_TIMEZONE);
   } catch (error) {
@@ -32,10 +32,10 @@ const formatToVietnamTime = (timeInput) => {
  */
 const logTimeDebug = (label, timeUTC) => {
   if (!timeUTC) return;
-  
+
   const timeVN = formatToVietnamTime(timeUTC);
   console.log(`${label} (UTC): ${timeUTC}`);
-  console.log(`${label} (VN): ${timeVN.format('YYYY-MM-DD HH:mm:ss')}`);
+  console.log(`${label} (VN): ${timeVN.format("YYYY-MM-DD HH:mm:ss")}`);
 };
 
 const createShowtime = async ({
@@ -57,49 +57,51 @@ const createShowtime = async ({
     const movieIdInt = parseInt(movieId, 10);
     const hallIdInt = parseInt(hallId, 10);
     const priceFloat = parseFloat(price);
-    
+
     // Ghi log thời gian để debug
     logTimeDebug("Thời gian bắt đầu", startTime);
     logTimeDebug("Thời gian kết thúc", endTime);
-    
+
     // Nếu endTime không được cung cấp, tính endTime dựa trên startTime + thời lượng phim
     let calculatedEndTime = endTime;
-    
+
     if (!calculatedEndTime && startTime) {
       // Lấy thông tin về thời lượng phim
       const movie = await prisma.movie.findUnique({
-        where: { id: movieIdInt }
+        where: { id: movieIdInt },
       });
-      
+
       if (movie && movie.duration) {
         // Tính thời gian kết thúc bằng cách thêm thời lượng phim vào thời gian bắt đầu
         // Lưu ý: dayjs không thay đổi instance ban đầu
-        calculatedEndTime = dayjs(startTime).add(movie.duration, 'minute').toISOString();
+        calculatedEndTime = dayjs(startTime)
+          .add(movie.duration, "minute")
+          .toISOString();
       } else {
         // Mặc định thời lượng 2 giờ nếu không có thông tin thời lượng phim
-        calculatedEndTime = dayjs(startTime).add(2, 'hour').toISOString();
+        calculatedEndTime = dayjs(startTime).add(2, "hour").toISOString();
       }
-      
+
       logTimeDebug("Thời gian kết thúc (đã tính toán)", calculatedEndTime);
     }
-    
+
     // Đảm bảo dữ liệu đúng kiểu và không chứa ID
     const data = {
       movieId: movieIdInt,
       hallId: hallIdInt,
-      startTime,           // Lưu vào database nguyên dạng (đã là UTC)
+      startTime, // Lưu vào database nguyên dạng (đã là UTC)
       endTime: calculatedEndTime, // Lưu vào database nguyên dạng (đã là UTC)
-      price: priceFloat
+      price: priceFloat,
     };
-  
+
     // Tạo showtime mới với cấu trúc dữ liệu đơn giản và rõ ràng
     const showtime = await prisma.showtime.create({ data });
 
     // Sau khi tạo showtime, tạo ghế tương ứng
-    const hall = await prisma.hall.findUnique({ 
-      where: { id: hallIdInt }
+    const hall = await prisma.hall.findUnique({
+      where: { id: hallIdInt },
     });
-    
+
     if (hall) {
       await seatService.generateSeats(showtime.id, hall);
     } else {
@@ -109,59 +111,62 @@ const createShowtime = async ({
     return showtime;
   } catch (error) {
     console.error("Lỗi chi tiết khi tạo showtime:", error);
-    
+
     // Kiểm tra lỗi cụ thể từ Prisma
-    if (error.code === 'P2002') {
+    if (error.code === "P2002") {
       const target = error.meta?.target || [];
-      if (target.includes('id')) {
-        throw new Error(`Không thể tạo showtime do lỗi ràng buộc id. Vui lòng thử lại.`);
+      if (target.includes("id")) {
+        throw new Error(
+          `Không thể tạo showtime do lỗi ràng buộc id. Vui lòng thử lại.`
+        );
       }
     }
-    
+
     throw error;
   }
 };
 
 // Các hàm khác giữ nguyên
 const getAllShowtimes = async (options = {}) => {
-  // Lấy thời gian hiện tại (UTC)
   const now = new Date();
-  
-  // Ghi log thời gian hiện tại
-  logTimeDebug("Thời gian hiện tại", now);
+  let filter = { ...options.filter };
 
-  const filter = {
-    ...options.filter,
-    startTime: {
-      ...(options.filter?.startTime || {}),
-      gte: options.showPast ? undefined : options.filter?.startTime?.gte || now,
-    },
-  };
-
-  console.log("Filter:", JSON.stringify(filter));
-
-  // Nếu filter.startTime.gte là undefined, xóa nó để tránh lỗi
-  if (!filter.startTime.gte) {
-    delete filter.startTime.gte;
+  // Xử lý bộ lọc trạng thái
+  if (options.filter?.status && options.filter.status !== "all") {
+    if (options.filter.status === "playing") {
+      filter.startTime = { lte: now };
+      filter.endTime = { gte: now };
+    } else if (options.filter.status === "upcoming") {
+      filter.startTime = { gt: now };
+    } else if (options.filter.status === "ended") {
+      filter.endTime = { lt: now };
+    }
+    delete filter.status; // Xóa trường status khỏi filter
   }
 
-  // Nếu filter.startTime là một object rỗng, xóa nó để tránh lỗi
-  if (Object.keys(filter.startTime).length === 0) {
-    delete filter.startTime;
-  }
+  // Xóa các trường không hợp lệ
+  delete filter._sort;
+  delete filter._order;
 
-  return await prisma.showtime.findMany({
-    where: filter,
-    include: {
-      movie: true,
-      hall: {
-        include: {
-          cinema: true,
-        },
+  const [showtimes, total] = await Promise.all([
+    prisma.showtime.findMany({
+      where: filter,
+      include: {
+        movie: true,
+        hall: { include: { cinema: true } },
       },
-    },
-    orderBy: options.orderBy || { startTime: "asc" },
-  });
+      orderBy: options.orderBy || { startTime: "asc" },
+      skip: (options.pagination?.page - 1) * options.pagination?.perPage || 0,
+      take: options.pagination?.perPage || 10,
+    }),
+    prisma.showtime.count({ where: filter }),
+  ]);
+
+  return {
+    data: showtimes,
+    total,
+    totalPages: Math.ceil(total / (options.pagination?.perPage || 10)),
+  };
 };
 
 const getShowtimeById = async (id) => {
@@ -196,22 +201,22 @@ const updateShowtime = async (
     const movieIdInt = movieId ? parseInt(movieId, 10) : undefined;
     const hallIdInt = hallId ? parseInt(hallId, 10) : undefined;
     const priceFloat = price !== undefined ? parseFloat(price) : undefined;
-    
+
     // Ghi log thời gian để debug
     logTimeDebug("Cập nhật - Thời gian bắt đầu", startTime);
     logTimeDebug("Cập nhật - Thời gian kết thúc", endTime);
 
     // Tạo object data chỉ với các trường được cung cấp
     const data = {};
-    if (movieIdInt !== undefined) data.movieId = movieIdInt; 
+    if (movieIdInt !== undefined) data.movieId = movieIdInt;
     if (hallIdInt !== undefined) data.hallId = hallIdInt;
-    if (startTime !== undefined) data.startTime = startTime;  
+    if (startTime !== undefined) data.startTime = startTime;
     if (endTime !== undefined) data.endTime = endTime;
     if (priceFloat !== undefined) data.price = priceFloat;
 
     return await prisma.showtime.update({
       where: { id },
-      data
+      data,
     });
   } catch (error) {
     console.error("Lỗi khi cập nhật showtime:", error);
@@ -239,7 +244,7 @@ const deleteShowtime = async (id) => {
 const getShowtimesByMovie = async (movieId, showPast = false) => {
   // Lấy thời gian hiện tại (UTC)
   const now = new Date();
-  
+
   // Ghi log thời gian hiện tại
   logTimeDebug(`Lọc suất chiếu phim ${movieId} từ thời điểm`, now);
 
@@ -268,7 +273,7 @@ const getShowtimesByMovie = async (movieId, showPast = false) => {
 const getShowtimesByCinema = async (cinemaId, showPast = false) => {
   // Lấy thời gian hiện tại (UTC)
   const now = new Date();
-  
+
   // Ghi log thời gian hiện tại
   logTimeDebug(`Lọc suất chiếu rạp ${cinemaId} từ thời điểm`, now);
 

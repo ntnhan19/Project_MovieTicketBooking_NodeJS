@@ -8,22 +8,22 @@ datasource db {
 }
 
 model User {
-  id               Int               @id @default(autoincrement())
-  name             String
-  email            String            @unique
-  phone            String
-  password         String
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  role             Role              @default(USER)
-  avatar           String?
-  emailVerified    Boolean           @default(false)
-  concessionOrders ConcessionOrder[]
-  reviews          Review[]
-  tickets          Ticket[]
-  resetToken          String?           
-  resetTokenExpires   DateTime?         
+  id                  Int               @id @default(autoincrement())
+  name                String
+  email               String            @unique
+  phone               String
+  password            String
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  role                Role              @default(USER)
+  avatar              String?
+  emailVerified       Boolean           @default(false)
+  resetToken          String?
   resetTokenCreatedAt DateTime?
+  resetTokenExpires   DateTime?
+  concessionOrders    ConcessionOrder[]
+  reviews             Review[]
+  tickets             Ticket[]
 }
 
 model Genre {
@@ -38,11 +38,11 @@ model Movie {
   description String
   releaseDate DateTime
   poster      String
-  bannerImage String?
   duration    Int        @default(90)
   director    String     @default("")
   mainActors  String     @default("")
   trailerUrl  String?
+  bannerImage String?
   reviews     Review[]
   showtimes   Showtime[]
   genres      Genre[]    @relation("MovieGenres")
@@ -88,8 +88,8 @@ model Seat {
   column     String
   status     SeatStatus
   type       SeatType   @default(STANDARD)
-  lockedBy   Int?       // ID của người dùng khóa ghế
-  lockedAt   DateTime?  // Thời điểm khóa ghế
+  lockedAt   DateTime?
+  lockedBy   Int?
   showtime   Showtime   @relation(fields: [showtimeId], references: [id])
   tickets    Ticket[]
 }
@@ -100,16 +100,19 @@ model Ticket {
   showtimeId       Int
   seatId           Int
   price            Float
-  status           TicketStatus      @default(PENDING)
-  promotionId      Int?
   paymentId        Int?
+  promotionId      Int?
   qrCode           String?
-  concessionOrders ConcessionOrder[]
+  qrData           String?
+  status           TicketStatus      @default(PENDING)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @default(now()) @updatedAt
   payment          Payment?          @relation(fields: [paymentId], references: [id])
   promotion        Promotion?        @relation(fields: [promotionId], references: [id])
   seat             Seat              @relation(fields: [seatId], references: [id])
   showtime         Showtime          @relation(fields: [showtimeId], references: [id])
   user             User              @relation(fields: [userId], references: [id])
+  concessionOrders ConcessionOrder[] @relation("ConcessionOrderToTicket")
 }
 
 model Payment {
@@ -209,18 +212,17 @@ model ConcessionOrder {
   id          Int                   @id @default(autoincrement())
   userId      Int
   status      OrderStatus           @default(PENDING)
-  orderType   OrderType             @default(STANDALONE) // Thêm trường này
   totalAmount Float
   paymentId   Int?
-  qrCode      String?
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @default(now()) @updatedAt
+  orderType   OrderType             @default(STANDALONE)
+  qrCode      String?
   payment     Payment?              @relation(fields: [paymentId], references: [id])
   user        User                  @relation(fields: [userId], references: [id])
   items       ConcessionOrderItem[]
-  tickets     Ticket[]              
+  tickets     Ticket[]              @relation("ConcessionOrderToTicket")
 }
-
 
 model ConcessionOrderItem {
   id       Int              @id @default(autoincrement())
@@ -236,8 +238,8 @@ model ConcessionOrderItem {
 }
 
 enum OrderType {
-  STANDALONE    // Đơn độc lập
-  WITH_TICKET   // Đơn kèm vé
+  STANDALONE
+  WITH_TICKET
 }
 
 enum PaymentStatus {

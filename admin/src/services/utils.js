@@ -7,7 +7,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 // Thiết lập múi giờ Việt Nam
-const VIETNAM_TIMEZONE = 'Asia/Ho_Chi_Minh'; // UTC+7
+const VIETNAM_TIMEZONE = "Asia/Ho_Chi_Minh"; // UTC+7
 
 /**
  * Chuyển đổi thời gian từ giờ địa phương sang UTC đúng cách
@@ -16,7 +16,7 @@ const VIETNAM_TIMEZONE = 'Asia/Ho_Chi_Minh'; // UTC+7
  */
 const convertToUTC = (localTime) => {
   if (!localTime) return null;
-  
+
   try {
     return dayjs.tz(localTime, VIETNAM_TIMEZONE).utc().format();
   } catch (error) {
@@ -32,7 +32,7 @@ const convertToUTC = (localTime) => {
  */
 const convertToVietnamTime = (utcTime) => {
   if (!utcTime) return null;
-  
+
   try {
     return dayjs(utcTime).tz(VIETNAM_TIMEZONE).toDate();
   } catch (error) {
@@ -79,19 +79,21 @@ const removeIdField = (data) => {
 
 // Xử lý phản hồi API cho các trường hợp khác nhau
 const processApiResponse = (json, headers = {}) => {
-  // Xử lý trường hợp API trả về cấu trúc { data: [...] }
+  // Xử lý trường hợp API trả về cấu trúc { data: [...], total: number, totalPages: number }
   if (json && json.data && Array.isArray(json.data)) {
     return {
       data: json.data,
-      total: json.meta?.total || 0,
+      total: json.total || json.meta?.total || 0,
+      totalPages: json.totalPages || 0,
     };
   }
-  // Xử lý trường hợp thông thường
+  // Xử lý trường hợp API trả về mảng trực tiếp
   return {
     data: Array.isArray(json) ? json : [],
     total:
       parseInt(headers.get("x-total-count")) ||
       (Array.isArray(json) ? json.length : 0),
+    totalPages: 0,
   };
 };
 
@@ -118,27 +120,28 @@ const processManyResponse = (json) => {
 // Format lỗi để hiển thị nhất quán
 export const formatError = (message, error) => {
   console.error(message, error);
-  
+
   // Nếu error có response từ server
   if (error.response) {
-    const serverError = error.response.data.error || error.response.data.message;
+    const serverError =
+      error.response.data.error || error.response.data.message;
     return new Error(serverError || message);
   }
-  
+
   // Nếu là lỗi network
-  if (error.message === 'Network Error') {
-    return new Error('Không thể kết nối đến server');
+  if (error.message === "Network Error") {
+    return new Error("Không thể kết nối đến server");
   }
-  
+
   return new Error(message);
 };
 
 // Format dữ liệu trả về thành công
-export const formatSuccess = (data, message = '') => {
+export const formatSuccess = (data, message = "") => {
   return {
     success: true,
     data,
-    message
+    message,
   };
 };
 
@@ -146,35 +149,39 @@ export const formatSuccess = (data, message = '') => {
 export const formatSearchParams = (params) => {
   // Loại bỏ các giá trị undefined, null hoặc empty string
   const filteredParams = Object.entries(params).reduce((acc, [key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
+    if (value !== undefined && value !== null && value !== "") {
       acc[key] = value;
     }
     return acc;
   }, {});
-  
+
   return new URLSearchParams(filteredParams);
 };
 
 // Format dữ liệu cho select options
-export const formatSelectOptions = (data, labelKey = 'name', valueKey = 'id') => {
-  return data.map(item => ({
+export const formatSelectOptions = (
+  data,
+  labelKey = "name",
+  valueKey = "id"
+) => {
+  return data.map((item) => ({
     label: item[labelKey],
-    value: item[valueKey]
+    value: item[valueKey],
   }));
 };
 
 // Format tiền tệ
 export const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND'
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
   }).format(amount);
 };
 
 // Format date and time
 export const formatDateTime = (dateString) => {
-  if (!dateString) return '-';
-  return dayjs(dateString).tz(VIETNAM_TIMEZONE).format('DD/MM/YYYY HH:mm:ss');
+  if (!dateString) return "-";
+  return dayjs(dateString).tz(VIETNAM_TIMEZONE).format("DD/MM/YYYY HH:mm:ss");
 };
 
 export {
@@ -184,5 +191,5 @@ export {
   processApiResponse,
   processManyResponse,
   convertToUTC,
-  convertToVietnamTime
+  convertToVietnamTime,
 };

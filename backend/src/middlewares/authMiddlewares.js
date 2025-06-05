@@ -14,10 +14,7 @@ const authenticate = (req, res, next) => {
   }
 
   try {
-    // Log token trước khi verify (nếu cần)
-    console.log("[AUTH] Token nhận được:", token);
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("[AUTH] Token decoded:", decoded);
     req.user = {
       id: decoded.userId,
       role: decoded.role

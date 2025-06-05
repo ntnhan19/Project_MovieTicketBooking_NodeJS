@@ -1,7 +1,6 @@
 import React, { memo } from 'react';
 import {
   PlayCircleOutlined,
-  StarFilled,
   FieldTimeOutlined,
   FireFilled,
   CalendarOutlined,

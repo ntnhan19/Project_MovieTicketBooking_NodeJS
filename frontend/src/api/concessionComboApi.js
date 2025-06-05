@@ -1,16 +1,21 @@
-// frontend/src/api/concessionComboApi.js
-import axiosInstance from './axiosInstance';
+import axiosInstance from "./axiosInstance";
 
 export const concessionComboApi = {
   // Lấy tất cả combo có sẵn (dành cho người dùng)
   getAvailableCombos: async () => {
     try {
-      const response = await axiosInstance.get('/concession/combos', {
-        params: { isAvailable: true }
+      const response = await axiosInstance.get("/concession/combos", {
+        params: { isAvailable: true },
       });
-      return response.data;
+      console.log("API /concession/combos raw response:", response);
+      
+      // FIX: Trả về response.data trực tiếp thay vì wrap thêm
+      const combos = Array.isArray(response.data) ? response.data : [];
+      console.log("API /concession/combos processed:", combos);
+      
+      return combos; // Trả về mảng combos trực tiếp
     } catch (error) {
-      console.error('Lỗi khi lấy danh sách combo:', error);
+      console.error("Lỗi khi lấy danh sách combo:", error);
       throw error;
     }
   },
@@ -19,7 +24,7 @@ export const concessionComboApi = {
   getComboById: async (comboId) => {
     try {
       const response = await axiosInstance.get(`/concession/combos/${comboId}`);
-      return response.data.data;
+      return response.data.data || response.data;
     } catch (error) {
       console.error(`Lỗi khi lấy thông tin combo ${comboId}:`, error);
       throw error;
@@ -29,12 +34,12 @@ export const concessionComboApi = {
   // Tìm kiếm combo theo tên
   searchCombos: async (searchTerm) => {
     try {
-      const response = await axiosInstance.get('/concession/combos', {
-        params: { q: searchTerm, isAvailable: true }
+      const response = await axiosInstance.get("/concession/combos", {
+        params: { q: searchTerm, isAvailable: true },
       });
-      return response.data;
+      return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
-      console.error('Lỗi khi tìm kiếm combo:', error);
+      console.error("Lỗi khi tìm kiếm combo:", error);
       throw error;
     }
   },
@@ -42,15 +47,15 @@ export const concessionComboApi = {
   // Lấy danh sách combo phổ biến
   getPopularCombos: async (limit = 5) => {
     try {
-      const response = await axiosInstance.get('/concession/combos/popular', {
-        params: { limit }
+      const response = await axiosInstance.get("/concession/combos/popular", {
+        params: { limit },
       });
-      return response.data;
+      return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
-      console.error('Lỗi khi lấy danh sách combo phổ biến:', error);
+      console.error("Lỗi khi lấy danh sách combo phổ biến:", error);
       throw error;
     }
-  }
+  },
 };
 
 export default concessionComboApi;

@@ -1,34 +1,39 @@
-// frontend/src/hooks/useMovies.js
 import { useState, useEffect } from "react";
 import { movieApi } from "../api/movieApi";
 import { message } from "antd";
 
-const useMovies = () => {
+const useMovies = ({ enable = true, transformPoster = true } = {}) => {
   const [nowShowing, setNowShowing] = useState([]);
   const [comingSoon, setComingSoon] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null); 
 
   useEffect(() => {
+    if (!enable) return;
+
     const fetchAll = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
         const [now, soon] = await Promise.all([
           movieApi.getNowShowing(),
-          movieApi.getComingSoon()
+          movieApi.getComingSoon(),
         ]);
 
-        const withFullPoster = (list) =>
-          list.map((movie) => ({
+        const formatPoster = (movie) => {
+          if (!transformPoster) return movie;
+          return {
             ...movie,
             poster: movie.poster?.startsWith("http")
               ? movie.poster
               : `${import.meta.env.VITE_BACKEND_URL}/${movie.poster}`,
-          }));
+          };
+        };
 
-        setNowShowing(withFullPoster(now));
-        setComingSoon(withFullPoster(soon));
+        setNowShowing(now.map(formatPoster));
+        setComingSoon(soon.map(formatPoster));
       } catch (err) {
-        console.error(err);
+        setError(err);
         message.error("Không thể tải danh sách phim.");
       } finally {
         setLoading(false);
@@ -36,9 +41,9 @@ const useMovies = () => {
     };
 
     fetchAll();
-  }, []);
+  }, [enable, transformPoster]);
 
-  return { nowShowing, comingSoon, loading };
+  return { nowShowing, comingSoon, loading, error };
 };
 
 export default useMovies;

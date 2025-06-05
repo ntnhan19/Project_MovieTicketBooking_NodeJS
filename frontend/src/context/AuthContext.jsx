@@ -70,13 +70,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const token = sessionStorage.getItem("token"); // Sử dụng sessionStorage
+        const token = sessionStorage.getItem("token");
         if (token) {
           try {
             const userData = await userApi.getCurrentUser();
             setUser(userData);
             setIsAuthenticated(true);
-            sessionStorage.setItem("user", JSON.stringify(userData)); // Sử dụng sessionStorage
+            sessionStorage.setItem("user", JSON.stringify(userData)); 
           } catch (error) {
             console.error("Failed to fetch user data:", error);
             authApi.logout();
@@ -110,10 +110,10 @@ export const AuthProvider = ({ children }) => {
       }
       setUser(user);
       setIsAuthenticated(true);
-      sessionStorage.setItem("token", token); // Sử dụng sessionStorage
-      sessionStorage.setItem("user", JSON.stringify(user)); // Sử dụng sessionStorage
-      sessionStorage.setItem("userId", user.id); // Sử dụng sessionStorage
-      sessionStorage.setItem("auth", JSON.stringify({ user, token })); // Sử dụng sessionStorage
+      sessionStorage.setItem("token", token); 
+      sessionStorage.setItem("user", JSON.stringify(user));
+      sessionStorage.setItem("userId", user.id); 
+      sessionStorage.setItem("auth", JSON.stringify({ user, token })); 
       axiosInstance.defaults.headers.common[
         "Authorization"
       ] = `Bearer ${token}`;
@@ -139,6 +139,8 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const result = await authApi.register(userData);
+
+      // Chỉ hiển thị toast thành công và chuyển tab nếu thực sự thành công
       toast.success(
         result.message ||
           "Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản."
@@ -147,9 +149,7 @@ export const AuthProvider = ({ children }) => {
       return { success: true, message: result.message };
     } catch (error) {
       console.error("Register error:", error);
-      const errorMessage = error.response?.data?.error || "Đăng ký thất bại";
-      toast.error(errorMessage);
-      return { success: false, error: errorMessage };
+      throw error;
     } finally {
       setLoading(false);
     }

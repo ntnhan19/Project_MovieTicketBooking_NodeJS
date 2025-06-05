@@ -135,7 +135,7 @@ const vnpayReturn = async (req, res) => {
     if (result.success) {
       const payment = await paymentService.getPaymentById(result.paymentId);
       return res.redirect(
-        `${process.env.FRONTEND_URL}/booking/payment?paymentId=${
+        `${process.env.FRONTEND_URL}/payment-completion?paymentId=${
           result.paymentId
         }&status=success&transactionId=${
           payment.transactionId || result.transactionId
@@ -143,7 +143,7 @@ const vnpayReturn = async (req, res) => {
       );
     } else {
       return res.redirect(
-        `${process.env.FRONTEND_URL}/booking/payment/result?paymentId=${
+        `${process.env.FRONTEND_URL}/payment-completion/result?paymentId=${
           result.paymentId
         }&status=failed&code=${
           result.responseCode
@@ -155,7 +155,7 @@ const vnpayReturn = async (req, res) => {
     return res.redirect(
       `${
         process.env.FRONTEND_URL
-      }/payment/result?error=true&message=${encodeURIComponent(error.message)}`
+      }/payment-completion?error=true&message=${encodeURIComponent(error.message)}`
     );
   }
 };

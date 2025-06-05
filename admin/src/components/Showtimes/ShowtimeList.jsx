@@ -1,4 +1,3 @@
-// src/components/Showtimes/ShowtimeList.jsx
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -19,43 +18,68 @@ const ShowtimeList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("startTime");
   const [sortOrder, setSortOrder] = useState("DESC");
-  const [filter, setFilter] = useState({});
+  const [filter, setFilter] = useState({ status: "all" });
   const [movies, setMovies] = useState([]);
   const [halls, setHalls] = useState([]);
   const [cinemas, setCinemas] = useState([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
-  const perPage = 10; // Thêm biến perPage
+  const perPage = 10;
 
-  // Tải danh sách suất chiếu
   const fetchShowtimes = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const filterWithSearch = searchTerm
-        ? { ...filter, q: searchTerm }
-        : filter;
+  setLoading(true);
+  setError(null);
+  try {
+    let filterWithSearch = { ...filter, showPast: "true" }; // Đảm bảo lấy tất cả suất chiếu
 
-      const response = await showtimeService.getList({
-        pagination: { page: currentPage, perPage: perPage },
-        sort: { field: sortField, order: sortOrder },
-        filter: filterWithSearch,
-      });
-
-      console.log("Dữ liệu suất chiếu nhận được:", response); // Debug
-      setShowtimes(response.data);
-
-      // Fix: Kiểm tra và đặt giá trị mặc định cho totalPages nếu undefined
-      setTotalPages(response.totalPages || Math.ceil(response.total / perPage));
-      setTotalItems(response.total);
-    } catch (err) {
-      console.error("Lỗi khi tải danh sách suất chiếu:", err);
-      setError("Không thể tải danh sách suất chiếu. Vui lòng thử lại sau.");
-    } finally {
-      setLoading(false);
+    // Xử lý tìm kiếm
+    if (searchTerm) {
+      filterWithSearch.q = searchTerm;
     }
-  };
 
-  // Tải dữ liệu liên quan: phim, phòng chiếu, rạp
+    // Loại bỏ các trường không cần thiết
+    delete filterWithSearch._sort;
+    delete filterWithSearch._order;
+
+    console.log("Filter sent to API:", filterWithSearch);
+    const response = await showtimeService.getList({
+      pagination: { page: currentPage, perPage },
+      sort: { field: sortField, order: sortOrder },
+      filter: filterWithSearch,
+    });
+
+    console.log("API Response:", response);
+    // Xử lý dữ liệu từ phản hồi
+    const data = response.data || [];
+    const total = response.total || 0;
+    const totalPages = response.totalPages || Math.ceil(total / perPage);
+
+    setShowtimes(data);
+    setTotalItems(total);
+    setTotalPages(totalPages);
+
+    // Nếu không có dữ liệu, hiển thị thông báo
+    if (data.length === 0) {
+      setError("Không tìm thấy suất chiếu nào phù hợp.");
+    }
+  } catch (err) {
+    console.error("Lỗi khi tải danh sách suất chiếu:", err);
+    setError(
+      err.message || "Không thể tải danh sách suất chiếu. Vui lòng thử lại sau."
+    );
+    setShowtimes([]);
+    setTotalItems(0);
+    setTotalPages(0);
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Cập nhật useEffect để áp dụng bộ lọc mặc định
+useEffect(() => {
+  setFilter({ status: "all", showPast: "true" }); // Mặc định lấy tất cả suất chiếu
+  fetchShowtimes();
+}, [currentPage, sortField, sortOrder]);
+
   const fetchRelatedData = async () => {
     setLoadingRelated(true);
     try {
@@ -68,21 +92,17 @@ const ShowtimeList = () => {
         ...(token && { Authorization: `Bearer ${token}` }),
       };
 
-      // Sử dụng apiUrl từ httpClient thay vì hardcode
       const [moviesResponse, hallsResponse, cinemasResponse] =
         await Promise.all([
-          fetch(`${apiUrl}/movies?limit=100`, { headers }).then((res) => {
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            return res.json();
-          }),
-          fetch(`${apiUrl}/halls?limit=100`, { headers }).then((res) => {
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            return res.json();
-          }),
-          fetch(`${apiUrl}/cinemas?limit=100`, { headers }).then((res) => {
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            return res.json();
-          }),
+          fetch(`${apiUrl}/movies?limit=1000`, { headers }).then((res) =>
+            res.json()
+          ),
+          fetch(`${apiUrl}/halls?limit=100`, { headers }).then((res) =>
+            res.json()
+          ),
+          fetch(`${apiUrl}/cinemas?limit=100`, { headers }).then((res) =>
+            res.json()
+          ),
         ]);
 
       setMovies(moviesResponse.data || moviesResponse || []);
@@ -90,17 +110,12 @@ const ShowtimeList = () => {
       setCinemas(cinemasResponse.data || cinemasResponse || []);
     } catch (err) {
       console.error("Lỗi khi tải dữ liệu liên quan:", err);
-      setError(
-        (prev) =>
-          prev ||
-          "Không thể tải đầy đủ thông tin phim và rạp. Một số thông tin có thể hiển thị không đầy đủ."
-      );
+      setError("Không thể tải đầy đủ thông tin phim và rạp.");
     } finally {
       setLoadingRelated(false);
     }
   };
 
-  // Gọi API khi component được mount hoặc khi các dependencies thay đổi
   useEffect(() => {
     fetchShowtimes();
   }, [currentPage, sortField, sortOrder, filter]);
@@ -109,10 +124,9 @@ const ShowtimeList = () => {
     fetchRelatedData();
   }, []);
 
-  // Xử lý tìm kiếm với debounce
   const debouncedSearch = debounce((value) => {
     setSearchTerm(value);
-    setCurrentPage(1); // Reset về trang đầu tiên khi tìm kiếm
+    setCurrentPage(1);
     fetchShowtimes();
   }, 500);
 
@@ -120,12 +134,10 @@ const ShowtimeList = () => {
     debouncedSearch(e.target.value);
   };
 
-  // Xử lý xóa suất chiếu
   const handleDelete = async (id) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa suất chiếu này không?")) {
       try {
         await showtimeService.delete(id);
-        // Cập nhật lại danh sách sau khi xóa
         fetchShowtimes();
       } catch (err) {
         console.error("Lỗi khi xóa suất chiếu:", err);
@@ -134,15 +146,14 @@ const ShowtimeList = () => {
     }
   };
 
-  // Xử lý thay đổi sắp xếp
   const handleSort = (field) => {
     const newOrder =
-      field === sortField && sortOrder === "DESC" ? "ASC" : "DESC";
+      field === sortField && sortOrder === "ASC" ? "DESC" : "ASC";
     setSortField(field);
     setSortOrder(newOrder);
+    setCurrentPage(1);
   };
 
-  // Xử lý lọc theo phim
   const handleFilterByMovie = (movieId) => {
     if (movieId === "all") {
       const { movieId, ...restFilter } = filter;
@@ -153,7 +164,6 @@ const ShowtimeList = () => {
     setCurrentPage(1);
   };
 
-  // Xử lý lọc theo phòng chiếu
   const handleFilterByHall = (hallId) => {
     if (hallId === "all") {
       const { hallId, ...restFilter } = filter;
@@ -164,15 +174,24 @@ const ShowtimeList = () => {
     setCurrentPage(1);
   };
 
-  // Xóa tất cả bộ lọc
+  const handleFilterByStatus = (status) => {
+    if (status === "all") {
+      const { status, ...restFilter } = filter;
+      setFilter(restFilter);
+    } else {
+      setFilter({ ...filter, status });
+    }
+    setCurrentPage(1);
+  };
+
   const handleClearFilters = () => {
-    setFilter({});
+    setFilter({ status: "all" });
     setSearchTerm("");
     setCurrentPage(1);
     document.getElementById("search-input").value = "";
+    fetchShowtimes();
   };
 
-  // Format thời gian hiển thị
   const formatDateTime = (dateString) => {
     if (!dateString) return "---";
     try {
@@ -183,51 +202,32 @@ const ShowtimeList = () => {
     }
   };
 
-  // Lấy tên phim từ ID
   const getMovieTitle = (movieId) => {
     if (!movieId) return "---";
     const movie = movies.find(
       (m) => m.id === movieId || m.id === Number(movieId)
     );
-    if (!movie) {
-      return "---";
-    }
-    return movie.title || movie.name || "---";
+    return movie ? movie.title || movie.name || "---" : "---";
   };
 
-  // Lấy tên phòng chiếu từ ID
   const getHallName = (hallId) => {
     if (!hallId) return "---";
     const hall = halls.find((h) => h.id === hallId || h.id === Number(hallId));
-    if (!hall) {
-      return "---";
-    }
-    return hall.name || "---";
+    return hall ? hall.name || "---" : "---";
   };
 
-  // Lấy tên rạp từ ID phòng chiếu
   const getCinemaName = (hallId) => {
     if (!hallId) return "---";
     const hall = halls.find((h) => h.id === hallId || h.id === Number(hallId));
-    if (!hall) {
-      return "---";
-    }
-
+    if (!hall) return "---";
     const cinemaId = hall.cinemaId;
-    if (!cinemaId) {
-      return "---";
-    }
-
+    if (!cinemaId) return "---";
     const cinema = cinemas.find(
       (c) => c.id === cinemaId || c.id === Number(cinemaId)
     );
-    if (!cinema) {
-      return "---";
-    }
-    return cinema.name || "---";
+    return cinema ? cinema.name || "---" : "---";
   };
 
-  // Format giá tiền
   const formatPrice = (price) => {
     if (price === null || price === undefined) return "---";
     return new Intl.NumberFormat("vi-VN").format(price) + " VND";
@@ -275,7 +275,7 @@ const ShowtimeList = () => {
       </div>
 
       {/* Filters */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 pb-6">
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4 pb-6">
         <div className="md:col-span-1">
           <label htmlFor="search-input" className="sr-only">
             Tìm kiếm
@@ -304,7 +304,7 @@ const ShowtimeList = () => {
             />
           </div>
         </div>
-        
+
         <div>
           <select
             className="block w-full pl-3 pr-10 py-2 border border-border dark:border-border-dark rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-background-paper-dark text-text-primary dark:text-text-primary-dark"
@@ -320,7 +320,7 @@ const ShowtimeList = () => {
             ))}
           </select>
         </div>
-        
+
         <div>
           <select
             className="block w-full pl-3 pr-10 py-2 border border-border dark:border-border-dark rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-background-paper-dark text-text-primary dark:text-text-primary-dark"
@@ -336,8 +336,21 @@ const ShowtimeList = () => {
             ))}
           </select>
         </div>
+
+        <div>
+          <select
+            className="block w-full pl-3 pr-10 py-2 border border-border dark:border-border-dark rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-background-paper-dark text-text-primary dark:text-text-primary-dark"
+            onChange={(e) => handleFilterByStatus(e.target.value)}
+            value={filter.status || "all"}
+          >
+            <option value="all">Tất cả trạng thái</option>
+            <option value="playing">Đang chiếu</option>
+            <option value="upcoming">Sắp chiếu</option>
+            <option value="ended">Hết chiếu</option>
+          </select>
+        </div>
       </div>
-      
+
       <div className="mb-4">
         <button
           onClick={handleClearFilters}
@@ -736,7 +749,7 @@ const ShowtimeList = () => {
           </div>
 
           {/* Pagination */}
-          {!loading && showtimes.length > 0 && (
+          {!loading && totalItems > 0 && (
             <div className="mt-6">
               <Pagination
                 currentPage={currentPage}
@@ -744,6 +757,7 @@ const ShowtimeList = () => {
                 onPageChange={setCurrentPage}
                 totalItems={totalItems}
                 itemsPerPage={perPage}
+                maxPageButtons={7}
               />
             </div>
           )}

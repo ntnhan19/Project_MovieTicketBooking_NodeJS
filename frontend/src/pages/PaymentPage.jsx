@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Card,
@@ -12,7 +12,7 @@ import {
   Progress,
   Divider,
   Tag,
-  Modal,
+  ConfigProvider,
 } from "antd";
 import {
   HomeOutlined,
@@ -20,8 +20,6 @@ import {
   TagOutlined,
   ClockCircleOutlined,
   VideoCameraOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
   CoffeeOutlined,
 } from "@ant-design/icons";
 import { paymentApi } from "../api/paymentApi";
@@ -32,7 +30,6 @@ import { ThemeContext } from "../context/ThemeContext";
 import { concessionOrderApi } from "../api/concessionOrderApi";
 import VNPayPayment from "../components/Payments/VNPayPayment";
 import PaymentMethodStep from "../components/Payments/PaymentSteps/PaymentMethodStep";
-import CompletionStep from "../components/Payments/PaymentSteps/CompletionStep";
 import ConcessionStep from "../components/Payments/PaymentSteps/ConcessionsStep";
 
 const { Step } = Steps;
@@ -50,148 +47,92 @@ const PaymentPage = () => {
   const [showtimeId, setShowtimeId] = useState(null);
   const [showtimeDetails, setShowtimeDetails] = useState(null);
   const [seatDetails, setSeatDetails] = useState([]);
+  const [isLoadingTotal] = useState(false);
   const [totalPrice, setTotalPrice] = useState(0);
-  const [isLoadingTotal, setIsLoadingTotal] = useState(false);
   const [promotionDiscount, setPromotionDiscount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState("vnpay");
   const [currentStep, setCurrentStep] = useState(1);
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [paymentError, setPaymentError] = useState(null);
-  const [ticketData, setTicketData] = useState(null);
-  const [paymentData, setPaymentData] = useState(null);
-  const [userId, setUserId] = useState(
-    parseInt(sessionStorage.getItem("userId")) || null
-  );
+  const [userId] = useState(parseInt(sessionStorage.getItem("userId")) || null);
   const [concessionOrderId, setConcessionOrderId] = useState(() => {
     const storedUserId = parseInt(sessionStorage.getItem("userId"));
-    if (storedUserId) {
-      return (
-        sessionStorage.getItem(`concessionOrderId_${storedUserId}`) || null
-      );
-    }
-    return null;
+    return storedUserId
+      ? sessionStorage.getItem(`concessionOrderId_${storedUserId}`) || null
+      : null;
   });
   const [timeRemaining, setTimeRemaining] = useState(() => {
-    // Chỉ lấy timeRemaining nếu userId đã được định nghĩa
     const storedUserId = parseInt(sessionStorage.getItem("userId"));
-    if (storedUserId) {
-      const storedTime = sessionStorage.getItem(
-        `timeRemaining_${storedUserId}`
-      );
-      return storedTime ? parseInt(storedTime) : SEAT_LOCK_TIME;
-    }
-    return SEAT_LOCK_TIME;
+    return storedUserId
+      ? parseInt(
+          sessionStorage.getItem(`timeRemaining_${storedUserId}`) ||
+            SEAT_LOCK_TIME
+        )
+      : SEAT_LOCK_TIME;
   });
   const [lockStartTime, setLockStartTime] = useState(null);
 
-  useEffect(() => {
-    const calculateTotal = () => {
-      const seatsTotal = seatDetails.reduce(
-        (sum, seat) => sum + (seat.price || 0),
-        0
-      );
-      const concessionsTotal = selectedConcessions.reduce(
-        (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
-        0
-      );
-      return seatsTotal + concessionsTotal;
-    };
-    const total = calculateTotal();
-    setTotalPrice(total);
-    // Lưu totalPrice vào sessionStorage
-    sessionStorage.setItem(`totalPrice_${userId}`, total.toString());
-  }, [seatDetails, selectedConcessions]);
-
-  const handleConcessionChange = (concessions) => {
-    setSelectedConcessions(concessions);
-    const storedUserId = parseInt(sessionStorage.getItem("userId")) || null;
-    if (storedUserId) {
-      sessionStorage.setItem(
-        `selectedConcessions_${storedUserId}`,
-        JSON.stringify(concessions)
-      );
-    } else {
-      console.warn("User ID không hợp lệ, không thể lưu selectedConcessions.");
-    }
+  const antdTheme = {
+    token: {
+      colorPrimary: "#e71a0f",
+      colorText: theme === "dark" ? "#d1d5db" : "#333333",
+    },
+    components: {
+      Steps: {
+        colorText: "#e71a0f",
+        colorTextDescription: theme === "dark" ? "#d1d5db" : "#666666",
+        navArrowColor: "#e71a0f",
+        colorPrimary: "#e71a0f",
+      },
+    },
   };
 
   useEffect(() => {
-    const checkVNPayReturn = async () => {
-      if (window.location.search) {
-        const queryParams = window.location.search;
-        setLoading(true);
-        try {
-          const paymentResult = await paymentApi.handleVNPayResult(queryParams);
-          const storedTicketData = localStorage.getItem("vnpay_ticket_data");
-          let ticketDataParsed = storedTicketData
-            ? JSON.parse(storedTicketData)
-            : null;
+    if (userId && totalPrice > 0) {
+      sessionStorage.setItem(`totalPrice_${userId}`, totalPrice.toString());
+    }
+  }, [totalPrice, userId]);
 
-          // Lấy chi tiết đơn bắp nước nếu có
-          let concessionOrders = [];
-          if (paymentResult.payment?.concessionOrderIds?.length > 0) {
-            const orderId = paymentResult.payment.concessionOrderIds[0];
-            try {
-              const order = await concessionOrderApi.getUserOrderById(orderId);
-              concessionOrders = [
-                {
-                  id: order.id,
-                  items: order.items.map((item) => ({
-                    id: item.id,
-                    name: item.name,
-                    quantity: item.quantity,
-                    price: item.price,
-                    type: item.type,
-                  })),
-                  totalAmount: order.totalAmount,
-                },
-              ];
-            } catch (error) {
-              console.error("Lỗi khi lấy chi tiết đơn bắp nước:", error);
-              message.warning("Không thể tải chi tiết đơn bắp nước.");
-            }
-          }
+  useEffect(() => {
+    const seatsTotal = seatDetails.reduce(
+      (sum, seat) => sum + (seat.price || 0),
+      0
+    );
+    const concessionsTotal = selectedConcessions.reduce(
+      (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
+      0
+    );
+    const total = seatsTotal + concessionsTotal;
+    setTotalPrice(total);
+    if (userId && total > 0) {
+      sessionStorage.setItem(`totalPrice_${userId}`, total.toString());
+    }
+  }, [seatDetails, selectedConcessions, userId]);
 
-          // Cập nhật ticketData với concessions từ API nếu cần
-          if (ticketDataParsed) {
-            ticketDataParsed.concessions =
-              concessionOrders.length > 0
-                ? concessionOrders[0].items
-                : ticketDataParsed.concessions || [];
-            setTicketData(ticketDataParsed);
-          }
-
-          // Cập nhật paymentData
-          if (paymentResult.payment) {
-            setPaymentData({
-              ...paymentResult.payment,
-              concessionOrders, // Thêm concessionOrders vào paymentData
-            });
-          }
-
-          if (paymentResult.success) {
-            setPaymentSuccess(true);
-            setCurrentStep(3);
-            message.success("Thanh toán thành công!");
-            clearPaymentLocalStorage();
-          } else {
-            setPaymentError(paymentResult.message || "Thanh toán thất bại.");
-            setPaymentSuccess(false);
-            setCurrentStep(2);
-          }
-        } catch (error) {
-          console.error("Lỗi khi xử lý kết quả từ VNPay:", error);
-          setPaymentError("Không thể xử lý kết quả thanh toán.");
-          setCurrentStep(2);
-        } finally {
-          setLoading(false);
-        }
+  const handleConcessionChange = useCallback(
+    (concessions) => {
+      setSelectedConcessions(concessions);
+      if (userId) {
+        sessionStorage.setItem(
+          `selectedConcessions_${userId}`,
+          JSON.stringify(concessions)
+        );
+      } else {
+        console.warn("Invalid user ID, cannot save selectedConcessions.");
       }
-    };
-    checkVNPayReturn();
-  }, [searchParams]);
+    },
+    [userId]
+  );
+
+  const handleVNPayComplete = (success, paymentResult = null) => {
+    if (success) {
+      navigate(`/payment-completion?${searchParams.toString()}`);
+    } else {
+      const errorMessage =
+        paymentResult?.message || "Thanh toán thất bại hoặc bị hủy.";
+      setCurrentStep(2);
+      message.error(errorMessage);
+    }
+  };
 
   useEffect(() => {
     const getBookingData = async () => {
@@ -199,7 +140,7 @@ const PaymentPage = () => {
       try {
         const storedUserId = parseInt(sessionStorage.getItem("userId"));
         if (!storedUserId) {
-          message.error("Vui lòng đăng nhập để tiếp tục thanh toán");
+          message.error("Vui lòng đăng nhập để tiếp tục thanh toán.");
           navigate("/login");
           return;
         }
@@ -223,10 +164,9 @@ const PaymentPage = () => {
           `seatLockTime_${storedUserId}`
         );
 
-        // Kiểm tra dữ liệu hợp lệ
         if (!storedSeats.length || !storedShowtimeId) {
           message.error(
-            "Không tìm thấy thông tin đặt vé. Vui lòng chọn ghế lại."
+            "Không tìm thấy thông tin đặt vé. Vui lòng chọn lại ghế."
           );
           navigate(`/booking/seats/${storedShowtimeId || ""}`);
           return;
@@ -241,11 +181,9 @@ const PaymentPage = () => {
           storedLockTime ? parseInt(storedLockTime) : Date.now()
         );
 
-        // Lấy thông tin suất chiếu
         const showtime = await showtimeApi.getShowtimeById(storedShowtimeId);
         setShowtimeDetails(showtime);
 
-        // Xử lý chi tiết ghế
         if (storedSeats.length > 0 && typeof storedSeats[0] === "object") {
           setSeatDetails(storedSeats);
         } else {
@@ -261,10 +199,8 @@ const PaymentPage = () => {
           setSeatDetails(selectedSeatsDetails);
         }
       } catch (error) {
-        console.error("Error fetching booking data:", error);
-        message.error(
-          error.message || "Không thể tải thông tin đặt vé. Vui lòng thử lại."
-        );
+        console.error("Lỗi khi lấy dữ liệu đặt vé:", error);
+        message.error(error.message || "Không thể tải thông tin đặt vé.");
         navigate("/");
       } finally {
         setLoading(false);
@@ -275,55 +211,57 @@ const PaymentPage = () => {
 
   useEffect(() => {
     if (!lockStartTime) return;
+
     const calculateTimeRemaining = () => {
       const now = Date.now();
       const elapsedSeconds = Math.floor((now - lockStartTime) / 1000);
       const remaining = Math.max(0, SEAT_LOCK_TIME - elapsedSeconds);
       setTimeRemaining(remaining);
       sessionStorage.setItem(`timeRemaining_${userId}`, remaining.toString());
+
       if (remaining <= 0) {
-        message.warning("Đã hết thời gian giữ ghế! Vui lòng chọn lại.");
+        message.warning("Thời gian giữ ghế đã hết! Vui lòng chọn lại ghế.");
         if (selectedSeats.length > 0) {
           const seatIds = selectedSeats.map((seat) =>
             typeof seat === "object" ? seat.id : seat
           );
           seatApi.unlockSeats(seatIds).catch((err) => {
-            console.error("Lỗi khi giải phóng ghế:", err);
+            console.error("Lỗi khi mở khóa ghế:", err);
           });
         }
         clearPaymentLocalStorage();
         navigate(`/booking/seats/${showtimeId}`);
       }
     };
+
     calculateTimeRemaining();
     const timer = setInterval(calculateTimeRemaining, 1000);
     return () => clearInterval(timer);
   }, [lockStartTime, selectedSeats, showtimeId, navigate, userId]);
 
   const handlePaymentConfirm = async ({
-    paymentMethod,
     promotionCode,
     promotionDiscount,
-    concessionOrderId, // Thêm concessionOrderId vào tham số
+    concessionOrderId,
   }) => {
     if (!showtimeId || selectedSeats.length === 0) {
-      message.error("Thông tin đặt vé không hợp lệ");
+      message.error("Thông tin đặt vé không hợp lệ.");
       return;
     }
+
     setIsPaymentProcessing(true);
-    setPaymentError(null);
+
     try {
       const storedUserId = parseInt(sessionStorage.getItem("userId"));
       const token = sessionStorage.getItem("token");
       if (!token || !storedUserId) {
-        throw new Error("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
+        throw new Error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.");
       }
 
       const seatIds = selectedSeats.map((seat) =>
         typeof seat === "object" ? parseInt(seat.id) : parseInt(seat)
       );
 
-      // Bước 1: Tạo vé
       const ticketResponse = await ticketApi.createTicket({
         userId: storedUserId,
         showtimeId: parseInt(showtimeId),
@@ -336,10 +274,9 @@ const PaymentPage = () => {
           (ticket) => !ticket.error
         );
         if (successTickets.length === 0) {
-          throw new Error("Không có vé nào được tạo thành công");
+          throw new Error("Không có vé nào được tạo thành công.");
         }
 
-        // Bước 2: Cập nhật ticketIds vào đơn bắp nước nếu có
         if (concessionOrderId) {
           try {
             await concessionOrderApi.updateOrder(concessionOrderId, {
@@ -347,25 +284,20 @@ const PaymentPage = () => {
               orderType: "WITH_TICKET",
             });
           } catch (error) {
-            console.error(
-              "Lỗi khi cập nhật ticketIds vào đơn bắp nước:",
-              error
-            );
+            console.error("Lỗi khi cập nhật đơn bắp nước với ID vé:", error);
             throw new Error("Không thể cập nhật đơn bắp nước.");
           }
         }
 
-        // Bước 3: Lưu dữ liệu vé
-        setTicketData({
+        const ticketData = {
           tickets: successTickets,
           firstTicket: successTickets[0],
           totalAmount: ticketResponse.totalAmount,
           concessions: selectedConcessions,
           promotionCode,
           promotionDiscount,
-        });
+        };
 
-        // Bước 4: Tạo thanh toán
         const paymentData = {
           ticketIds: successTickets.map((ticket) => ticket.id),
           concessionOrderIds: concessionOrderId
@@ -374,43 +306,23 @@ const PaymentPage = () => {
           method: "VNPAY",
           promotionCode: promotionCode || null,
         };
-        console.log("Sending payment data:", paymentData);
-        const paymentResponse = await paymentApi.processPayment(paymentData);
-        setPaymentData(paymentResponse);
 
-        if (paymentResponse.paymentUrl) {
-          localStorage.setItem(
-            "vnpay_payment_data",
-            JSON.stringify(paymentResponse)
-          );
-          localStorage.setItem(
-            "vnpay_ticket_data",
-            JSON.stringify({
-              tickets: successTickets,
-              firstTicket: successTickets[0],
-              totalAmount: ticketResponse.totalAmount,
-              concessions: selectedConcessions,
-              promotionCode,
-              promotionDiscount,
-            })
-          );
-          setCurrentStep(2.5);
-        } else {
-          throw new Error("Không nhận được URL thanh toán từ VNPay");
-        }
+        const paymentResponse = await paymentApi.processPayment(paymentData);
+        localStorage.setItem("vnpay_payment_data", JSON.stringify(paymentResponse));
+        localStorage.setItem("vnpay_ticket_data", JSON.stringify(ticketData));
+        setCurrentStep(2.5);
       } else {
-        throw new Error("Không nhận được thông tin vé sau khi tạo");
+        throw new Error("Không nhận được thông tin vé sau khi tạo.");
       }
     } catch (error) {
       console.error("Lỗi xử lý thanh toán:", error);
-      setPaymentSuccess(false);
       let errorMessage = "Thanh toán thất bại. Vui lòng thử lại sau.";
       if (error.response?.status === 401 || error.response?.status === 403) {
         errorMessage = "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.";
         message.error(errorMessage);
         setTimeout(() => navigate("/login"), 2000);
       } else if (error.response?.status === 409) {
-        errorMessage = "Ghế đã được người khác đặt. Vui lòng chọn lại.";
+        errorMessage = "Ghế đã được đặt bởi người khác. Vui lòng chọn lại.";
         message.error(errorMessage);
         navigate(`/booking/seats/${showtimeId}`);
       } else if (
@@ -421,41 +333,21 @@ const PaymentPage = () => {
         message.error(errorMessage);
         setCurrentStep(1);
       } else if (error.response?.status === 400) {
-        errorMessage =
-          error.response?.data?.message || "Dữ liệu thanh toán không hợp lệ";
+        errorMessage = error.response?.data?.message || "Dữ liệu thanh toán không hợp lệ.";
         message.error(errorMessage);
       } else if (error.response?.status === 500) {
-        errorMessage = "Hệ thống đang gặp sự cố. Vui lòng thử lại sau.";
+        errorMessage = "Lỗi hệ thống. Vui lòng thử lại sau.";
         message.error(errorMessage);
       } else {
-        errorMessage =
-          error.response?.data?.message || error.message || errorMessage;
+        errorMessage = error.response?.data?.message || error.message || errorMessage;
         message.error(errorMessage);
       }
-      setPaymentError(errorMessage);
     } finally {
       setIsPaymentProcessing(false);
     }
   };
 
-  const handleVNPayComplete = (success, paymentResult = null) => {
-    if (success) {
-      setPaymentSuccess(true);
-      setCurrentStep(3);
-      clearPaymentLocalStorage();
-      message.success("Thanh toán thành công!");
-    } else {
-      const errorMessage =
-        paymentResult?.message || "Thanh toán không thành công hoặc đã bị hủy.";
-      setPaymentSuccess(false);
-      setPaymentError(errorMessage);
-      setCurrentStep(2);
-      message.error(errorMessage);
-    }
-  };
-
   const clearPaymentLocalStorage = () => {
-    const userId = parseInt(sessionStorage.getItem("userId"));
     if (userId) {
       sessionStorage.removeItem(`selectedSeats_${userId}`);
       sessionStorage.removeItem(`showtimeId_${userId}`);
@@ -466,13 +358,11 @@ const PaymentPage = () => {
       sessionStorage.removeItem(`promotionCode_${userId}`);
       sessionStorage.removeItem(`promotionDiscount_${userId}`);
       sessionStorage.removeItem(`timeRemaining_${userId}`);
+      sessionStorage.removeItem(`concessionOrderId_${userId}`);
+      sessionStorage.removeItem(`lastPaymentId_${userId}`);
     }
     localStorage.removeItem("vnpay_payment_data");
     localStorage.removeItem("vnpay_ticket_data");
-    localStorage.removeItem(`lastPaymentId_${userId}`);
-    localStorage.removeItem(`lastPaymentMethod_${userId}`);
-    localStorage.removeItem(`lastOrderToken_${userId}`);
-    localStorage.removeItem(`lastPaymentAmount_${userId}`);
   };
 
   const handlePrevious = async () => {
@@ -489,7 +379,7 @@ const PaymentPage = () => {
         });
 
         if (invalidSeats.length > 0) {
-          console.log("Invalid seats detected:", invalidSeats);
+          console.log("Phát hiện ghế không hợp lệ:", invalidSeats);
           message.error("Một số ghế không còn hợp lệ. Vui lòng chọn lại.");
           const validSeats = selectedSeats.filter(
             (seat) => !invalidSeats.includes(seat.id)
@@ -517,31 +407,28 @@ const PaymentPage = () => {
             price: seat.price || 0,
           };
         });
+
         sessionStorage.setItem(
           `selectedSeats_${userId}`,
           JSON.stringify(updatedSeats)
         );
-
         clearConcessionData();
         navigate(`/booking/seats/${showtimeId}`);
       } catch (error) {
         console.error("Lỗi khi gia hạn thời gian khóa ghế:", error);
         message.error(
-          error.response?.data?.message ||
-            "Không thể gia hạn thời gian giữ ghế. Vui lòng chọn lại."
+          error.response?.data?.message || "Không thể gia hạn thời gian khóa ghế."
         );
         clearPaymentLocalStorage();
         navigate(`/booking/seats/${showtimeId}`);
       }
     } else if (currentStep === 2 || currentStep === 2.5) {
-      setCurrentStep(1); // Chỉ quay lại bước 1 từ bước 2 hoặc 2.5
+      setCurrentStep(1);
     }
   };
 
   const handleContinue = async () => {
     if (currentStep === 1) {
-      // Kiểm tra userId trước khi tạo đơn hàng
-      const userId = parseInt(sessionStorage.getItem("userId")) || null;
       if (!userId) {
         message.error("Vui lòng đăng nhập để tiếp tục.");
         navigate("/login");
@@ -550,15 +437,15 @@ const PaymentPage = () => {
 
       let newOrderId = null;
 
-      // Nếu có bắp nước, tạo đơn hàng
       if (selectedConcessions.length > 0) {
         try {
           const concessionItems = selectedConcessions.map((item) => ({
             id: parseInt(item.id),
             type: item.type,
-            quantity: item.quantity,
+            quantity: parseInt(item.quantity),
             price: item.price,
           }));
+
           const totalAmount = concessionItems.reduce(
             (sum, item) => sum + item.price * item.quantity,
             0
@@ -573,46 +460,31 @@ const PaymentPage = () => {
             userId,
           };
 
-          console.log(
-            "Sending order data to create concession order:",
-            orderData
-          );
+          console.log("Tạo đơn bắp nước với dữ liệu:", orderData);
           const orderResponse = await concessionOrderApi.createOrder(orderData);
 
-          // Kiểm tra cấu trúc phản hồi
-          console.log("Order response:", orderResponse);
-
-          // Kiểm tra phản hồi từ API
-          if (!orderResponse || !orderResponse.data || !orderResponse.data.id) {
-            throw new Error("Phản hồi API không chứa ID đơn hàng bắp nước.");
+          if (!orderResponse?.data?.id) {
+            throw new Error("Phản hồi API không chứa ID đơn hàng.");
           }
 
           newOrderId = orderResponse.data.id;
-
-          // Cập nhật state và lưu vào sessionStorage
           setConcessionOrderId(newOrderId);
           sessionStorage.setItem(
             `concessionOrderId_${userId}`,
             newOrderId.toString()
           );
         } catch (error) {
-          console.error(
-            "Lỗi khi tạo đơn bắp nước:",
-            error.response?.data || error.message
-          );
+          console.error("Lỗi khi tạo đơn bắp nước:", error);
           message.error(
-            error.response?.data?.message ||
-              "Không thể tạo đơn bắp nước. Vui lòng thử lại."
+            error.response?.data?.message || "Không thể tạo đơn bắp nước."
           );
-          return; // Dừng lại nếu không tạo được đơn hàng
+          return;
         }
       } else {
-        // Nếu không có bắp nước, đặt concessionOrderId thành null
         setConcessionOrderId(null);
         sessionStorage.removeItem(`concessionOrderId_${userId}`);
       }
 
-      // Chuyển sang bước tiếp theo
       setCurrentStep(2);
     }
   };
@@ -626,7 +498,7 @@ const PaymentPage = () => {
     <div className="breadcrumb-container mb-6">
       <div
         className={`flex items-center py-3 px-4 rounded-lg shadow-sm ${
-          theme === "dark" ? "bg-dark-bg-secondary" : "bg-light-bg-secondary"
+          theme === "dark" ? "bg-gray-800" : "bg-gray-100"
         }`}
       >
         <div className="flex items-center text-red-500 dark:text-red-400">
@@ -729,7 +601,7 @@ const PaymentPage = () => {
           <CreditCardOutlined className="mr-2 text-red-500 dark:text-red-400" />
           <span
             className={`${
-              theme === "dark" ? "text-dark-text-primary" : "text-gray-700"
+              theme === "dark" ? "text-gray-200" : "text-gray-700"
             }`}
           >
             Thanh toán
@@ -746,12 +618,13 @@ const PaymentPage = () => {
     let statusColor = "success";
     if (percentRemaining <= 30) statusColor = "exception";
     else if (percentRemaining <= 70) statusColor = "warning";
+
     return (
       <div
         className={`countdown-container p-4 rounded-lg shadow-sm mb-6 border ${
           theme === "dark"
-            ? "bg-dark-bg-secondary border-gray-600"
-            : "bg-light-bg-secondary border-border-light"
+            ? "bg-gray-800 border-gray-600"
+            : "bg-gray-100 border-gray-200"
         }`}
       >
         <div className="flex items-center justify-between mb-2">
@@ -759,9 +632,7 @@ const PaymentPage = () => {
             <ClockCircleOutlined className="text-red-500 dark:text-red-400 mr-2" />
             <span
               className={`font-medium ${
-                theme === "dark"
-                  ? "text-dark-text-primary"
-                  : "text-text-primary"
+                theme === "dark" ? "text-gray-200" : "text-gray-800"
               }`}
             >
               Thời gian giữ ghế:
@@ -793,14 +664,13 @@ const PaymentPage = () => {
       return (
         <span
           className={`italic ${
-            theme === "dark"
-              ? "text-dark-text-secondary"
-              : "text-text-secondary"
+            theme === "dark" ? "text-gray-400" : "text-gray-500"
           }`}
         >
           Chưa chọn ghế
         </span>
       );
+
     return (
       <div className="flex flex-wrap gap-2">
         {seatDetails.map((seat, index) => {
@@ -840,12 +710,21 @@ const PaymentPage = () => {
     );
   };
 
-  const handleRemoveConcession = (itemId) => {
+  const handleRemoveConcession = (itemId, itemType) => {
     const updatedItems = selectedConcessions.filter(
-      (item) => item.id !== itemId
+      (item) => !(item.id === itemId && item.type === itemType)
     );
     setSelectedConcessions(updatedItems);
-    localStorage.setItem("selectedConcessions", JSON.stringify(updatedItems));
+    sessionStorage.setItem(
+      `selectedConcessions_${userId}`,
+      JSON.stringify(updatedItems)
+    );
+    handleConcessionChange(updatedItems);
+    if (updatedItems.length === 0) {
+      setConcessionOrderId(null);
+      sessionStorage.removeItem(`concessionOrderId_${userId}`);
+      sessionStorage.removeItem(`concessionOrderDetails_${userId}`);
+    }
   };
 
   const renderSelectedConcessionsInfo = () => {
@@ -853,22 +732,21 @@ const PaymentPage = () => {
       return (
         <span
           className={`italic ${
-            theme === "dark"
-              ? "text-dark-text-secondary"
-              : "text-text-secondary"
+            theme === "dark" ? "text-gray-400" : "text-gray-500"
           }`}
         >
           Chưa chọn bắp nước
         </span>
       );
+
     return (
       <div className="flex flex-wrap gap-2">
         {selectedConcessions.map((item, index) => (
           <Tag
-            key={index}
+            key={`${item.id}-${item.type}-${index}`}
             color={theme === "dark" ? "cyan-300" : "cyan"}
-            closable
-            onClose={() => handleRemoveConcession(item.id)}
+            closable={currentStep === 1}
+            onClose={() => handleRemoveConcession(item.id, item.type)}
             className={`px-3 py-1.5 rounded-lg font-medium ${
               theme === "dark"
                 ? "bg-cyan-900 border border-cyan-400 text-cyan-300"
@@ -888,13 +766,7 @@ const PaymentPage = () => {
       case 1:
         return (
           <ConcessionStep
-            onConcessionChange={(items) => {
-              setSelectedConcessions(items);
-              localStorage.setItem(
-                "selectedConcessions",
-                JSON.stringify(items)
-              );
-            }}
+            onConcessionChange={handleConcessionChange}
             selectedConcessions={selectedConcessions}
           />
         );
@@ -902,37 +774,23 @@ const PaymentPage = () => {
         return (
           <PaymentMethodStep
             onPaymentConfirm={handlePaymentConfirm}
-            paymentError={paymentError}
             isProcessing={isPaymentProcessing}
             selectedConcessions={selectedConcessions}
             totalPrice={totalPrice}
             concessionOrderId={concessionOrderId}
-            showtimeId={showtimeId} // Thêm prop showtimeId
+            showtimeId={showtimeId}
           />
         );
       case 2.5:
         return (
           <VNPayPayment
-            payment={paymentData}
-            ticket={ticketData}
+            payment={JSON.parse(localStorage.getItem("vnpay_payment_data") || "{}")}
             onPaymentComplete={handleVNPayComplete}
             onBack={() => setCurrentStep(2)}
+            isCallback={searchParams.toString() !== ""}
+            callbackUrl={searchParams.toString()}
+            isProcessing={isPaymentProcessing}
           />
-        );
-      case 3:
-        return (
-          <div className="w-full">
-            <CompletionStep
-              paymentSuccess={paymentSuccess}
-              ticketData={ticketData}
-              paymentError={paymentError}
-              showtimeDetails={showtimeDetails}
-              seatDetails={seatDetails}
-              onFinish={handleFinish}
-              onRetry={() => setCurrentStep(2)}
-              payment={paymentData}
-            />
-          </div>
         );
       default:
         return <ConcessionStep />;
@@ -940,494 +798,391 @@ const PaymentPage = () => {
   };
 
   return (
-    <div
-      className={`mx-auto px-4 py-6 max-w-full min-h-screen ${
-        theme === "dark" ? "bg-dark-bg" : "bg-light-bg"
-      } main-content-wrapper`}
-    >
-      <BreadcrumbNavigation />
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-16">
-          <Spin size="large" />
-          <Text
-            className={`mt-4 ${
-              theme === "dark"
-                ? "text-dark-text-secondary"
-                : "text-text-secondary"
-            }`}
-          >
-            Đang tải thông tin...
-          </Text>
-        </div>
-      ) : (
-        <Row gutter={[24, 24]}>
-          {currentStep < 3 && (
-            <Col xs={24} md={8} lg={6} className="order-1">
-              {currentStep < 3 && timeRemaining > 0 && renderCountdown()}
-              <Card
-                className={`content-card shadow-md mb-6 border ${
-                  theme === "dark"
-                    ? "border-gray-600 bg-gray-800"
-                    : "border-border-light bg-white"
-                }`}
-              >
-                {showtimeDetails && showtimeDetails.movie && (
-                  <div className="flex flex-col">
-                    <div className="flex items-start">
-                      <div className="w-1/3 mr-4">
-                        <img
-                          src={
-                            showtimeDetails.movie.poster ||
-                            showtimeDetails.movie.posterUrl ||
-                            showtimeDetails.movie.image ||
-                            "/fallback.jpg"
-                          }
-                          alt={showtimeDetails.movie.title}
-                          className="w-full rounded-lg shadow-sm object-cover"
-                          style={{ aspectRatio: "2/3" }}
-                        />
+    <ConfigProvider theme={antdTheme}>
+      <div
+        className={`mx-auto px-4 py-6 max-w-full min-h-screen ${
+          theme === "dark" ? "bg-dark-bg" : "bg-light-bg"
+        } main-content-wrapper`}
+      >
+        <BreadcrumbNavigation />
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <Spin size="large" />
+            <Text
+              className={`mt-4 ${
+                theme === "dark" ? "text-gray-400" : "text-gray-500"
+              }`}
+            >
+              Đang tải thông tin...
+            </Text>
+          </div>
+        ) : (
+          <Row gutter={[24, 24]}>
+            {currentStep < 3 && (
+              <Col xs={24} md={8} lg={6} className="order-1">
+                <div className="sticky top-24 z-40">
+                  {currentStep < 3 && timeRemaining > 0 && renderCountdown()}
+                  <Card
+                    className={`content-card shadow-md mb-6 border ${
+                      theme === "dark"
+                        ? "border-gray-600 bg-gray-800"
+                        : "border-gray-200 bg-white"
+                    }`}
+                  >
+                    {showtimeDetails && showtimeDetails.movie && (
+                      <div className="flex flex-col">
+                        <div className="flex items-start">
+                          <div className="w-1/3 mr-4">
+                            <img
+                              src={
+                                showtimeDetails.movie.poster ||
+                                showtimeDetails.movie.posterUrl ||
+                                showtimeDetails.movie.image ||
+                                "/fallback.jpg"
+                              }
+                              alt={showtimeDetails.movie.title}
+                              className="w-full rounded-lg shadow-sm object-cover"
+                              style={{ aspectRatio: "2/3" }}
+                            />
+                          </div>
+                          <div className="w-2/3">
+                            <h3
+                              className={`text-lg font-bold mb-3 line-clamp-2 ${
+                                theme === "dark"
+                                  ? "text-gray-200"
+                                  : "text-gray-800"
+                              }`}
+                            >
+                              {showtimeDetails.movie.title}
+                            </h3>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex items-start">
+                                <span
+                                  className={`font-medium w-20 ${
+                                    theme === "dark"
+                                      ? "text-gray-200"
+                                      : "text-gray-700"
+                                  }`}
+                                >
+                                  Rạp:
+                                </span>
+                                <span
+                                  className={`flex-1 ${
+                                    theme === "dark"
+                                      ? "text-gray-400"
+                                      : "text-gray-600"
+                                  }`}
+                                >
+                                  {showtimeDetails.hall?.cinema?.name}
+                                </span>
+                              </div>
+                              <div className="flex items-start">
+                                <span
+                                  className={`font-medium w-20 ${
+                                    theme === "dark"
+                                      ? "text-gray-200"
+                                      : "text-gray-700"
+                                  }`}
+                                >
+                                  Phòng:
+                                </span>
+                                <span
+                                  className={`flex-1 ${
+                                    theme === "dark"
+                                      ? "text-gray-400"
+                                      : "text-gray-600"
+                                  }`}
+                                >
+                                  {showtimeDetails.hall?.name}
+                                </span>
+                              </div>
+                              <div className="flex items-start">
+                                <span
+                                  className={`font-medium w-20 ${
+                                    theme === "dark"
+                                      ? "text-gray-200"
+                                      : "text-gray-700"
+                                  }`}
+                                >
+                                  Suất chiếu:
+                                </span>
+                                <span
+                                  className={`flex-1 ${
+                                    theme === "dark"
+                                      ? "text-gray-400"
+                                      : "text-gray-600"
+                                  }`}
+                                >
+                                  {new Date(
+                                    showtimeDetails.startTime
+                                  ).toLocaleDateString("vi-VN")}
+                                </span>
+                              </div>
+                              <div className="flex items-start">
+                                <span
+                                  className={`font-medium w-20 ${
+                                    theme === "dark"
+                                      ? "text-gray-200"
+                                      : "text-gray-700"
+                                  }`}
+                                >
+                                  Thời gian:
+                                </span>
+                                <span
+                                  className={`flex-1 ${
+                                    theme === "dark"
+                                      ? "text-gray-400"
+                                      : "text-gray-600"
+                                  }`}
+                                >
+                                  {new Date(
+                                    showtimeDetails.startTime
+                                  ).toLocaleTimeString("vi-VN", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}{" "}
+                                  -{" "}
+                                  {new Date(
+                                    showtimeDetails.endTime
+                                  ).toLocaleTimeString("vi-VN", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="w-2/3">
-                        <h3
-                          className={`text-lg font-bold mb-3 line-clamp-2 ${
-                            theme === "dark"
-                              ? "text-dark-text-primary"
-                              : "text-text-primary"
+                    )}
+                  </Card>
+                  <Card
+                    className={`content-card shadow-md border ${
+                      theme === "dark"
+                        ? "border-gray-600 bg-gray-800"
+                        : "border-gray-200 bg-white"
+                    }`}
+                  >
+                    <div className="space-y-4">
+                      <h4
+                        className={`text-lg font-bold mb-1 ${
+                          theme === "dark" ? "text-gray-200" : "text-gray-800"
+                        }`}
+                      >
+                        Thông tin đặt vé
+                      </h4>
+                      <Divider className="my-3" />
+                      <div className="space-y-3">
+                        <h4
+                          className={`font-medium ${
+                            theme === "dark" ? "text-gray-200" : "text-gray-700"
                           }`}
                         >
-                          {showtimeDetails.movie.title}
-                        </h3>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex items-start">
+                          Ghế đã chọn:
+                        </h4>
+                        {renderSelectedSeatsInfo()}
+                      </div>
+                      <div className="space-y-3">
+                        <h4
+                          className={`font-medium ${
+                            theme === "dark" ? "text-gray-200" : "text-gray-700"
+                          }`}
+                        >
+                          Bắp nước:
+                        </h4>
+                        {renderSelectedConcessionsInfo()}
+                      </div>
+                      <div
+                        className={`flex justify-between items-center p-3 rounded-lg ${
+                          theme === "dark" ? "bg-gray-700" : "bg-gray-100"
+                        }`}
+                      >
+                        <span
+                          className={`font-medium ${
+                            theme === "dark" ? "text-gray-200" : "text-gray-700"
+                          }`}
+                        >
+                          Số lượng ghế:
+                        </span>
+                        <span className="font-bold text-red-500 dark:text-red-400">
+                          {selectedSeats.length}
+                        </span>
+                      </div>
+                      {promotionDiscount > 0 && (
+                        <div
+                          className={`flex justify-between items-center p-3 rounded-lg ${
+                            theme === "dark"
+                              ? "bg-green-500/10"
+                              : "bg-green-500/5"
+                          }`}
+                        >
+                          <span
+                            className={`font-medium ${
+                              theme === "dark"
+                                ? "text-gray-200"
+                                : "text-gray-700"
+                            }`}
+                          >
+                            Giảm giá khuyến mãi:
+                          </span>
+                          <span className="font-bold text-green-500 dark:text-green-400">
+                            -{promotionDiscount.toLocaleString("vi-VN")}đ
+                          </span>
+                        </div>
+                      )}
+                      <div
+                        className={`p-4 rounded-lg ${
+                          theme === "dark" ? "bg-red-500/10" : "bg-red-500/5"
+                        }`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
                             <span
-                              className={`font-medium w-20 ${
+                              className={`font-medium ${
                                 theme === "dark"
-                                  ? "text-dark-text-primary"
-                                  : "text-text-primary"
+                                  ? "text-gray-200"
+                                  : "text-gray-700"
                               }`}
                             >
-                              Rạp:
+                              Tiền vé:
                             </span>
                             <span
-                              className={`flex-1 ${
+                              className={`font-medium ${
                                 theme === "dark"
-                                  ? "text-dark-text-secondary"
-                                  : "text-text-secondary"
+                                  ? "text-gray-200"
+                                  : "text-gray-700"
                               }`}
                             >
-                              {showtimeDetails.hall?.cinema?.name}
+                              {seatDetails
+                                .reduce(
+                                  (sum, seat) => sum + (seat.price || 0),
+                                  0
+                                )
+                                .toLocaleString("vi-VN")}
+                              đ
                             </span>
                           </div>
-                          <div className="flex items-start">
+                          <div className="flex justify-between">
                             <span
-                              className={`font-medium w-20 ${
+                              className={`font-medium ${
                                 theme === "dark"
-                                  ? "text-dark-text-primary"
-                                  : "text-text-primary"
+                                  ? "text-gray-200"
+                                  : "text-gray-700"
                               }`}
                             >
-                              Phòng:
+                              Tiền bắp nước:
                             </span>
                             <span
-                              className={`flex-1 ${
+                              className={`font-medium ${
                                 theme === "dark"
-                                  ? "text-dark-text-secondary"
-                                  : "text-text-secondary"
+                                  ? "text-gray-200"
+                                  : "text-gray-700"
                               }`}
                             >
-                              {showtimeDetails.hall?.name}
-                            </span>
-                          </div>
-                          <div className="flex items-start">
-                            <span
-                              className={`font-medium w-20 ${
-                                theme === "dark"
-                                  ? "text-dark-text-primary"
-                                  : "text-text-primary"
-                              }`}
-                            >
-                              Suất chiếu:
-                            </span>
-                            <span
-                              className={`flex-1 ${
-                                theme === "dark"
-                                  ? "text-dark-text-secondary"
-                                  : "text-text-secondary"
-                              }`}
-                            >
-                              {new Date(
-                                showtimeDetails.startTime
-                              ).toLocaleDateString("vi-VN")}
+                              {selectedConcessions
+                                .reduce(
+                                  (sum, item) =>
+                                    sum +
+                                    (item.price || 0) * (item.quantity || 0),
+                                  0
+                                )
+                                .toLocaleString("vi-VN")}
+                              đ
                             </span>
                           </div>
-                          <div className="flex items-start">
+                          <div className="flex justify-between font-bold">
                             <span
-                              className={`font-medium w-20 ${
+                              className={`font-medium ${
                                 theme === "dark"
-                                  ? "text-dark-text-primary"
-                                  : "text-text-primary"
+                                  ? "text-gray-200"
+                                  : "text-gray-700"
                               }`}
                             >
-                              Thời gian:
+                              Tổng tiền:
                             </span>
-                            <span
-                              className={`flex-1 ${
-                                theme === "dark"
-                                  ? "text-dark-text-secondary"
-                                  : "text-text-secondary"
-                              }`}
-                            >
-                              {new Date(
-                                showtimeDetails.startTime
-                              ).toLocaleTimeString("vi-VN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}{" "}
-                              -{" "}
-                              {new Date(
-                                showtimeDetails.endTime
-                              ).toLocaleTimeString("vi-VN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                            <span className="text-lg font-bold text-red-500 dark:text-red-400">
+                              {isLoadingTotal
+                                ? "Đang tải..."
+                                : `${totalPrice.toLocaleString("vi-VN")}đ`}
                             </span>
                           </div>
                         </div>
                       </div>
+                      {currentStep === 1 && (
+                        <div className="flex gap-2 mt-4">
+                          <Button
+                            size="large"
+                            onClick={handlePrevious}
+                            className="h-12 font-medium rounded-lg border-red-500 text-red-500 hover:bg-red-500 hover:text-white dark:border-red-400 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white flex-1"
+                          >
+                            QUAY LẠI
+                          </Button>
+                          <Button
+                            type="primary"
+                            size="large"
+                            onClick={handleContinue}
+                            className="btn-primary h-12 font-medium rounded-lg flex-1"
+                          >
+                            TIẾP TỤC
+                          </Button>
+                        </div>
+                      )}
+                      {currentStep === 2 && (
+                        <div className="mt-4">
+                          <Button
+                            size="large"
+                            onClick={handlePrevious}
+                            className="h-12 font-medium rounded-lg border-red-500 text-red-500 hover:bg-red-500 hover:text-white dark:border-red-400 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white w-full"
+                          >
+                            QUAY LẠI
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-              </Card>
+                  </Card>
+                </div>
+              </Col>
+            )}
+            <Col
+              xs={24}
+              md={currentStep < 3 ? 16 : 24}
+              lg={currentStep < 3 ? 18 : 24}
+              className="order-2"
+            >
               <Card
                 className={`content-card shadow-md border ${
                   theme === "dark"
                     ? "border-gray-600 bg-gray-800"
-                    : "border-border-light bg-white"
+                    : "border-gray-200 bg-white"
                 }`}
               >
-                <div className="space-y-4">
-                  <h4
-                    className={`text-lg font-bold mb-1 ${
-                      theme === "dark"
-                        ? "text-dark-text-primary"
-                        : "text-text-primary"
-                    }`}
-                  >
-                    Thông tin đặt vé
-                  </h4>
-                  <Divider className="my-3" />
-                  <div className="space-y-3">
-                    <h4
-                      className={`font-medium ${
-                        theme === "dark"
-                          ? "text-dark-text-primary"
-                          : "text-text-primary"
-                      }`}
-                    >
-                      Ghế đã chọn:
-                    </h4>
-                    {renderSelectedSeatsInfo()}
-                  </div>
-                  <div className="space-y-3">
-                    <h4
-                      className={`font-medium ${
-                        theme === "dark"
-                          ? "text-dark-text-primary"
-                          : "text-text-primary"
-                      }`}
-                    >
-                      Bắp nước:
-                    </h4>
-                    {renderSelectedConcessionsInfo()}
-                  </div>
-                  <div
-                    className={`flex justify-between items-center p-3 rounded-lg ${
-                      theme === "dark"
-                        ? "bg-dark-bg-secondary"
-                        : "bg-light-bg-secondary"
-                    }`}
-                  >
-                    <span
-                      className={`font-medium ${
-                        theme === "dark"
-                          ? "text-dark-text-primary"
-                          : "text-text-primary"
-                      }`}
-                    >
-                      Số lượng ghế:
-                    </span>
-                    <span className="font-bold text-red-500 dark:text-red-400">
-                      {selectedSeats.length}
-                    </span>
-                  </div>
-                  {promotionDiscount > 0 && (
-                    <div
-                      className={`flex justify-between items-center p-3 rounded-lg ${
-                        theme === "dark" ? "bg-green-500/10" : "bg-green-500/5"
-                      }`}
-                    >
-                      <span
-                        className={`font-medium ${
-                          theme === "dark"
-                            ? "text-dark-text-primary"
-                            : "text-text-primary"
-                        }`}
-                      >
-                        Giảm giá khuyến mãi:
-                      </span>
-                      <span className="font-bold text-green-500 dark:text-green-400">
-                        -{promotionDiscount.toLocaleString("vi-VN")}đ
-                      </span>
-                    </div>
-                  )}
-                  <div
-                    className={`p-4 rounded-lg ${
-                      theme === "dark" ? "bg-red-500/10" : "bg-red-500/5"
-                    }`}
-                  >
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span
-                          className={`font-medium ${
-                            theme === "dark"
-                              ? "text-dark-text-primary"
-                              : "text-text-primary"
-                          }`}
-                        >
-                          Tiền vé:
-                        </span>
-                        <span
-                          className={`font-medium ${
-                            theme === "dark"
-                              ? "text-dark-text-primary"
-                              : "text-text-primary"
-                          }`}
-                        >
-                          {seatDetails
-                            .reduce((sum, seat) => sum + (seat.price || 0), 0)
-                            .toLocaleString("vi-VN")}
-                          đ
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span
-                          className={`font-medium ${
-                            theme === "dark"
-                              ? "text-dark-text-primary"
-                              : "text-text-primary"
-                          }`}
-                        >
-                          Tiền bắp nước:
-                        </span>
-                        <span
-                          className={`font-medium ${
-                            theme === "dark"
-                              ? "text-dark-text-primary"
-                              : "text-text-primary"
-                          }`}
-                        >
-                          {selectedConcessions
-                            .reduce(
-                              (sum, item) =>
-                                sum + (item.price || 0) * (item.quantity || 0),
-                              0
-                            )
-                            .toLocaleString("vi-VN")}
-                          đ
-                        </span>
-                      </div>
-                      <div className="flex justify-between font-bold">
-                        <span
-                          className={`font-medium ${
-                            theme === "dark"
-                              ? "text-dark-text-primary"
-                              : "text-text-primary"
-                          }`}
-                        >
-                          Tổng tiền:
-                        </span>
-                        <span className="text-lg font-bold text-red-500 dark:text-red-400">
-                          {isLoadingTotal
-                            ? "Đang tải..."
-                            : `${totalPrice.toLocaleString("vi-VN")}đ`}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  {currentStep === 1 && (
-                    <div className="flex gap-2 mt-4">
-                      <Button
-                        size="large"
-                        onClick={handlePrevious}
-                        className="h-12 font-medium rounded-lg border-red-500 text-red-500 hover:bg-red-500 hover:text-white dark:border-red-400 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white flex-1"
-                      >
-                        QUAY LẠI
-                      </Button>
-                      <Button
-                        type="primary"
-                        size="large"
-                        onClick={handleContinue}
-                        className="btn-primary h-12 font-medium rounded-lg flex-1"
-                      >
-                        TIẾP TỤC
-                      </Button>
-                    </div>
-                  )}
-                  {currentStep === 2 && (
-                    <div className="mt-4">
-                      <Button
-                        size="large"
-                        onClick={handlePrevious}
-                        className="h-12 font-medium rounded-lg border-red-500 text-red-500 hover:bg-red-500 hover:text-white dark:border-red-400 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white w-full"
-                      >
-                        QUAY LẠI
-                      </Button>
-                    </div>
-                  )}
+                <div className="mb-6">
+                  <Steps
+                    current={currentStep === 2.5 ? 2 : currentStep - 1}
+                    className="payment-steps max-w-3xl mx-auto"
+                    items={[
+                      {
+                        title: "Chọn bắp nước",
+                        icon: <CoffeeOutlined />,
+                      },
+                      {
+                        title: "Phương thức thanh toán",
+                        icon: <CreditCardOutlined />,
+                      },
+                      {
+                        title: "Thanh toán VNPay",
+                        icon: <CreditCardOutlined />,
+                      },
+                    ]}
+                  />
                 </div>
+                <div className="payment-step-content">{renderCurrentStep()}</div>
               </Card>
             </Col>
-          )}
-          <Col
-            xs={24}
-            md={currentStep < 3 ? 16 : 24}
-            lg={currentStep < 3 ? 18 : 24}
-            className="order-2"
-          >
-            <Card
-              className={`content-card shadow-md border ${
-                theme === "dark"
-                  ? "border-gray-600 bg-gray-800"
-                  : "border-border-light bg-white"
-              }`}
-            >
-              <Steps
-                current={currentStep === 2.5 ? 2 : currentStep}
-                className="mb-8"
-                items={[
-                  {
-                    title: "Chọn bắp nước",
-                    icon: <CoffeeOutlined />,
-                  },
-                  {
-                    title: "Phương thức thanh toán",
-                    icon: <CreditCardOutlined />,
-                  },
-                  {
-                    title: "Hoàn tất",
-                    icon: <TagOutlined />,
-                  },
-                ]}
-              />
-              <div className="step-content p-4">{renderCurrentStep()}</div>
-            </Card>
-          </Col>
-        </Row>
-      )}
-      {searchParams.get("vnp_ResponseCode") && (
-        <Modal
-          title={
-            paymentSuccess
-              ? "Thanh toán thành công"
-              : "Thanh toán không thành công"
-          }
-          open={true}
-          footer={null}
-          closable={false}
-          className={theme === "dark" ? "dark-modal" : ""}
-        >
-          <div
-            className={`text-center py-4 ${
-              theme === "dark"
-                ? "bg-dark-bg text-dark-text-primary"
-                : "bg-light-bg text-text-primary"
-            }`}
-          >
-            {paymentSuccess ? (
-              <>
-                <CheckCircleOutlined
-                  style={{ fontSize: "48px", color: "#52c41a" }}
-                />
-                <Title
-                  level={4}
-                  className={`mt-4 ${
-                    theme === "dark"
-                      ? "text-dark-text-primary"
-                      : "text-text-primary"
-                  }`}
-                >
-                  Thanh toán của bạn đã được xử lý thành công!
-                </Title>
-                <Text
-                  className={
-                    theme === "dark"
-                      ? "text-dark-text-secondary"
-                      : "text-text-secondary"
-                  }
-                >
-                  Cảm ơn bạn đã đặt vé. Chúc bạn xem phim vui vẻ!
-                </Text>
-                <Button
-                  type="primary"
-                  size="large"
-                  className="mt-4 bg-red-500 border-none rounded-lg font-bold h-12 hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-600"
-                  onClick={() => navigate("/")}
-                >
-                  Về trang chủ
-                </Button>
-              </>
-            ) : (
-              <>
-                <CloseCircleOutlined
-                  style={{ fontSize: "48px", color: "#f5222d" }}
-                />
-                <Title
-                  level={4}
-                  className={`mt-4 ${
-                    theme === "dark"
-                      ? "text-dark-text-primary"
-                      : "text-text-primary"
-                  }`}
-                >
-                  Thanh toán không thành công
-                </Title>
-                <Text className="text-red-500 dark:text-red-400">
-                  {paymentError ||
-                    "Đã có lỗi xảy ra trong quá trình thanh toán."}
-                </Text>
-                <div className="flex justify-center gap-4 mt-4">
-                  <Button
-                    type="default"
-                    onClick={() => {
-                      setCurrentStep(2);
-                      window.history.replaceState(
-                        {},
-                        "",
-                        window.location.pathname
-                      );
-                    }}
-                    className={`border rounded-lg h-12 font-medium ${
-                      theme === "dark"
-                        ? "border-gray-600 text-dark-text-primary hover:bg-gray-700"
-                        : "border-gray-300 text-text-primary hover:bg-gray-100"
-                    }`}
-                  >
-                    Thử lại
-                  </Button>
-                  <Button
-                    type="primary"
-                    onClick={() => navigate("/")}
-                    className="bg-red-500 border-none rounded-lg font-bold h-12 hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-600"
-                  >
-                    Về trang chủ
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </Modal>
-      )}
-    </div>
+          </Row>
+        )}
+      </div>
+    </ConfigProvider>
   );
 };
 

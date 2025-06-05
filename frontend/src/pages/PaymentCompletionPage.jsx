@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Result,
   Button,
   Typography,
+  Spin,
+  message,
+  Card,
   Row,
   Col,
   Divider,
@@ -10,18 +14,14 @@ import {
   Space,
   Tag,
   Image,
-  Spin,
-  Card,
   notification,
   Tooltip,
-  Modal,
 } from "antd";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   FileTextOutlined,
   PrinterOutlined,
-  CreditCardOutlined,
   DownloadOutlined,
   ShareAltOutlined,
   ReloadOutlined,
@@ -31,26 +31,283 @@ import {
   TeamOutlined,
   CoffeeOutlined,
   InfoCircleOutlined,
+  CreditCardOutlined,
 } from "@ant-design/icons";
-import { ticketApi } from "../../../api/ticketApi";
+import { ThemeContext } from "../context/ThemeContext";
+import { paymentApi } from "../api/paymentApi";
+import { ticketApi } from "../api/ticketApi";
+import { concessionOrderApi } from "../api/concessionOrderApi";
+import { showtimeApi } from "../api/showtimeApi";
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
-const CompletionStep = ({
-  paymentSuccess,
-  ticketData,
-  paymentError,
-  showtimeDetails,
-  seatDetails,
-  onFinish,
-  onRetry,
-  payment,
-}) => {
+const PaymentCompletionPage = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { theme } = useContext(ThemeContext);
+  const [loading, setLoading] = useState(true);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
+  const [ticketData, setTicketData] = useState(null);
+  const [paymentData, setPaymentData] = useState(null);
+  const [showtimeDetails, setShowtimeDetails] = useState(null);
+  const [seatDetails, setSeatDetails] = useState([]);
   const [activeTicketIndex, setActiveTicketIndex] = useState(0);
   const [refreshingTickets, setRefreshingTickets] = useState(false);
   const [ticketDetails, setTicketDetails] = useState({});
+  const [hasProcessedPayment, setHasProcessedPayment] = useState(false);
+  const userId = parseInt(sessionStorage.getItem("userId")) || null;
 
-  // Xử lý để lấy danh sách vé từ ticketData
+  // Key để lưu trữ thông tin đã xử lý
+  const getPaymentProcessedKey = () => {
+    const transactionNo = searchParams.get("vnp_TransactionNo");
+    const paymentId = searchParams.get("paymentId");
+    return `payment_processed_${transactionNo || paymentId || "unknown"}`;
+  };
+
+  // Lưu thông tin thanh toán vào sessionStorage
+  const savePaymentDataToStorage = (data) => {
+    const key = getPaymentProcessedKey();
+    const storageData = {
+      ...data,
+      processedAt: new Date().toISOString(),
+      searchParamsString: searchParams.toString(),
+    };
+    sessionStorage.setItem(key, JSON.stringify(storageData));
+    sessionStorage.setItem(
+      "last_payment_completion_data",
+      JSON.stringify(storageData)
+    );
+  };
+
+  // Lấy thông tin thanh toán từ sessionStorage
+  const getPaymentDataFromStorage = () => {
+    const key = getPaymentProcessedKey();
+    const stored = sessionStorage.getItem(key);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (error) {
+        console.error("Lỗi parse dữ liệu từ storage:", error);
+      }
+    }
+
+    // Fallback: thử lấy từ last_payment_completion_data
+    const lastStored = sessionStorage.getItem("last_payment_completion_data");
+    if (lastStored) {
+      try {
+        const data = JSON.parse(lastStored);
+        // Kiểm tra xem có phải cùng một giao dịch không
+        if (data.searchParamsString === searchParams.toString()) {
+          return data;
+        }
+      } catch (error) {
+        console.error("Lỗi parse dữ liệu fallback từ storage:", error);
+      }
+    }
+
+    return null;
+  };
+
+  const handleVNPayCallback = async (callbackSearchParams) => {
+    try {
+      setLoading(true);
+
+      // Kiểm tra xem đã xử lý thanh toán này chưa
+      const storedData = getPaymentDataFromStorage();
+      if (storedData && !hasProcessedPayment) {
+        console.log("Sử dụng dữ liệu đã lưu từ storage");
+        setPaymentData(storedData);
+        setPaymentSuccess(storedData.success);
+        setHasProcessedPayment(true);
+
+        if (storedData.success) {
+          // Khôi phục thông tin vé từ storage
+          const savedTicketData = JSON.parse(
+            localStorage.getItem("vnpay_ticket_data") || "{}"
+          );
+          setTicketData(savedTicketData);
+
+          // Lấy thông tin chi tiết từ API (không cập nhật trạng thái)
+          await loadTicketDetails(storedData.paymentId, false);
+        } else {
+          setPaymentError(storedData.message || "Thanh toán thất bại.");
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Nếu chưa xử lý, thực hiện xử lý thanh toán
+      const result = await paymentApi.handleVNPayResult(callbackSearchParams);
+
+      console.log("Payment result structure:", {
+        result,
+        transactionId: result.transactionId,
+        vnp_TransactionNo: result.vnp_TransactionNo,
+        payment: result.payment,
+        searchParams: Object.fromEntries(searchParams.entries()),
+      });
+
+      let concessionOrders = [];
+
+      if (result.payment?.concessionOrderIds?.length > 0) {
+        const orderId = result.payment.concessionOrderIds[0];
+        try {
+          const order = await concessionOrderApi.getUserOrderById(orderId);
+          concessionOrders = [
+            {
+              id: order.id,
+              items: order.items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                type: item.type,
+              })),
+              totalAmount: order.totalAmount,
+            },
+          ];
+        } catch (error) {
+          console.error("Lỗi khi lấy chi tiết đơn bắp nước:", error);
+          message.warning("Không thể tải chi tiết đơn bắp nước.");
+        }
+      }
+
+      const updatedResult = {
+        ...result,
+        payment: {
+          ...result.payment,
+          concessionOrders,
+        },
+      };
+
+      // Lưu vào storage ngay lập tức
+      savePaymentDataToStorage(updatedResult);
+      setPaymentData(updatedResult);
+      setHasProcessedPayment(true);
+
+      if (updatedResult.success) {
+        setPaymentSuccess(true);
+        setTicketData(
+          JSON.parse(localStorage.getItem("vnpay_ticket_data") || "{}")
+        );
+
+        // Chỉ cập nhật trạng thái vé nếu chưa được xử lý
+        await loadTicketDetails(updatedResult.paymentId, true);
+
+        message.success(
+          "Vé đã được xác nhận! Vui lòng kiểm tra email của bạn."
+        );
+      } else {
+        setPaymentSuccess(false);
+        setPaymentError(updatedResult.message || "Thanh toán thất bại.");
+      }
+    } catch (error) {
+      console.error("Lỗi xử lý callback:", error);
+      setPaymentSuccess(false);
+      setPaymentError(
+        error.message || "Có lỗi xảy ra khi xử lý kết quả thanh toán."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTicketDetails = async (paymentId, shouldUpdateStatus = false) => {
+    try {
+      const ticketIds = await ticketApi.getTicketsByPaymentId(paymentId);
+
+      if (ticketIds.length > 0) {
+        // Chỉ cập nhật trạng thái nếu được yêu cầu và vé chưa được xác nhận
+        if (shouldUpdateStatus) {
+          const needsConfirmation = ticketIds.some(
+            (ticket) => ticket.status !== "CONFIRMED"
+          );
+          if (needsConfirmation) {
+            await ticketApi.updateTicketsStatus(
+              ticketIds.map((t) => t.id),
+              "CONFIRMED"
+            );
+          }
+        }
+
+        // Lấy thông tin suất chiếu và ghế
+        const showtimeId = ticketIds[0]?.showtimeId;
+        if (showtimeId) {
+          try {
+            const showtime = await showtimeApi.getShowtimeById(showtimeId);
+            setShowtimeDetails(showtime);
+          } catch (error) {
+            console.error("Lỗi lấy thông tin suất chiếu:", error);
+          }
+
+          // Lấy thông tin ghế từ ticketIds
+          const seatsFromTickets = ticketIds.map((ticket) => ({
+            id: ticket.seatId,
+            row: ticket.seat?.row || "A",
+            column: ticket.seat?.column || ticket.seat?.number || "1",
+            number: ticket.seat?.number || ticket.seat?.column || "1",
+          }));
+          setSeatDetails(seatsFromTickets);
+        }
+      }
+    } catch (error) {
+      console.error("Lỗi tải chi tiết vé:", error);
+      message.error("Không thể tải thông tin chi tiết vé.");
+    }
+  };
+
+  const clearPaymentLocalStorage = () => {
+    if (userId) {
+      sessionStorage.removeItem(`selectedSeats_${userId}`);
+      sessionStorage.removeItem(`showtimeId_${userId}`);
+      sessionStorage.removeItem(`showtimeDetails_${userId}`);
+      sessionStorage.removeItem(`totalPrice_${userId}`);
+      sessionStorage.removeItem(`seatLockTime_${userId}`);
+      sessionStorage.removeItem(`selectedConcessions_${userId}`);
+      sessionStorage.removeItem(`promotionCode_${userId}`);
+      sessionStorage.removeItem(`promotionDiscount_${userId}`);
+      sessionStorage.removeItem(`timeRemaining_${userId}`);
+      sessionStorage.removeItem(`concessionOrderId_${userId}`);
+      sessionStorage.removeItem(`lastPaymentId_${userId}`);
+    }
+    localStorage.removeItem("vnpay_payment_data");
+    // Không xóa vnpay_ticket_data để có thể sử dụng khi refresh
+  };
+
+  useEffect(() => {
+    if (searchParams.toString()) {
+      handleVNPayCallback(searchParams.toString());
+    } else {
+      // Thử khôi phục từ storage nếu không có searchParams
+      const storedData = getPaymentDataFromStorage();
+      if (storedData) {
+        setPaymentData(storedData);
+        setPaymentSuccess(storedData.success);
+        setHasProcessedPayment(true);
+        if (storedData.success) {
+          const savedTicketData = JSON.parse(
+            localStorage.getItem("vnpay_ticket_data") || "{}"
+          );
+          setTicketData(savedTicketData);
+          loadTicketDetails(storedData.paymentId, false);
+        }
+        setLoading(false);
+      } else {
+        setPaymentError("Không tìm thấy thông tin thanh toán.");
+        setLoading(false);
+      }
+    }
+
+    // Cleanup khi component unmount
+    return () => {
+      if (paymentSuccess) {
+        clearPaymentLocalStorage();
+      }
+    };
+  }, [searchParams]);
+
+  // Các hàm xử lý vé (giữ nguyên như cũ)
   const getTicketsList = () => {
     if (!ticketData) return [];
     if (ticketData.tickets && Array.isArray(ticketData.tickets)) {
@@ -62,14 +319,12 @@ const CompletionStep = ({
   const tickets = getTicketsList();
   const currentTicket = tickets.length > 0 ? tickets[activeTicketIndex] : null;
 
-  // Chuyển đổi bookingCode hoặc tạo mã vé duy nhất
   const getTicketCode = (ticket) => {
     if (ticket.bookingCode) return ticket.bookingCode;
     if (ticket.code) return ticket.code;
     return `T${ticket.id}`;
   };
 
-  // Lấy thông tin vé chi tiết từ API
   const fetchTicketDetails = async (ticketId) => {
     try {
       const response = await ticketApi.getTicketById(ticketId);
@@ -85,28 +340,23 @@ const CompletionStep = ({
     }
   };
 
-  // Tải thông tin vé khi component được render
   useEffect(() => {
     if (paymentSuccess && tickets.length > 0) {
-      // Thêm delay nhỏ để đảm bảo payment đã hoàn tất
       const timer = setTimeout(() => {
         tickets.forEach(async (ticket, index) => {
-          // Lấy thông tin chi tiết vé nếu chưa có
           if (ticket.id && !ticketDetails[ticket.id]) {
             setTimeout(() => {
-              fetchTicketDetails(ticket.id).catch(error => {
+              fetchTicketDetails(ticket.id).catch((error) => {
                 console.error(`Lỗi lấy chi tiết vé ${ticket.id}:`, error);
               });
-            }, index * 300); // Delay 300ms giữa mỗi request
+            }, index * 300);
           }
         });
-      }, 500); // Delay 500ms sau khi thanh toán thành công
-
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [paymentSuccess, tickets]);
 
-  // Làm mới danh sách vé
   const refreshTickets = async () => {
     setRefreshingTickets(true);
     try {
@@ -131,24 +381,38 @@ const CompletionStep = ({
     }
   };
 
-  // Lấy thông tin ghế
   const getSeatInfo = (ticket) => {
+    // Ưu tiên lấy từ ticket.seat trước
     if (ticket.seat) {
       return `${ticket.seat.row}${ticket.seat.column || ticket.seat.number}`;
     }
-    const matchingSeat = seatDetails?.find(
-      (seat) =>
-        seat.id === ticket.seatId || (ticket.seat && seat.id === ticket.seat.id)
-    );
-    return matchingSeat
-      ? `${matchingSeat.row}${matchingSeat.column || matchingSeat.number}`
-      : "Không xác định";
+
+    // Nếu không có, tìm trong seatDetails
+    const matchingSeat = seatDetails?.find((seat) => seat.id === ticket.seatId);
+
+    if (matchingSeat) {
+      return `${matchingSeat.row}${matchingSeat.column || matchingSeat.number}`;
+    }
+
+    if (userId) {
+      const selectedSeats = JSON.parse(
+        sessionStorage.getItem(`selectedSeats_${userId}`) || "[]"
+      );
+      const matchingSelectedSeat = selectedSeats.find(
+        (seat) => seat.id === ticket.seatId
+      );
+      if (matchingSelectedSeat) {
+        return `${matchingSelectedSeat.row}${
+          matchingSelectedSeat.column || matchingSelectedSeat.number
+        }`;
+      }
+    }
+
+    return "Không xác định";
   };
 
-  // Format phương thức thanh toán
   const formatPaymentMethod = (method) => {
     if (!method) return "Không xác định";
-
     const methodMap = {
       vnpay: "VNPAY",
       VNPay: "VNPAY",
@@ -159,27 +423,40 @@ const CompletionStep = ({
       credit: "Thẻ tín dụng",
       banking: "Chuyển khoản",
     };
-
     return methodMap[method] || method;
   };
 
-  // Lấy thông tin phương thức thanh toán
   const getPaymentMethod = () => {
-    if (!payment) return "Không xác định";
-    return formatPaymentMethod(payment.method);
+    if (!paymentData) return "Không xác định";
+
+    const method =
+      paymentData.method ||
+      paymentData.payment?.method ||
+      paymentData.result?.method ||
+      searchParams.get("vnp_BankCode")
+        ? "VNPAY"
+        : "Không xác định";
+
+    return formatPaymentMethod(method);
   };
 
-  // Lấy mã giao dịch
   const getTransactionId = () => {
-    if (!payment) return "Không xác định";
-    return (
-      payment.transactionId ||
-      payment.vnp_TransactionNo ||
-      "Không có mã giao dịch"
-    );
+    if (!paymentData) return "Không xác định";
+
+    const transactionId =
+      paymentData.transactionId ||
+      paymentData.vnp_TransactionNo ||
+      paymentData.payment?.transactionId ||
+      paymentData.payment?.vnp_TransactionNo ||
+      paymentData.result?.transactionId ||
+      paymentData.result?.vnp_TransactionNo ||
+      searchParams.get("vnp_TransactionNo") ||
+      searchParams.get("transactionId") ||
+      "Không có mã giao dịch";
+
+    return transactionId;
   };
 
-  // Xử lý in vé
   const handlePrintTicket = (ticket) => {
     const ticketCode = getTicketCode(ticket);
     notification.info({
@@ -187,13 +464,10 @@ const CompletionStep = ({
       description: `Đang chuẩn bị in vé ${ticketCode}...`,
       placement: "topRight",
     });
-    // Thêm logic in vé ở đây
   };
 
-  // Xử lý lưu vé
   const handleSaveTicket = (ticket) => {
     const ticketCode = getTicketCode(ticket);
-    // Logic tạo file PDF hoặc lưu vé
     notification.success({
       message: "Lưu vé thành công",
       description: `Vé ${ticketCode} đã được lưu vào thiết bị.`,
@@ -201,7 +475,6 @@ const CompletionStep = ({
     });
   };
 
-  // Xử lý chia sẻ vé
   const handleShareTicket = (ticket) => {
     const ticketCode = getTicketCode(ticket);
     const shareData = {
@@ -213,7 +486,6 @@ const CompletionStep = ({
     if (navigator.share) {
       navigator.share(shareData);
     } else {
-      // Fallback: copy to clipboard
       navigator.clipboard.writeText(shareData.text);
       notification.success({
         message: "Đã sao chép",
@@ -223,24 +495,19 @@ const CompletionStep = ({
     }
   };
 
-  // Render thông tin bắp nước
   const renderConcessionInfo = () => {
-    // Tìm concession data từ nhiều nguồn khác nhau
     let concessions = [];
-
-    // Nguồn 1: Từ payment.concessionOrders (cấu trúc cũ)
-    if (payment?.concessionOrders?.length > 0) {
-      concessions = payment.concessionOrders.flatMap(
+    if (paymentData?.concessionOrders?.length > 0) {
+      concessions = paymentData.concessionOrders.flatMap(
         (order) => order.items || []
       );
-    }
-
-    // Nguồn 2: Từ ticketData.concessions (cấu trúc mới)
-    else if (ticketData?.concessions && Array.isArray(ticketData.concessions)) {
+    } else if (
+      ticketData?.concessions &&
+      Array.isArray(ticketData.concessions)
+    ) {
       concessions = ticketData.concessions;
     }
 
-    // Nếu không có concession nào
     if (!concessions || concessions.length === 0) {
       return (
         <div className="flex items-center justify-center py-4">
@@ -270,8 +537,6 @@ const CompletionStep = ({
             </Tag>
           ))}
         </div>
-
-        {/* Hiển thị tổng tiền bắp nước */}
         <div className="mt-3 p-3 bg-orange-50 rounded-lg">
           <Text className="block text-sm font-medium text-orange-700">
             <CoffeeOutlined className="mr-2" />
@@ -288,19 +553,16 @@ const CompletionStep = ({
             </Text>
           </Text>
         </div>
-
-        {/* Hiển thị mã đơn nếu có */}
-        {payment?.concessionOrders?.length > 0 && (
+        {paymentData?.concessionOrders?.length > 0 && (
           <Text className="block text-sm text-gray-600">
             <strong>Mã đơn bắp nước:</strong>{" "}
-            {payment.concessionOrders.map((order) => order.id).join(", ")}
+            {paymentData.concessionOrders.map((order) => order.id).join(", ")}
           </Text>
         )}
       </div>
     );
   };
 
-  // Render thông tin một vé
   const renderTicketInfo = (ticket) => {
     if (!ticket || !showtimeDetails) return null;
 
@@ -313,11 +575,9 @@ const CompletionStep = ({
 
     return (
       <Card className="ticket-card overflow-hidden shadow-lg border-0">
-        {/* Header với gradient */}
         <div className="bg-gradient-to-r from-red-600 via-red-500 to-pink-500 p-6 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -translate-y-16 translate-x-16"></div>
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-10 rounded-full translate-y-12 -translate-x-12"></div>
-
           <Row justify="space-between" align="middle" className="relative z-10">
             <Col>
               <Title level={3} className="m-0 text-white flex items-center">
@@ -338,12 +598,9 @@ const CompletionStep = ({
             </Col>
           </Row>
         </div>
-
         <Row gutter={0} className="min-h-[400px]">
-          {/* Thông tin chi tiết vé */}
           <Col xs={24} lg={16} className="p-6 border-r border-gray-100">
             <Row gutter={[24, 0]}>
-              {/* Poster phim */}
               {showtimeDetails.movie?.posterUrl && (
                 <Col xs={24} sm={8} md={6}>
                   <div className="relative">
@@ -362,8 +619,6 @@ const CompletionStep = ({
                   </div>
                 </Col>
               )}
-
-              {/* Chi tiết phim và suất chiếu */}
               <Col xs={24} sm={16} md={18}>
                 <div className="space-y-4">
                   <div>
@@ -376,7 +631,6 @@ const CompletionStep = ({
                       </Tag>
                     )}
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-3">
                       <div className="flex items-center">
@@ -390,7 +644,6 @@ const CompletionStep = ({
                           </Text>
                         </div>
                       </div>
-
                       <div className="flex items-center">
                         <TeamOutlined className="text-red-500 mr-3 text-lg" />
                         <div>
@@ -403,7 +656,6 @@ const CompletionStep = ({
                         </div>
                       </div>
                     </div>
-
                     <div className="space-y-3">
                       <div className="flex items-center">
                         <CalendarOutlined className="text-red-500 mr-3 text-lg" />
@@ -423,7 +675,6 @@ const CompletionStep = ({
                           </Text>
                         </div>
                       </div>
-
                       <div className="flex items-center">
                         <ClockCircleOutlined className="text-red-500 mr-3 text-lg" />
                         <div>
@@ -442,8 +693,6 @@ const CompletionStep = ({
                       </div>
                     </div>
                   </div>
-
-                  {/* Thông tin bắp nước */}
                   <Divider className="my-4" />
                   <div>
                     <Text strong className="text-gray-700 text-base mb-3 block">
@@ -456,11 +705,8 @@ const CompletionStep = ({
               </Col>
             </Row>
           </Col>
-
-          {/* Thông tin vé và hướng dẫn */}
           <Col xs={24} lg={8} className="p-6 bg-gray-50 flex flex-col">
             <div className="flex-1 flex flex-col items-center justify-center">
-              {/* Thông tin hướng dẫn */}
               <div className="bg-white p-6 rounded-2xl shadow-md mb-6 text-center w-full">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <InfoCircleOutlined className="text-2xl text-blue-600" />
@@ -503,8 +749,6 @@ const CompletionStep = ({
                   </div>
                 </div>
               </div>
-
-              {/* Action Buttons */}
               <Space direction="vertical" className="w-full" size="middle">
                 <Button
                   icon={<PrinterOutlined />}
@@ -514,7 +758,6 @@ const CompletionStep = ({
                 >
                   In vé
                 </Button>
-
                 <Button
                   icon={<DownloadOutlined />}
                   size="large"
@@ -523,7 +766,6 @@ const CompletionStep = ({
                 >
                   Lưu vé
                 </Button>
-
                 <Button
                   icon={<ShareAltOutlined />}
                   size="large"
@@ -540,7 +782,6 @@ const CompletionStep = ({
     );
   };
 
-  // Render danh sách vé (nếu có nhiều vé)
   const renderTicketsList = () => {
     if (tickets.length <= 1) return null;
 
@@ -596,11 +837,9 @@ const CompletionStep = ({
                     >
                       <FileTextOutlined className="text-xl" />
                     </div>
-
                     <Title level={5} className="mb-2">
                       Vé {index + 1}
                     </Title>
-
                     <div className="space-y-1">
                       <Text className="block text-sm text-gray-600">
                         Mã: <Text code>{ticketCode}</Text>
@@ -618,7 +857,6 @@ const CompletionStep = ({
                         </Text>
                       )}
                     </div>
-
                     <Tag color="green" className="mt-2">
                       <CheckCircleOutlined className="mr-1" />
                       Vé hợp lệ
@@ -633,13 +871,30 @@ const CompletionStep = ({
     );
   };
 
-  // Render thông tin thanh toán
   const renderPaymentInfo = () => {
-    if (!payment) return null;
+    if (!paymentData) return null;
 
     const paymentMethod = getPaymentMethod();
     const transactionId = getTransactionId();
-    const totalAmount = payment.amount || 0;
+
+    // FIX: Lấy amount từ đúng vị trí trong response
+    const totalAmount =
+      paymentData.amount ||
+      paymentData.payment?.amount ||
+      paymentData.result?.amount ||
+      paymentData.vnp_Amount ||
+      paymentData.payment?.vnp_Amount ||
+      0;
+
+    console.log("Payment amount debug:", {
+      paymentData: paymentData,
+      directAmount: paymentData.amount,
+      paymentAmount: paymentData.payment?.amount,
+      resultAmount: paymentData.result?.amount,
+      vnpAmount: paymentData.vnp_Amount,
+      paymentVnpAmount: paymentData.payment?.vnp_Amount,
+      finalAmount: totalAmount,
+    });
 
     const getPaymentLogo = (method) => {
       const logoMap = {
@@ -688,7 +943,6 @@ const CompletionStep = ({
               </div>
             </Col>
           </Row>
-
           <Row justify="space-between" align="middle" className="py-2">
             <Col>
               <Text className="text-gray-600">Mã giao dịch:</Text>
@@ -699,22 +953,23 @@ const CompletionStep = ({
               </Text>
             </Col>
           </Row>
-
           <Row justify="space-between" align="middle" className="py-2">
             <Col>
               <Text className="text-gray-600">Thời gian:</Text>
             </Col>
             <Col>
               <Text strong>
-                {payment.createdAt
-                  ? new Date(payment.createdAt).toLocaleString("vi-VN")
+                {paymentData.createdAt
+                  ? new Date(paymentData.createdAt).toLocaleString("vi-VN")
+                  : paymentData.payment?.createdAt
+                  ? new Date(paymentData.payment.createdAt).toLocaleString(
+                      "vi-VN"
+                    )
                   : new Date().toLocaleString("vi-VN")}
               </Text>
             </Col>
           </Row>
-
           <Divider className="my-4" />
-
           <Row
             justify="space-between"
             align="middle"
@@ -736,9 +991,23 @@ const CompletionStep = ({
     );
   };
 
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16">
+        <Spin size="large" />
+        <Text className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>
+          Đang xử lý kết quả thanh toán...
+        </Text>
+      </div>
+    );
+  }
+
   return (
-    <div className="completion-step max-w-7xl mx-auto p-4">
-      {/* Kết quả thanh toán */}
+    <div
+      className={`max-w-7xl mx-auto p-4 ${
+        theme === "dark" ? "bg-dark-bg" : "bg-light-bg"
+      }`}
+    >
       <div className="text-center mb-8">
         <Result
           icon={
@@ -761,15 +1030,15 @@ const CompletionStep = ({
           }
           subTitle={
             paymentSuccess ? (
-              <Paragraph className="text-lg text-gray-600 max-w-2xl mx-auto">
+              <Text className="text-lg text-gray-600 max-w-2xl mx-auto">
                 Cảm ơn bạn đã đặt vé! Vé điện tử đã được tạo thành công. Vui
                 lòng mang mã vé đến quầy để nhận vé giấy và bắp nước (nếu có).
-              </Paragraph>
+              </Text>
             ) : (
-              <Paragraph className="text-lg text-red-500 max-w-2xl mx-auto">
+              <Text className="text-lg text-red-500 max-w-2xl mx-auto">
                 {paymentError ||
                   "Đã có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại hoặc liên hệ hỗ trợ."}
-              </Paragraph>
+              </Text>
             )
           }
           extra={
@@ -778,7 +1047,7 @@ const CompletionStep = ({
                 <Button
                   type="primary"
                   size="large"
-                  onClick={onFinish}
+                  onClick={() => navigate("/")}
                   className="bg-red-500 border-none rounded-lg font-bold h-14 px-8 hover:bg-red-600"
                 >
                   Về trang chủ
@@ -798,7 +1067,13 @@ const CompletionStep = ({
                 <Button
                   type="default"
                   size="large"
-                  onClick={onRetry}
+                  onClick={() =>
+                    navigate(
+                      `/payment?showtimeId=${
+                        ticketData?.firstTicket?.showtimeId || ""
+                      }`
+                    )
+                  }
                   className="border-gray-300 rounded-lg h-14 px-8 font-medium"
                 >
                   Thử lại
@@ -806,7 +1081,7 @@ const CompletionStep = ({
                 <Button
                   type="primary"
                   size="large"
-                  onClick={onFinish}
+                  onClick={() => navigate("/")}
                   className="bg-red-500 border-none rounded-lg font-bold h-14 px-8 hover:bg-red-600"
                 >
                   Về trang chủ
@@ -816,35 +1091,15 @@ const CompletionStep = ({
           }
         />
       </div>
-
-      {/* Hiển thị thông tin vé khi thanh toán thành công */}
       {paymentSuccess && currentTicket && (
         <div className="space-y-6 mt-8">
-          {/* Danh sách vé (nếu có nhiều vé) */}
           {renderTicketsList()}
-
-          {/* Thông tin chi tiết vé hiện tại */}
           {renderTicketInfo(currentTicket)}
-
-          {/* Thông tin thanh toán */}
           {renderPaymentInfo()}
         </div>
       )}
-
-      {/* Modal xác nhận các hành động */}
-      <Modal
-        title="Xác nhận hành động"
-        open={false}
-        onCancel={() => {}}
-        footer={null}
-        centered
-      >
-        <div className="py-4">
-          <Text>Bạn có chắc chắn muốn thực hiện hành động này?</Text>
-        </div>
-      </Modal>
     </div>
   );
 };
 
-export default CompletionStep;
+export default PaymentCompletionPage;

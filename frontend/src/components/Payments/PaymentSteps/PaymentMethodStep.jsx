@@ -11,7 +11,6 @@ import {
   Divider,
   Tag,
 } from "antd";
-import { promotionApi } from "../../../api/promotionApi";
 import { concessionOrderApi } from "../../../api/concessionOrderApi";
 import { ticketApi } from "../../../api/ticketApi";
 import { seatApi } from "../../../api/seatApi";
@@ -31,6 +30,7 @@ const PaymentMethodStep = ({
   const [promotionCode, setPromotionCode] = useState("");
   const [promotionError, setPromotionError] = useState(null);
   const [promotionDiscount, setPromotionDiscount] = useState(0);
+  const [appliedTicketId, setAppliedTicketId] = useState(null);
   const userId = parseInt(sessionStorage.getItem("userId")) || null;
 
   const handleApplyPromotion = async () => {
@@ -39,48 +39,47 @@ const PaymentMethodStep = ({
       return;
     }
     try {
-      const response = await promotionApi.validatePromotion(promotionCode);
-      if (response.valid) {
-        setPromotionDiscount(response.discount || 0);
-        setPromotionError(null);
-        localStorage.setItem("promotionCode", promotionCode);
-        localStorage.setItem("promotionDiscount", response.discount || 0);
-        message.success("Áp dụng mã khuyến mãi thành công!");
-      } else {
-        setPromotionError(response.message || "Mã khuyến mãi không hợp lệ");
-        setPromotionDiscount(0);
+      // Lấy ticketId đầu tiên từ sessionStorage để thử áp dụng khuyến mãi
+      const ticketIds = JSON.parse(sessionStorage.getItem(`ticketIds_${userId}`) || []);
+      if (!ticketIds.length) {
+        setPromotionError("Vui lòng tạo vé trước khi áp dụng khuyến mãi");
+        return;
       }
-    } catch {
-      setPromotionError("Không thể xác thực mã khuyến mãi");
+      const response = await ticketApi.applyPromotion(ticketIds[0], promotionCode);
+      setPromotionDiscount(response.discount || 0);
+      setAppliedTicketId(ticketIds[0]);
+      setPromotionError(null);
+      localStorage.setItem("promotionCode", promotionCode);
+      localStorage.setItem("promotionDiscount", response.discount || 0);
+      message.success("Áp dụng mã khuyến mãi thành công!");
+    } catch (error) {
+      setPromotionError(error.message || "Mã khuyến mãi không hợp lệ");
       setPromotionDiscount(0);
+      message.error(error.message || "Không thể áp dụng mã khuyến mãi");
     }
   };
 
   const handleSubmit = async (values) => {
     if (!userId) {
-      message.error(
-        "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại."
-      );
+      message.error("Vui lòng đăng nhập lại.");
       return;
     }
 
-    // Kiểm tra trạng thái đơn bắp nước nếu có
-    if (selectedConcessions && selectedConcessions.length > 0) {
-      if (!concessionOrderId) {
-        message.error("Đơn bắp nước chưa được tạo. Vui lòng thử lại.");
-        return;
-      }
+    // Kiểm tra trạng thái đơn bắp nước
+    if (selectedConcessions?.length > 0 && !concessionOrderId) {
+      message.error("Đơn bắp nước chưa được tạo. Vui lòng thử lại.");
+      return;
+    }
+    if (selectedConcessions.length > 0) {
       try {
-        const order = await concessionOrderApi.getUserOrderById(
-          concessionOrderId
-        );
+        const order = await concessionOrderApi.getUserOrderById(concessionOrderId);
         if (!["PENDING", "CONFIRMED"].includes(order.status)) {
           message.error("Đơn bắp nước không hợp lệ để thanh toán.");
           return;
         }
       } catch (error) {
-        console.error("Lỗi kiểm tra trạng thái đơn bắp nước:", error);
-        message.error("Không thể kiểm tra trạng thái đơn bắp nước.");
+        message.error("Lỗi kiểm tra trạng thái đơn bắp nước:", error);
+        message.error("Không thể kiểm tra trạng thái đơn bắp.");
         return;
       }
     }
@@ -96,6 +95,7 @@ const PaymentMethodStep = ({
 
     let ticketIds = [];
     const existingTicketIds = sessionStorage.getItem(`ticketIds_${userId}`);
+
     try {
       // Kiểm tra trạng thái ghế
       const seats = await Promise.all(
@@ -108,105 +108,101 @@ const PaymentMethodStep = ({
       );
 
       if (unavailableSeats.length > 0) {
-        const ticketIdsToCancel = [];
+        // Hủy vé PENDING liên quan
         for (const seat of unavailableSeats) {
           try {
             const ticket = await ticketApi.getTicketBySeatId(seat.id, userId);
-            if (
-              ticket &&
-              ticket.status === "PENDING" &&
-              ticket.userId === userId
-            ) {
-              ticketIdsToCancel.push(ticket.id);
+            if (ticket && ticket.status === "PENDING" && ticket.userId === userId) {
+              await ticketApi.cancelTicketId(ticket.id);
             }
-          } catch (error) {
-            console.warn(`Không tìm thấy vé cho ghế ${seat.id}:`, error);
-          }
-        }
-
-        if (ticketIdsToCancel.length > 0) {
-          await ticketApi.updateTicketsStatus(ticketIdsToCancel, "CANCELLED");
-          await seatApi.unlockSeats(seatIds);
-        }
-
-        sessionStorage.removeItem(`selectedSeats_${userId}`);
-        sessionStorage.removeItem(`seatLockTime_${userId}`);
-        sessionStorage.removeItem(`ticketIds_${userId}`);
-        message.error("Một số ghế không còn khả dụng. Vui lòng chọn lại ghế.");
-        return;
-      }
-
-      // Gia hạn khóa ghế
-      await Promise.all(seatIds.map((seatId) => seatApi.renewSeatLock(seatId)));
-      sessionStorage.setItem(`seatLockTime_${userId}`, Date.now().toString());
-
-      // Kiểm tra vé PENDING hiện có
-      if (existingTicketIds) {
-        ticketIds = JSON.parse(existingTicketIds);
-        // Xác minh vé
-        const tickets = await Promise.all(
-          ticketIds.map((ticketId) => ticketApi.getTicketById(ticketId))
-        );
-        const validTickets = tickets.filter(
-          (ticket) =>
-            ticket &&
-            ticket.status === "PENDING" &&
-            ticket.userId === userId &&
-            ticket.showtimeId === parseInt(showtimeId) &&
-            seatIds.includes(ticket.seatId)
-        );
-
-        if (validTickets.length === seatIds.length) {
-          // Tất cả vé hợp lệ, sử dụng lại
-          ticketIds = validTickets.map((ticket) => ticket.id);
-        } else {
-          // Một số vé không hợp lệ, hủy và tạo mới
-          await ticketApi.updateTicketsStatus(ticketIds, "CANCELLED");
-          await seatApi.unlockSeats(seatIds);
-          ticketIds = [];
+        } catch (error) {
+          console.warn(`Không tìm thấy vé cho ghế ${seat.id}:`, error);
         }
       }
 
-      // Tạo vé mới nếu không có vé hợp lệ
-      if (!ticketIds.length) {
-        const ticketData = {
-          userId,
-          showtimeId: parseInt(showtimeId),
-          seats: seatIds,
-          promotionId:
-            promotionDiscount > 0
-              ? parseInt(localStorage.getItem("promotionId"))
-              : null,
-        };
+      await seatApi.unlockSeats(seatIds);
+      sessionStorage.removeItem(`selectedSeats_${userId}`);
+      sessionStorage.removeItem(`seatLockTime_${userId}`);
+      sessionStorage.removeItem(`ticketIds_${userId}`);
+      message.error("Một số ghế không còn khả dụng. Vui lòng chọn lại ghế.");
+      return;
+    }
 
-        const ticketResponse = await ticketApi.createTicket(ticketData);
-        ticketIds = ticketResponse.ticketIds;
-        sessionStorage.setItem(
-          `ticketIds_${userId}`,
-          JSON.stringify(ticketIds)
-        );
+    // Gia hạn khóa ghế
+    await Promise.all(seatIds.map((seatId) => seatApi.renewSeatLock(seatId)));
+    sessionStorage.setItem(`seatLockTime_${userId}`, Date.now().toString());
+
+    // Kiểm tra vé PENDING hiện có
+    if (existingTicketIds) {
+      ticketIds = JSON.parse(existingTicketIds);
+      const tickets = await Promise.all(
+        ticketIds.map((ticketId) => ticketApi.getTicketById(ticketId))
+      );
+      const validTickets = tickets.filter(
+        (ticket) =>
+          ticket &&
+          ticket.status === "PENDING" &&
+          ticket.userId === userId &&
+          ticket.showtimeId === parseInt(showtimeId) &&
+          seatIds.includes(ticket.seatId)
+      );
+
+      if (validTickets.length === seatIds.length) {
+        ticketIds = validTickets.map((ticket) => ticket.id);
+      } else {
+        // Hủy vé không hợp lệ
+        for (const id of ticketIds) {
+          await ticketApi.cancelTicket(id);
+        }
+        await seatApi.unlockSeats(seatIds);
+        ticketIds = [];
       }
+    }
 
-      const paymentData = {
-        ticketIds,
-        concessionOrderIds: concessionOrderId ? [concessionOrderId] : [],
-        method: "VNPay",
+    // Tạo vé mới
+    if (!ticketIds.length) {
+      const ticketData = {
+        userId,
+        showtimeId: parseInt(showtimeId),
+        seats: seatIds,
       };
-
-      onPaymentConfirm({
-        ...values,
-        ...paymentData,
-        promotionCode,
-        promotionDiscount,
-        concessionOrderId,
-      });
-    } catch (error) {
-      console.error("Lỗi khi xử lý thanh toán:", error);
-      message.error(
-        error.response?.data?.message || "Không thể tạo vé. Vui lòng thử lại."
+      const ticketResponse = await ticketApi.createTicket(ticketData);
+      ticketIds = ticketResponse.ticketIds;
+      sessionStorage.setItem(
+        `ticketIds_${userId}`,
+        JSON.stringify(ticketIds)
       );
     }
-  };
+
+    // Áp dụng khuyến mãi cho vé đầu tiên nếu có
+    if (promotionCode && !appliedTicketId) {
+      try {
+        const response = await ticketApi.applyPromotion(ticketIds[0], promotionCode);
+        setPromotionDiscount(response.discount || 0);
+      } catch (error) {
+        console.error("Lỗi khi áp dụng khuyến mãi:", error);
+        message.error("Không thể áp dụng mã khuyến mãi");
+      }
+    }
+
+    const paymentData = {
+      ticketIds,
+      concessionOrderIds: concessionOrderId ? [concessionOrderId] : [],
+      method: "VNPay",
+    };
+
+    onPaymentConfirm({
+      ...values,
+      ...paymentData,
+      promotionCode,
+      promotionDiscount,
+      concessionOrderId,
+    });
+  } catch (error) {
+    console.error("Lỗi khi xử lý thanh toán:", error);
+    message.error(error.message || "Không thể tạo vé. Vui lòng thử lại.");
+  }
+};
 
   const renderConcessionInfo = () => {
     if (!selectedConcessions || selectedConcessions.length === 0) {
@@ -218,10 +214,8 @@ const PaymentMethodStep = ({
           <Tag
             key={index}
             color="cyan"
-            className="px-3 py-1.5 rounded-lg font-medium bg-cyan-100 border border-cyan-500 text-cyan-700"
-          >
-            {item.name} x{item.quantity} -{" "}
-            {(item.price * item.quantity).toLocaleString("vi-VN")}đ
+            className="px-3 py-1.5 rounded-lg font-medium bg-cyan-100 border-cyan-500 text-cyan-700">
+            {item.name} x{item.quantity} - {(item.price * item.quantity).toLocaleString("vi-VN")} VNĐ
           </Tag>
         ))}
         {concessionOrderId && (
@@ -237,7 +231,7 @@ const PaymentMethodStep = ({
     <div className="w-full max-w-3xl mx-auto animate-fadeIn">
       <Title
         level={4}
-        className="mb-6 text-text-primary dark:text-text-primary"
+        className="mb-6 text-dark-text-primary dark:text-dark-text-primary"
       >
         Phương thức thanh toán
       </Title>
@@ -295,7 +289,7 @@ const PaymentMethodStep = ({
                 Tổng tiền:
               </Text>
               <Text className="text-red-600 font-bold text-lg">
-                {(totalPrice - promotionDiscount).toLocaleString("vi-VN")}đ
+                {(totalPrice - promotionDiscount).toLocaleString("vi-VN")} VNĐ
               </Text>
             </div>
             <Divider className="my-4" />
@@ -315,7 +309,7 @@ const PaymentMethodStep = ({
                   type="primary"
                   onClick={handleApplyPromotion}
                   className="h-12 font-medium"
-                  style={{ backgroundColor: "#005BAA" }}
+                  style={{ backgroundColor: "#0056b3" }}
                 >
                   Áp dụng
                 </Button>
@@ -330,8 +324,7 @@ const PaymentMethodStep = ({
               )}
               {promotionDiscount > 0 && (
                 <Text className="text-green-500 mt-2 block">
-                  Đã áp dụng giảm giá:{" "}
-                  {promotionDiscount.toLocaleString("vi-VN")}đ
+                  Đã giảm: {promotionDiscount.toLocaleString("vi-VN")} VNĐ
                 </Text>
               )}
             </div>
@@ -343,8 +336,8 @@ const PaymentMethodStep = ({
                 loading={isProcessing}
                 disabled={isProcessing}
                 block
-                className="btn-primary h-12 text-base font-medium dark:text-text-primary"
-                style={{ backgroundColor: "#005BAA" }}
+                className="btn-primary h-12 text-base font-medium"
+                style={{ backgroundColor: "#0056b3" }}
               >
                 Tiếp tục thanh toán
               </Button>

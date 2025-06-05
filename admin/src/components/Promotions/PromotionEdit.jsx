@@ -18,36 +18,40 @@ const PromotionEdit = () => {
     const fetchPromotion = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         let promotionId = extractIdFromPath(id, location.pathname);
-        
+
         if (!promotionId) {
           throw new Error("ID khuyến mãi không hợp lệ");
         }
-        
+
         const response = await promotionService.getOne(promotionId);
-        
+
         if (!response || !response.data) {
           throw new Error("Không tìm thấy dữ liệu khuyến mãi");
         }
-        
+
         // Định dạng lại dữ liệu để phù hợp với PromotionForm
         const formattedData = {
           ...response.data,
           // Đảm bảo các trường ngày tháng được định dạng đúng cách
-          validFrom: response.data.validFrom ? new Date(response.data.validFrom).toISOString().split('T')[0] : "",
-          validUntil: response.data.validUntil ? new Date(response.data.validUntil).toISOString().split('T')[0] : "",
+          validFrom: response.data.validFrom
+            ? new Date(response.data.validFrom).toISOString().split("T")[0]
+            : "",
+          validUntil: response.data.validUntil
+            ? new Date(response.data.validUntil).toISOString().split("T")[0]
+            : "",
           // Đảm bảo type được chuyển đổi chính xác từ enum của Prisma
-          type: response.data.type === 'PERCENTAGE' ? 'percentage' : 'fixed',
+          type: response.data.type === "PERCENTAGE" ? "percentage" : "fixed",
         };
-        
+
         setPromotion(formattedData);
       } catch (err) {
         console.error("Lỗi khi tải thông tin khuyến mãi:", err);
         setError(
-          err.message || 
-          "Không thể tải thông tin khuyến mãi. Vui lòng thử lại sau."
+          err.message ||
+            "Không thể tải thông tin khuyến mãi. Vui lòng thử lại sau."
         );
       } finally {
         setLoading(false);
@@ -63,16 +67,16 @@ const PromotionEdit = () => {
     if (paramId && paramId !== "edit" && !isNaN(Number(paramId))) {
       return paramId;
     }
-    
+
     // Nếu không có ID hợp lệ từ tham số, tìm trong pathname
-    const pathParts = pathname.split('/');
+    const pathParts = pathname.split("/");
     for (const part of pathParts) {
       // Tìm phần tử là số trong pathname
       if (part && !isNaN(Number(part))) {
         return part;
       }
     }
-    
+
     // Nếu không tìm thấy ID hợp lệ
     return null;
   };
@@ -80,50 +84,47 @@ const PromotionEdit = () => {
   const handleSubmit = async (formData) => {
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
-      // Sử dụng cùng một hàm để trích xuất ID
       const promotionId = extractIdFromPath(id, location.pathname);
-      
+
       if (!promotionId) {
         throw new Error("ID khuyến mãi không hợp lệ");
       }
-      
-      // Chuẩn bị dữ liệu để gửi đến API
-      // Chuyển đổi giá trị type để phù hợp với enum PromoType của Prisma
       let promoType = formData.type;
-      if (formData.type === 'percentage') {
-        promoType = 'PERCENTAGE';
-      } else if (formData.type === 'fixed') {
-        promoType = 'FIXED_AMOUNT';
+      if (formData.type === "percentage") {
+        promoType = "PERCENTAGE";
+      } else if (formData.type === "fixed") {
+        promoType = "FIXED"; 
       }
-      
+
       const updateData = {
         ...formData,
-        // Cập nhật type
         type: promoType,
-        // Đảm bảo các trường số được chuyển đổi đúng
         discount: parseFloat(formData.discount),
-        // Đảm bảo trường boolean được chuyển đổi đúng
         isActive: Boolean(formData.isActive),
-        // Đảm bảo định dạng ngày tháng đúng
-        validFrom: formData.validFrom ? new Date(formData.validFrom).toISOString() : null,
-        validUntil: formData.validUntil ? new Date(formData.validUntil).toISOString() : null,
+        validFrom: formData.validFrom
+          ? new Date(formData.validFrom).toISOString()
+          : null,
+        validUntil: formData.validUntil
+          ? new Date(formData.validUntil).toISOString()
+          : null,
       };
-      
-      // Sử dụng ID đã xử lý
+
+      console.log("Dữ liệu trước khi gửi update:", updateData); // Thêm log để kiểm tra
+
       await promotionService.update({ id: promotionId, data: updateData });
-      
+
       navigate("/promotions", {
         state: {
-          successMessage: `Khuyến mãi "${formData.title}" đã được cập nhật thành công.`
-        }
+          successMessage: `Khuyến mãi "${formData.title}" đã được cập nhật thành công.`,
+        },
       });
     } catch (err) {
       console.error("Lỗi khi cập nhật khuyến mãi:", err);
       setError(
-        err.message || 
-        "Đã xảy ra lỗi khi cập nhật khuyến mãi. Vui lòng thử lại."
+        err.message ||
+          "Đã xảy ra lỗi khi cập nhật khuyến mãi. Vui lòng thử lại."
       );
     } finally {
       setIsSubmitting(false);
@@ -142,7 +143,9 @@ const PromotionEdit = () => {
     return (
       <div className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="bg-red-50 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-md">
-          <p className="font-medium">{error || "Không tìm thấy khuyến mãi hoặc đã có lỗi xảy ra."}</p>
+          <p className="font-medium">
+            {error || "Không tìm thấy khuyến mãi hoặc đã có lỗi xảy ra."}
+          </p>
         </div>
         <div className="mt-4">
           <button
@@ -167,14 +170,14 @@ const PromotionEdit = () => {
           Cập nhật thông tin khuyến mãi: {promotion.title}
         </p>
       </div>
-      
+
       {error && (
         <div className="mb-6 bg-red-50 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-md">
           <p className="font-medium">{error}</p>
         </div>
       )}
-      
-      <PromotionForm 
+
+      <PromotionForm
         initialData={promotion}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}

@@ -11,22 +11,17 @@ export const paymentApi = {
         throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
       }
 
-      const validMethods = ["VNPAY"];
-      const method = paymentData.method.toUpperCase();
-      if (!validMethods.includes(method)) {
-        throw new Error(`Phương thức thanh toán '${method}' không hợp lệ.`);
-      }
-
-      const ticketIds = Array.isArray(paymentData.ticketIds)
-        ? paymentData.ticketIds
-        : [paymentData.ticketIds];
-      const concessionOrderIds = Array.isArray(paymentData.concessionOrderIds)
-        ? paymentData.concessionOrderIds
-        : paymentData.concessionOrderIds
-        ? [paymentData.concessionOrderIds]
-        : [];
-
-      const payload = { ticketIds, concessionOrderIds, method };
+      const payload = {
+        ticketIds: Array.isArray(paymentData.ticketIds)
+          ? paymentData.ticketIds
+          : [paymentData.ticketIds],
+        concessionOrderIds: Array.isArray(paymentData.concessionOrderIds)
+          ? paymentData.concessionOrderIds
+          : paymentData.concessionOrderIds
+          ? [paymentData.concessionOrderIds]
+          : [],
+        method: paymentData.method.toUpperCase(),
+      };
 
       const response = await axiosInstance.post("/payments", payload, {
         headers: { Authorization: `Bearer ${token}` },
@@ -35,7 +30,7 @@ export const paymentApi = {
       if (response.data.id) {
         const paymentInfo = {
           id: response.data.id,
-          method: method,
+          method: payload.method,
           orderToken: response.data.orderToken || "",
           amount: response.data.amount,
           createdAt: new Date().toISOString(),
@@ -43,26 +38,9 @@ export const paymentApi = {
             response.data.appTransId || response.data.orderToken || "",
           userId: userId,
         };
-
-        localStorage.setItem(`lastPaymentId_${userId}`, response.data.id);
-        localStorage.setItem(`lastPaymentMethod_${userId}`, method);
-        localStorage.setItem(
-          `lastOrderToken_${userId}`,
-          response.data.orderToken || ""
-        );
-        localStorage.setItem(
-          `lastPaymentAmount_${userId}`,
-          response.data.amount
-        );
-        localStorage.setItem(
-          `lastPaymentCreatedAt_${userId}`,
-          new Date().toISOString()
-        );
-        localStorage.setItem(
-          `lastAppTransId_${userId}`,
-          response.data.appTransId || response.data.orderToken || ""
-        );
-        localStorage.setItem(
+        // Lưu vào sessionStorage thay vì localStorage
+        sessionStorage.setItem(`lastPaymentId_${userId}`, response.data.id);
+        sessionStorage.setItem(
           `lastPaymentInfo_${userId}`,
           JSON.stringify(paymentInfo)
         );
@@ -70,14 +48,13 @@ export const paymentApi = {
 
       return response.data;
     } catch (error) {
-      if (error.response?.data?.message) {
-        throw new Error(error.response.data.message);
-      }
-      throw error;
+      throw new Error(
+        error.response?.data?.message || "Lỗi khi xử lý thanh toán"
+      );
     }
   },
 
-  // Kiểm tra trạng thái thanh toán VNPay - CẬP NHẬT theo backend mới
+  // Kiểm tra trạng thái thanh toán VNPay
   checkVNPayStatus: async (paymentId) => {
     try {
       if (!paymentId) {

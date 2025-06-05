@@ -141,70 +141,94 @@ const createShowtime = async (req, res) => {
 // Lấy tất cả suất chiếu (GET /api/showtimes)
 const getAllShowtimes = async (req, res) => {
   try {
-    // Xử lý các tham số lọc từ query string
-    const { movieId, cinemaId, date, showPast } = req.query;
+    const {
+      page = 1,
+      limit = 10,
+      movieId,
+      hallId,
+      cinemaId,
+      date,
+      showPast,
+      status,
+      _sort,
+      _order,
+      ...otherQuery
+    } = req.query;
+    const filter = {};
 
-    let filter = {};
-
+    // Xử lý bộ lọc movieId
     if (movieId) {
       filter.movieId = parseInt(movieId, 10);
     }
 
+    // Xử lý bộ lọc hallId
+    if (hallId) {
+      filter.hallId = parseInt(hallId, 10);
+    }
+
+    // Xử lý bộ lọc cinemaId
     if (cinemaId) {
       filter.hall = { cinemaId: parseInt(cinemaId, 10) };
     }
 
+    // Xử lý bộ lọc theo ngày
     if (date) {
-      // Chuyển đổi ngày thành UTC đầu ngày và cuối ngày
       const startDate = dayjs
-        .tz(date, VIETNAM_TIMEZONE)
+        .tz(date, "Asia/Ho_Chi_Minh")
         .startOf("day")
         .utc()
         .toDate();
       const endDate = dayjs
-        .tz(date, VIETNAM_TIMEZONE)
+        .tz(date, "Asia/Ho_Chi_Minh")
         .endOf("day")
         .utc()
         .toDate();
-
       filter.startTime = { gte: startDate, lte: endDate };
-
-      logTimeDebug(`Lọc theo ngày ${date} - Từ`, startDate);
-      logTimeDebug(`Lọc theo ngày ${date} - Đến`, endDate);
     }
 
-    // Mặc định, chỉ hiển thị suất chiếu hiện tại và trong tương lai
-    if (showPast !== "true") {
-      // Lấy thời gian hiện tại theo UTC
-      const now = new Date();
-      logTimeDebug("Thời gian hiện tại", now);
-
-      filter.startTime = {
-        ...filter.startTime,
-        gte: filter.startTime?.gte || now,
-      };
+    // Xử lý bộ lọc trạng thái (status)
+    const now = new Date();
+    if (status && status !== "all") {
+      if (status === "playing") {
+        filter.startTime = { ...filter.startTime, lte: now };
+        filter.endTime = { ...filter.endTime, gte: now };
+      } else if (status === "upcoming") {
+        filter.startTime = { ...filter.startTime, gt: now };
+      } else if (status === "ended") {
+        filter.endTime = { ...filter.endTime, lt: now };
+      }
     }
 
-    const showtimes = await prisma.showtime.findMany({
-      where: filter,
-      include: {
-        movie: true,
-        hall: {
-          include: {
-            cinema: true,
-          },
-        },
-      },
-      orderBy: { startTime: "asc" },
+    // Chỉ áp dụng bộ lọc showPast nếu không có status hoặc date
+    if (showPast !== "true" && !status && !date) {
+      filter.startTime = { ...filter.startTime, gte: now };
+    }
+
+    // Xử lý sắp xếp
+    const orderBy = {};
+    if (_sort) {
+      orderBy[_sort] = _order?.toLowerCase() === "desc" ? "desc" : "asc";
+    } else {
+      orderBy.startTime = "asc";
+    }
+
+    const [showtimes, total] = await Promise.all([
+      prisma.showtime.findMany({
+        where: filter,
+        include: { movie: true, hall: { include: { cinema: true } } },
+        orderBy,
+        skip: (parseInt(page) - 1) * parseInt(limit),
+        take: parseInt(limit),
+      }),
+      prisma.showtime.count({ where: filter }),
+    ]);
+
+    res.status(200).json({
+      data: showtimes,
+      total,
+      totalPages: Math.ceil(total / parseInt(limit)),
     });
-
-    // Log thông tin để debug
-    console.log(`Filter: ${JSON.stringify(filter)}`);
-    console.log(`Tìm thấy ${showtimes.length} suất chiếu`);
-
-    res.status(200).json(showtimes);
   } catch (error) {
-    console.error("Error getting showtimes:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
