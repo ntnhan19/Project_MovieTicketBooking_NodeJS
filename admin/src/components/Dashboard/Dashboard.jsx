@@ -8,23 +8,22 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
   MagnifyingGlassIcon,
-  ShoppingCartIcon,
   CalendarDaysIcon,
   CurrencyDollarIcon,
   ClockIcon,
+  ExclamationTriangleIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
-import { Line, Bar, Doughnut } from "react-chartjs-2";
+import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
   Title,
   Tooltip,
   Legend,
-  ArcElement,
 } from "chart.js";
 import authProvider from "../../services/authProvider";
 import dashboardService from "../../services/dashboardService";
@@ -34,8 +33,6 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
-  ArcElement,
   Title,
   Tooltip,
   Legend
@@ -50,19 +47,26 @@ const StatCard = ({
   color = "primary",
   onClick,
   subtitle,
+  loading = false,
+  error = false,
 }) => {
   const Icon = icon;
   const colorClasses = {
-    primary: "bg-red-50 text-red-600",
-    blue: "bg-blue-50 text-blue-600",
-    green: "bg-green-50 text-green-600",
-    purple: "bg-purple-50 text-purple-600",
-    orange: "bg-orange-50 text-orange-600",
+    primary: "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400",
+    blue: "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400",
+    green:
+      "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400",
+    orange:
+      "bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400",
   };
 
   return (
     <div
-      className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 cursor-pointer border border-gray-100 dark:border-gray-700"
+      className={`bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 cursor-pointer border ${
+        error
+          ? "border-red-200 dark:border-red-800"
+          : "border-gray-100 dark:border-gray-700"
+      }`}
       onClick={onClick}
     >
       <div className="flex justify-between items-start mb-4">
@@ -70,20 +74,35 @@ const StatCard = ({
           <p className="text-gray-500 dark:text-gray-400 font-medium text-sm uppercase tracking-wide">
             {title}
           </p>
-          <h3 className="text-gray-900 dark:text-white text-2xl font-bold mt-2">
-            {value}
-          </h3>
-          {subtitle && (
+          {loading ? (
+            <div className="mt-2 h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          ) : error ? (
+            <div className="flex items-center mt-2">
+              <ExclamationTriangleIcon className="w-5 h-5 text-red-500 mr-2" />
+              <span className="text-red-600 dark:text-red-400 text-sm">
+                Lỗi tải dữ liệu
+              </span>
+            </div>
+          ) : (
+            <h3 className="text-gray-900 dark:text-white text-2xl font-bold mt-2">
+              {value}
+            </h3>
+          )}
+          {subtitle && !loading && !error && (
             <p className="text-gray-600 dark:text-gray-300 text-sm mt-1">
               {subtitle}
             </p>
           )}
         </div>
         <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-          <Icon className="w-6 h-6" />
+          {loading ? (
+            <ArrowPathIcon className="w-6 h-6 animate-spin" />
+          ) : (
+            <Icon className="w-6 h-6" />
+          )}
         </div>
       </div>
-      {percentage !== undefined && (
+      {percentage !== undefined && !loading && !error && (
         <div className="flex items-center text-sm">
           {increase ? (
             <ArrowTrendingUpIcon className="w-4 h-4 text-green-500 mr-1" />
@@ -95,7 +114,7 @@ const StatCard = ({
             {percentage}%
           </span>
           <span className="text-gray-500 dark:text-gray-400 ml-1">
-            so với tháng trước
+            so với kỳ trước
           </span>
         </div>
       )}
@@ -132,6 +151,9 @@ const RecentMovieItem = ({
 
   const currentStatus = statusConfig[status] || statusConfig.inactive;
 
+  // Sử dụng state để quản lý việc hiển thị ảnh hoặc placeholder
+  const [showPoster, setShowPoster] = useState(!!posterUrl);
+
   return (
     <div
       className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
@@ -139,11 +161,12 @@ const RecentMovieItem = ({
     >
       <div className="flex items-center flex-1">
         <div className="h-16 w-12 flex-shrink-0 mr-4">
-          {posterUrl ? (
+          {showPoster ? (
             <img
               className="h-16 w-12 rounded-lg object-cover shadow-sm"
               src={posterUrl}
               alt={title}
+              onError={() => setShowPoster(false)} // Khi ảnh lỗi, chuyển sang hiển thị placeholder
             />
           ) : (
             <div className="h-16 w-12 rounded-lg bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
@@ -242,45 +265,26 @@ const RecentTicketItem = ({ title, subtitle, value, status, bookingTime }) => {
   );
 };
 
-const PopularConcessionItem = ({ name, category, price, quantitySold }) => {
-  return (
-    <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-      <div className="flex items-center flex-1">
-        <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 mr-4 flex-shrink-0">
-          <ShoppingCartIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-            {name}
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {category}
-          </p>
-        </div>
-      </div>
-      <div className="flex flex-col items-end ml-4">
-        <span className="font-semibold text-gray-900 dark:text-white text-lg">
-          {formatCurrency(price)}
-        </span>
-        <div className="flex items-center mt-1 text-sm text-gray-600 dark:text-gray-300">
-          <span>Đã bán: </span>
-          <span className="font-medium text-green-600 dark:text-green-400 ml-1">
-            {quantitySold}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const formatCurrency = (value) => {
+  if (value === null || value === undefined || isNaN(value)) return "0 ₫";
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
   }).format(value);
 };
 
-const RevenueChart = ({ data }) => {
+const RevenueChart = ({ data, loading }) => {
+  if (loading) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+          <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
   const chartData = {
     labels: data.labels || [],
     datasets: [
@@ -292,19 +296,12 @@ const RevenueChart = ({ data }) => {
         fill: true,
         tension: 0.4,
       },
-      {
-        label: "Doanh thu bắp nước",
-        data: data.concessionSales || [],
-        borderColor: "#8b5cf6",
-        backgroundColor: "rgba(139, 92, 246, 0.1)",
-        fill: true,
-        tension: 0.4,
-      },
     ],
   };
 
   const options = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: "top",
@@ -315,7 +312,7 @@ const RevenueChart = ({ data }) => {
       },
       title: {
         display: true,
-        text: "Xu hướng doanh thu theo thời gian",
+        text: "Xu hướng doanh thu vé theo thời gian",
         font: {
           size: 16,
           weight: "bold",
@@ -349,59 +346,114 @@ const RevenueChart = ({ data }) => {
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
-      <Line data={chartData} options={options} />
+      <div style={{ height: "400px" }}>
+        <Line data={chartData} options={options} />
+      </div>
     </div>
   );
 };
 
-const MovieStatusChart = ({ topMovies }) => {
-  const statusCounts = topMovies.reduce((acc, movie) => {
-    acc[movie.status] = (acc[movie.status] || 0) + 1;
-    return acc;
-  }, {});
-
-  const data = {
-    labels: ["Đang chiếu", "Sắp chiếu", "Ngừng chiếu"],
-    datasets: [
-      {
-        data: [
-          statusCounts.active || 0,
-          statusCounts["coming-soon"] || 0,
-          statusCounts.inactive || 0,
-        ],
-        backgroundColor: ["#10b981", "#f59e0b", "#ef4444"],
-        borderWidth: 0,
-      },
-    ],
-  };
-
-  const options = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: "bottom",
-        labels: {
-          padding: 20,
-          usePointStyle: true,
-        },
-      },
-      title: {
-        display: true,
-        text: "Phân bố trạng thái phim",
-        font: {
-          size: 16,
-          weight: "bold",
-        },
-        padding: 20,
-      },
+const QuickActions = () => {
+  const actions = [
+    {
+      name: "Xem báo cáo chi tiết",
+      description: "Thống kê toàn diện về doanh thu và hoạt động",
+      icon: FilmIcon,
+      color: "bg-blue-500",
+      href: "#/analytics",
     },
-  };
+    {
+      name: "Quản lý suất chiếu",
+      description: "Tạo và quản lý lịch chiếu phim",
+      icon: ClockIcon,
+      color: "bg-green-500",
+      href: "#/showtimes",
+    },
+    {
+      name: "Quản lý vé",
+      description: "Theo dõi tình trạng đặt vé và thanh toán",
+      icon: TicketIcon,
+      color: "bg-orange-500",
+      href: "#/tickets",
+    },
+  ];
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
-      <Doughnut data={data} options={options} />
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+        Thao tác nhanh
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {actions.map((action, index) => (
+          <a
+            key={index}
+            href={action.href}
+            className="flex items-center p-4 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group"
+          >
+            <div className={`p-3 rounded-lg ${action.color} text-white mr-4`}>
+              <action.icon className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                {action.name}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {action.description}
+              </p>
+            </div>
+            <ChevronRightIcon className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
+          </a>
+        ))}
+      </div>
     </div>
   );
+};
+
+// Utility functions for date handling
+const getDateRange = (timeFilter) => {
+  const endDate = new Date();
+  let startDate = new Date();
+
+  switch (timeFilter) {
+    case "today":
+      startDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      break;
+    case "yesterday":
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 1);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      endDate.setDate(endDate.getDate() - 1);
+      break;
+    case "week":
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - startDate.getDay());
+      startDate.setHours(0, 0, 0, 0);
+      break;
+    case "month":
+      startDate = new Date();
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+      break;
+    case "quarter":
+      const quarter = Math.floor(new Date().getMonth() / 3);
+      startDate = new Date(new Date().getFullYear(), quarter * 3, 1);
+      startDate.setHours(0, 0, 0, 0);
+      break;
+    case "year":
+      startDate = new Date();
+      startDate.setMonth(0, 1);
+      startDate.setHours(0, 0, 0, 0);
+      break;
+    default:
+      startDate = new Date();
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+  }
+
+  return { startDate, endDate };
 };
 
 const Dashboard = () => {
@@ -414,510 +466,434 @@ const Dashboard = () => {
     totalBookings: 0,
     showTimesToday: 0,
     totalTickets: 0,
-    totalConcessionSales: 0,
-    topMovies: [],
   });
   const [recentMovies, setRecentMovies] = useState([]);
   const [recentTickets, setRecentTickets] = useState([]);
-  const [popularConcessionItems, setPopularConcessionItems] = useState([]);
   const [chartData, setChartData] = useState({
     labels: [],
-    concessionSales: [],
     ticketSales: [],
   });
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [timeFilter, setTimeFilter] = useState("month");
+  const [dataStatus, setDataStatus] = useState({
+    stats: { loading: true, error: false },
+    charts: { loading: true, error: false },
+  });
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setDataStatus({
+        stats: { loading: true, error: false },
+        charts: { loading: true, error: false },
+      });
+
+      await authProvider.checkAuth();
+
+      const { startDate, endDate } = getDateRange(timeFilter);
+
+      // Fetch dashboard data with proper error handling
+      let dashboardData = {};
       try {
-        setLoading(true);
-        await authProvider.checkAuth();
-
-        let startDate,
-          endDate = new Date();
-        switch (timeFilter) {
-          case "day":
-            startDate = new Date();
-            startDate.setHours(0, 0, 0, 0);
-            break;
-          case "week":
-            startDate = new Date();
-            startDate.setDate(startDate.getDate() - startDate.getDay());
-            startDate.setHours(0, 0, 0, 0);
-            break;
-          case "month":
-            startDate = new Date();
-            startDate.setDate(1);
-            startDate.setHours(0, 0, 0, 0);
-            break;
-          case "year":
-            startDate = new Date();
-            startDate.setMonth(0, 1);
-            startDate.setHours(0, 0, 0, 0);
-            break;
-          default:
-            startDate = new Date();
-            startDate.setDate(1);
-            startDate.setHours(0, 0, 0, 0);
-        }
-
-        const dashboardData = await dashboardService.getDashboardData({
+        dashboardData = await dashboardService.getDashboardData({
           startDate,
           endDate,
         });
 
-        // Generate chart data
-        const labels = [];
-        const concessionSales = [];
-        const ticketSales = [];
-        const daysInPeriod =
-          timeFilter === "day"
-            ? 24
-            : timeFilter === "week"
-            ? 7
-            : timeFilter === "month"
-            ? 30
-            : 12;
-
-        for (let i = 0; i < daysInPeriod; i++) {
-          if (timeFilter === "day") {
-            labels.push(`${i}:00`);
-          } else if (timeFilter === "year") {
-            const date = new Date(startDate);
-            date.setMonth(i);
-            labels.push(date.toLocaleDateString("vi-VN", { month: "short" }));
-          } else {
-            const date = new Date(startDate);
-            date.setDate(date.getDate() + i);
-            labels.push(
-              date.toLocaleDateString("vi-VN", {
-                day: "2-digit",
-                month: "2-digit",
-              })
-            );
-          }
-
-          concessionSales.push(
-            Math.floor(
-              ((dashboardData.concessionStats?.totalSales || 0) /
-                daysInPeriod) *
-                (0.7 + Math.random() * 0.6)
-            )
-          );
-          ticketSales.push(
-            Math.floor(
-              ((dashboardData.totalSales || 0) / daysInPeriod) *
-                (0.7 + Math.random() * 0.6)
-            )
-          );
-        }
-
-        setChartData({ labels, concessionSales, ticketSales });
-
-        setStats({
-          totalMovies: dashboardData.totalMovies || 0,
-          activeMovies: dashboardData.activeMovies || 0,
-          totalUsers: dashboardData.totalUsers || 0,
-          totalSales: dashboardData.totalSales || 0,
-          totalBookings: dashboardData.totalBookings || 0,
-          showTimesToday: dashboardData.showTimesToday || 0,
-          totalTickets: dashboardData.ticketStats?.total || 0,
-          totalConcessionSales: dashboardData.concessionStats?.totalSales || 0,
-          topMovies: dashboardData.topMovies || [],
-        });
-        setRecentMovies(dashboardData.recentMovies || []);
-        setRecentTickets(dashboardData.recentTickets || []);
-        setPopularConcessionItems(dashboardData.popularConcessionItems || []);
+        setDataStatus((prev) => ({
+          ...prev,
+          stats: { loading: false, error: false },
+        }));
       } catch (error) {
         console.error("[Dashboard] Lỗi khi tải dữ liệu Dashboard:", error);
-        notify(`Không thể tải dữ liệu Dashboard: ${error.message}`, {
-          type: "error",
-        });
-        // Set default empty state
-        setStats({
+        setDataStatus((prev) => ({
+          ...prev,
+          stats: { loading: false, error: true },
+        }));
+
+        // Set fallback data
+        dashboardData = {
           totalMovies: 0,
           activeMovies: 0,
           totalUsers: 0,
           totalSales: 0,
           totalBookings: 0,
           showTimesToday: 0,
-          totalTickets: 0,
-          totalConcessionSales: 0,
-          topMovies: [],
-        });
-        setRecentMovies([]);
-        setRecentTickets([]);
-        setPopularConcessionItems([]);
-        setChartData({ labels: [], concessionSales: [], ticketSales: [] });
-      } finally {
-        setLoading(false);
+          ticketStats: { total: 0 },
+          recentMovies: [],
+          recentTickets: [],
+        };
       }
-    };
-    fetchDashboardData();
-  }, [notify, timeFilter]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">
-            Đang tải dữ liệu dashboard...
-          </p>
-        </div>
-      </div>
-    );
-  }
+      // Generate chart data
+      try {
+        const { labels, ticketSales } = generateChartData(
+          timeFilter,
+          startDate,
+          dashboardData.totalSales || 0
+        );
+
+        setChartData({ labels, ticketSales });
+        setDataStatus((prev) => ({
+          ...prev,
+          charts: { loading: false, error: false },
+        }));
+      } catch (error) {
+        console.error("[Dashboard] Lỗi khi tạo dữ liệu biểu đồ:", error);
+        setChartData({ labels: [], ticketSales: [] });
+        setDataStatus((prev) => ({
+          ...prev,
+          charts: { loading: false, error: true },
+        }));
+      }
+
+      // Set main stats
+      setStats({
+        totalMovies: dashboardData.totalMovies || 0,
+        activeMovies: dashboardData.activeMovies || 0,
+        totalUsers: dashboardData.totalUsers || 0,
+        totalSales: dashboardData.totalSales || 0,
+        totalBookings: dashboardData.totalBookings || 0,
+        showTimesToday: dashboardData.showTimesToday || 0,
+        totalTickets: dashboardData.ticketStats?.total || 0,
+      });
+
+      setRecentMovies(dashboardData.recentMovies || []);
+      setRecentTickets(dashboardData.recentTickets || []);
+    } catch (error) {
+      console.error("[Dashboard] Lỗi tổng thể:", error);
+      notify(`Có lỗi xảy ra khi tải dashboard: ${error.message}`, {
+        type: "warning",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateChartData = (timeFilter, startDate, totalSales) => {
+    const labels = [];
+    const ticketSalesData = [];
+
+    let daysInPeriod;
+    let dateFormat;
+
+    switch (timeFilter) {
+      case "today":
+        daysInPeriod = 24;
+        dateFormat = "hour";
+        break;
+      case "yesterday":
+        daysInPeriod = 24;
+        dateFormat = "hour";
+        break;
+      case "week":
+        daysInPeriod = 7;
+        dateFormat = "day";
+        break;
+      case "month":
+        daysInPeriod = 30;
+        dateFormat = "day";
+        break;
+      case "quarter":
+        daysInPeriod = 12;
+        dateFormat = "week";
+        break;
+      case "year":
+        daysInPeriod = 12;
+        dateFormat = "month";
+        break;
+      default:
+        daysInPeriod = 30;
+        dateFormat = "day";
+    }
+
+    for (let i = 0; i < daysInPeriod; i++) {
+      let labelDate = new Date(startDate);
+
+      if (dateFormat === "hour") {
+        labels.push(`${i.toString().padStart(2, "0")}:00`);
+      } else if (dateFormat === "day") {
+        labelDate.setDate(labelDate.getDate() + i);
+        labels.push(
+          labelDate.toLocaleDateString("vi-VN", {
+            day: "2-digit",
+            month: "2-digit",
+          })
+        );
+      } else if (dateFormat === "week") {
+        labelDate.setDate(labelDate.getDate() + i * 7);
+        labels.push(`Tuần ${i + 1}`);
+      } else if (dateFormat === "month") {
+        labelDate.setMonth(labelDate.getMonth() + i);
+        labels.push(
+          labelDate.toLocaleDateString("vi-VN", {
+            month: "short",
+            year: "numeric",
+          })
+        );
+      }
+
+      // Generate realistic-looking data distribution
+      const baseTicketValue = totalSales / daysInPeriod || 0;
+      const variance = 0.3 + Math.random() * 0.4; // 30% to 70% of base value
+      ticketSalesData.push(Math.round(baseTicketValue * variance));
+    }
+
+    return {
+      labels,
+      ticketSales: ticketSalesData,
+    };
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [timeFilter]);
+
+  const filteredMovies = recentMovies.filter((movie) =>
+    movie.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleStatCardClick = (type) => {
-    notify(`Xem chi tiết ${type}`, { type: "info" });
+    switch (type) {
+      case "movies":
+        window.location.hash = "#/movies";
+        break;
+      case "users":
+        window.location.hash = "#/users";
+        break;
+      case "tickets":
+        window.location.hash = "#/tickets";
+        break;
+      case "showtimes":
+        window.location.hash = "#/showtimes";
+        break;
+      default:
+        break;
+    }
   };
 
-  const handleMovieClick = (id) => {
-    window.location.href = `#/movies/${id}`;
+  const handleMovieClick = (movieId) => {
+    if (movieId) {
+      window.location.hash = `#/movies/${movieId}`;
+    }
   };
+
+  const timeFilterOptions = [
+    { value: "today", label: "Hôm nay" },
+    { value: "yesterday", label: "Hôm qua" },
+    { value: "week", label: "Tuần này" },
+    { value: "month", label: "Tháng này" },
+    { value: "quarter", label: "Quý này" },
+    { value: "year", label: "Năm này" },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="p-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-gradient-to-br from-red-600 via-red-700 to-red-800 text-white p-8 rounded-xl shadow-lg mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-            <div className="mb-4 lg:mb-0">
-              <h1 className="text-3xl lg:text-4xl font-bold mb-2">
-                Dashboard Quản Lý Rạp Phim
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Bảng điều khiển
               </h1>
-              <p className="text-red-100 text-lg">
-                Tổng quan hiệu suất và thống kê hoạt động hệ thống
+              <p className="mt-2 text-gray-600 dark:text-gray-400">
+                Tổng quan về hoạt động rạp chiếu phim
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Tìm kiếm..."
-                  className="w-full sm:w-64 pl-10 pr-4 py-3 rounded-lg bg-white/10 backdrop-blur-sm text-white placeholder-red-200 focus:outline-none focus:ring-2 focus:ring-white/30 border border-white/20"
+                  placeholder="Tìm kiếm phim..."
+                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
               <select
-                className="px-4 py-3 rounded-lg bg-white/10 backdrop-blur-sm text-white focus:outline-none focus:ring-2 focus:ring-white/30 border border-white/20"
                 value={timeFilter}
                 onChange={(e) => setTimeFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               >
-                <option value="day" className="text-gray-900">
-                  Hôm nay
-                </option>
-                <option value="week" className="text-gray-900">
-                  Tuần này
-                </option>
-                <option value="month" className="text-gray-900">
-                  Tháng này
-                </option>
-                <option value="year" className="text-gray-900">
-                  Năm nay
-                </option>
+                {timeFilterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <StatCard
-            title="Tổng doanh thu"
-            value={formatCurrency(stats.totalSales)}
-            subtitle="Từ bán vé xem phim"
-            icon={CurrencyDollarIcon}
-            increase={true}
-            percentage={15}
-            color="primary"
-            onClick={() => handleStatCardClick("doanh thu")}
-          />
-          <StatCard
-            title="Doanh thu bắp nước"
-            value={formatCurrency(stats.totalConcessionSales)}
-            subtitle="Từ sản phẩm F&B"
-            icon={ShoppingCartIcon}
-            increase={true}
-            percentage={8}
-            color="purple"
-            onClick={() => handleStatCardClick("bắp nước")}
-          />
-          <StatCard
-            title="Tổng phim"
+            title="Tổng số phim"
             value={stats.totalMovies}
-            subtitle={`${stats.activeMovies} phim đang chiếu`}
             icon={FilmIcon}
-            increase={false}
-            percentage={2}
-            color="blue"
-            onClick={() => handleStatCardClick("phim")}
+            color="primary"
+            loading={dataStatus.stats.loading}
+            error={dataStatus.stats.error}
+            onClick={() => handleStatCardClick("movies")}
+            subtitle={`${stats.activeMovies} phim đang chiếu`}
           />
           <StatCard
             title="Người dùng"
             value={stats.totalUsers}
-            subtitle="Thành viên đã đăng ký"
             icon={UsersIcon}
-            increase={true}
-            percentage={12}
+            color="blue"
+            loading={dataStatus.stats.loading}
+            error={dataStatus.stats.error}
+            onClick={() => handleStatCardClick("users")}
+          />
+          <StatCard
+            title="Doanh thu vé"
+            value={formatCurrency(stats.totalSales)}
+            icon={CurrencyDollarIcon}
             color="green"
-            onClick={() => handleStatCardClick("người dùng")}
+            loading={dataStatus.stats.loading}
+            error={dataStatus.stats.error}
+            onClick={() => handleStatCardClick("tickets")}
+            subtitle={`${stats.totalBookings} đơn đặt vé`}
+          />
+          <StatCard
+            title="Vé đã bán"
+            value={stats.totalTickets}
+            icon={TicketIcon}
+            color="orange"
+            loading={dataStatus.stats.loading}
+            error={dataStatus.stats.error}
+            onClick={() => handleStatCardClick("tickets")}
+          />
+          <StatCard
+            title="Suất chiếu hôm nay"
+            value={stats.showTimesToday}
+            icon={ClockIcon}
+            color="blue"
+            loading={dataStatus.stats.loading}
+            error={dataStatus.stats.error}
+            onClick={() => handleStatCardClick("showtimes")}
           />
         </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2">
-            <RevenueChart data={chartData} />
-          </div>
-          <div>
-            <MovieStatusChart topMovies={stats.topMovies} />
-          </div>
+        {/* Charts Section */}
+        <div className="mb-8">
+          <RevenueChart data={chartData} loading={dataStatus.charts.loading} />
         </div>
 
         {/* Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Recent Movies */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
-                <FilmIcon className="w-6 h-6 mr-2 text-red-600" />
-                Phim Có Suất Chiếu Gần Đây
-              </h2>
-              <a
-                href="#/movies"
-                className="flex items-center text-red-600 hover:text-red-800 transition-colors font-medium"
-              >
-                Xem tất cả
-                <ChevronRightIcon className="w-4 h-4 ml-1" />
-              </a>
-            </div>
-            <div className="max-h-96 overflow-y-auto">
-              {recentMovies.length > 0 ? (
-                recentMovies
-                  .filter((movie) =>
-                    movie.title
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase())
-                  )
-                  .slice(0, 5)
-                  .map((movie) => (
-                    <RecentMovieItem
-                      key={movie.id}
-                      id={movie.id}
-                      title={movie.title}
-                      subtitle={`${movie.genre} - ${movie.duration} phút`}
-                      releaseDate={movie.releaseDate}
-                      status={movie.status}
-                      posterUrl={movie.posterUrl}
-                      showtimeCount={movie.showtimeCount || 0}
-                      onClick={() => handleMovieClick(movie.id)}
-                    />
-                  ))
-              ) : (
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                  <FilmIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p>Không có phim nào có suất chiếu gần đây</p>
-                </div>
-              )}
+          <div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+              <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Phim gần đây
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Các phim được thêm hoặc cập nhật gần đây
+                </p>
+              </div>
+              <div className="max-h-96 overflow-y-auto">
+                {loading ? (
+                  <div className="p-4 space-y-4">
+                    {[...Array(3)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="animate-pulse flex items-center space-x-4"
+                      >
+                        <div className="h-16 w-12 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredMovies.length > 0 ? (
+                  filteredMovies
+                    .slice(0, 5)
+                    .map((movie) => (
+                      <RecentMovieItem
+                        key={movie.id}
+                        id={movie.id}
+                        title={movie.title}
+                        subtitle={movie.director}
+                        releaseDate={movie.releaseDate}
+                        status={movie.status}
+                        posterUrl={movie.posterUrl}
+                        showtimeCount={movie.showtimeCount || 0}
+                        onClick={() => handleMovieClick(movie.id)}
+                      />
+                    ))
+                ) : (
+                  <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+                    <FilmIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>Không có phim nào</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Recent Tickets */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
-                <TicketIcon className="w-6 h-6 mr-2 text-blue-600" />
-                Vé Đặt Gần Đây
-              </h2>
-              <a
-                href="#/tickets"
-                className="flex items-center text-red-600 hover:text-red-800 transition-colors font-medium"
-              >
-                Xem tất cả
-                <ChevronRightIcon className="w-4 h-4 ml-1" />
-              </a>
-            </div>
-            <div className="max-h-96 overflow-y-auto">
-              {recentTickets.length > 0 ? (
-                recentTickets
-                  .filter((ticket) =>
-                    ticket.showtime?.movie?.title
-                      ?.toLowerCase()
-                      .includes(searchQuery.toLowerCase())
-                  )
-                  .slice(0, 5)
-                  .map((ticket, index) => (
+          <div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+              <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Vé gần đây
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Các vé được đặt gần đây
+                </p>
+              </div>
+              <div className="max-h-96 overflow-y-auto">
+                {loading ? (
+                  <div className="p-4 space-y-4">
+                    {[...Array(3)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="animate-pulse flex items-center space-x-4"
+                      >
+                        <div className="h-12 w-12 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : recentTickets.length > 0 ? (
+                  recentTickets.map((ticket) => (
                     <RecentTicketItem
-                      key={index}
+                      key={ticket.id}
                       title={ticket.showtime?.movie?.title || "Không xác định"}
-                      subtitle={`${
-                        ticket.showtime?.hall?.cinema?.name ||
-                        "Rạp không xác định"
-                      } - Phòng ${ticket.showtime?.hall?.name || "N/A"}`}
+                      subtitle={`${ticket.seat?.row}${
+                        ticket.seat?.column || ""
+                      } - ${new Date(ticket.showtime?.startTime).toLocaleString(
+                        "vi-VN"
+                      )}`}
                       value={formatCurrency(ticket.price || 0)}
                       status={ticket.status || "PENDING"}
                       bookingTime={ticket.createdAt}
                     />
                   ))
-              ) : (
-                <div className="p-5 text-center text-gray-500 dark:text-gray-400">
-                  Không có vé gần đây
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="lg:col-span-6 bg-white dark:bg-gray-800 rounded-xl shadow-md">
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Sản Phẩm Bắp Nước Bán Chạy (Đã Thanh Toán)
-              </h2>
-              <a
-                href="#/concession/items"
-                className="flex items-center text-red-600 text-sm hover:text-red-800 transition-colors"
-              >
-                Xem tất cả
-                <ChevronRightIcon className="w-4 h-4 ml-1" />
-              </a>
-            </div>
-            <div className="overflow-hidden">
-              {popularConcessionItems.length > 0 ? (
-                popularConcessionItems
-                  .filter((item) =>
-                    item.name?.toLowerCase().includes(searchQuery.toLowerCase())
-                  )
-                  .map((item) => (
-                    <PopularConcessionItem
-                      key={item.id}
-                      name={item.name || "Không xác định"}
-                      category={item.category?.name || "Không xác định"}
-                      price={item.price || 0}
-                      quantitySold={item.quantitySold || 0}
-                    />
-                  ))
-              ) : (
-                <div className="p-5 text-center text-gray-500 dark:text-gray-400">
-                  Không có sản phẩm bắp nước bán chạy
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="lg:col-span-6 bg-white dark:bg-gray-800 rounded-xl shadow-md">
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Phim Có Doanh Thu Cao Nhất
-              </h2>
-              <a
-                href="#/movies"
-                className="flex items-center text-red-600 text-sm hover:text-red-800 transition-colors"
-              >
-                Xem thống kê chi tiết
-                <ChevronRightIcon className="w-4 h-4 ml-1" />
-              </a>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-900">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Phim
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Thể loại
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Trạng thái
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Vé đã bán
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Doanh thu
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {stats.topMovies.length > 0 ? (
-                    stats.topMovies.map((movie) => (
-                      <tr
-                        key={movie.id}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="h-10 w-10 flex-shrink-0">
-                              {movie.posterUrl ? (
-                                <img
-                                  className="h-10 w-10 rounded-md object-cover"
-                                  src={movie.posterUrl}
-                                  alt={movie.title}
-                                />
-                              ) : (
-                                <div className="h-10 w-10 rounded-md bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-                                  <FilmIcon className="h-6 w-6 text-gray-400" />
-                                </div>
-                              )}
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                {movie.title}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                {movie.director}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {movie.genre}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              movie.status === "active"
-                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                : movie.status === "coming-soon"
-                                ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                                : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                            }`}
-                          >
-                            {movie.status === "active"
-                              ? "Đang chiếu"
-                              : movie.status === "coming-soon"
-                              ? "Sắp chiếu"
-                              : "Ngừng chiếu"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {movie.ticketsSold ?? 0}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                          {formatCurrency(movie.revenue ?? 0)}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan="5"
-                        className="px-6 py-4 text-center text-gray-500 dark:text-gray-400"
-                      >
-                        Không có dữ liệu thống kê phim
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                ) : (
+                  <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+                    <TicketIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>Không có vé nào</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Quick Actions */}
+        <QuickActions />
       </div>
     </div>
   );

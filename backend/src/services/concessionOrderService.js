@@ -398,130 +398,178 @@ exports.getOrderStatistics = async (startDate, endDate) => {
       startDate || new Date(new Date().setDate(new Date().getDate() - 30));
     const end = endDate || new Date();
 
+    console.log("[getOrderStatistics] Date range:", { start, end });
+
     // Validate dates
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       throw new Error("Ngày không hợp lệ");
     }
 
-    // Build where condition for date range and status PAID
+    // Build where condition for date range
     const where = {
       createdAt: {
         gte: start,
         lte: end,
       },
-      status: "PAID", // Chỉ lấy đơn hàng có trạng thái PAID
     };
 
-    // Get total orders with status PAID
-    const totalOrders = await prisma.concessionOrder.count({ where });
+    // Build where condition for PAID orders
+    const paidWhere = {
+      ...where,
+      status: "PAID",
+    };
+
+    console.log("[getOrderStatistics] Where conditions:", { where, paidWhere });
+
+    // Get total PAID orders
+    const totalOrders = await prisma.concessionOrder.count({
+      where: paidWhere,
+    });
+
+    console.log("[getOrderStatistics] Total orders:", totalOrders);
 
     // Get total revenue for PAID orders
     const revenueResult = await prisma.concessionOrder.aggregate({
-      where,
+      where: paidWhere,
       _sum: {
         totalAmount: true,
       },
     });
 
+    console.log("[getOrderStatistics] Revenue result:", revenueResult);
+
     const totalRevenue = revenueResult._sum.totalAmount || 0;
 
-    // Get orders by status
+    // Get orders by status (tất cả status trong khoảng thời gian)
     const ordersByStatus = await prisma.concessionOrder.groupBy({
       by: ["status"],
-      where: {
-        createdAt: {
-          gte: start,
-          lte: end,
-        },
-      },
+      where: where, // Không filter theo status ở đây
       _count: {
         id: true,
       },
     });
 
-    // Format status counts
-    const statusCounts = ordersByStatus.reduce(
-      (acc, curr) => {
-        acc[curr.status] = curr._count.id;
-        return acc;
-      },
-      {
-        PENDING: 0,
-        CONFIRMED: 0,
-        PREPARING: 0,
-        READY: 0,
-        COMPLETED: 0,
-        CANCELLED: 0,
-        PAID: 0,
-      }
-    );
+    console.log("[getOrderStatistics] Orders by status:", ordersByStatus);
 
-    // Get top selling items for PAID orders
+    // Format status counts với default values
+    const statusCounts = {
+      PENDING: 0,
+      CONFIRMED: 0,
+      PAID: 0,
+      PREPARING: 0,
+      READY: 0,
+      COMPLETED: 0,
+      CANCELLED: 0,
+    };
+
+    ordersByStatus.forEach((item) => {
+      statusCounts[item.status] = item._count.id;
+    });
+
+    // Get top selling items for PAID orders only
     const topItems = await prisma.concessionOrderItem.groupBy({
       by: ["itemId"],
       where: {
-        order: where, // Lọc theo đơn hàng PAID
+        order: paidWhere,
         itemId: { not: null },
       },
       _sum: {
         quantity: true,
       },
+      orderBy: {
+        _sum: {
+          quantity: "desc",
+        },
+      },
+      take: 5,
     });
+
+    console.log("[getOrderStatistics] Top items raw:", topItems);
 
     // Get item details for top items
     const topItemsWithDetails = await Promise.all(
-      topItems
-        .sort((a, b) => b._sum.quantity - a._sum.quantity)
-        .slice(0, 5)
-        .map(async (item) => {
+      topItems.map(async (item) => {
+        try {
           const itemDetails = await prisma.concessionItem.findUnique({
             where: { id: item.itemId },
             include: {
-              category: true, // Lấy thông tin danh mục
+              category: true,
             },
           });
           return {
             id: item.itemId,
             name: itemDetails?.name || "Unknown Item",
             category: itemDetails?.category || { name: "Không xác định" },
-            quantitySold: item._sum.quantity,
+            quantitySold: item._sum.quantity || 0,
             price: itemDetails?.price || 0,
           };
-        })
+        } catch (error) {
+          console.error(
+            "[getOrderStatistics] Error getting item details:",
+            error
+          );
+          return {
+            id: item.itemId,
+            name: "Unknown Item",
+            category: { name: "Không xác định" },
+            quantitySold: item._sum.quantity || 0,
+            price: 0,
+          };
+        }
+      })
     );
 
-    // Get top selling combos for PAID orders
+    // Get top selling combos for PAID orders only
     const topCombos = await prisma.concessionOrderItem.groupBy({
       by: ["comboId"],
       where: {
-        order: where, // Lọc theo đơn hàng PAID
+        order: paidWhere,
         comboId: { not: null },
       },
       _sum: {
         quantity: true,
       },
+      orderBy: {
+        _sum: {
+          quantity: "desc",
+        },
+      },
+      take: 5,
     });
+
+    console.log("[getOrderStatistics] Top combos raw:", topCombos);
 
     // Get combo details for top combos
     const topCombosWithDetails = await Promise.all(
-      topCombos
-        .sort((a, b) => b._sum.quantity - a._sum.quantity)
-        .slice(0, 5)
-        .map(async (combo) => {
+      topCombos.map(async (combo) => {
+        try {
           const comboDetails = await prisma.concessionCombo.findUnique({
             where: { id: combo.comboId },
             include: {
-              category: true, // Lấy thông tin danh mục
+              category: true,
             },
           });
           return {
             id: combo.comboId,
             name: comboDetails?.name || "Unknown Combo",
             category: comboDetails?.category || { name: "Không xác định" },
-            quantitySold: combo._sum.quantity,
+            quantitySold: combo._sum.quantity || 0,
             price: comboDetails?.price || 0,
           };
-        })
+        } catch (error) {
+          console.error(
+            "[getOrderStatistics] Error getting combo details:",
+            error
+          );
+          return {
+            id: combo.comboId,
+            name: "Unknown Combo",
+            category: { name: "Không xác định" },
+            quantitySold: combo._sum.quantity || 0,
+            price: 0,
+          };
+        }
+      })
     );
 
     const result = {
@@ -532,11 +580,12 @@ exports.getOrderStatistics = async (startDate, endDate) => {
       topCombos: topCombosWithDetails,
     };
 
-    console.log("[getOrderStatistics] Success:", result);
+    console.log("[getOrderStatistics] Final result:", result);
     return result;
   } catch (error) {
     console.error("[getOrderStatistics] Error:", error);
-    throw new Error("Lỗi khi lấy thống kê đơn hàng");
+    console.error("[getOrderStatistics] Error stack:", error.stack);
+    throw new Error(`Lỗi khi lấy thống kê đơn hàng: ${error.message}`);
   }
 };
 

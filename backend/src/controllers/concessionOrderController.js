@@ -436,14 +436,46 @@ exports.getOrderStatistics = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
-    const statistics = await concessionOrderService.getOrderStatistics(
-      startDate ? new Date(startDate) : undefined,
-      endDate ? new Date(endDate) : undefined
-    );
+    console.log('[getOrderStatistics] Request params:', { startDate, endDate });
 
+    // Validate và convert dates
+    let start, end;
+    
+    if (startDate) {
+      start = new Date(startDate);
+      if (isNaN(start.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "Ngày bắt đầu không hợp lệ",
+        });
+      }
+    }
+
+    if (endDate) {
+      end = new Date(endDate);
+      if (isNaN(end.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "Ngày kết thúc không hợp lệ",
+        });
+      }
+    }
+
+    const statistics = await concessionOrderService.getOrderStatistics(start, end);
+
+    console.log('[getOrderStatistics] Statistics result:', statistics);
+
+    // Đảm bảo format response đúng như frontend mong đợi
     res.status(200).json({
       success: true,
-      data: statistics,
+      data: {
+        totalSales: statistics.totalRevenue || 0,
+        totalOrders: statistics.totalOrders || 0,
+        // Có thể thêm các thông tin khác nếu cần
+        statusCounts: statistics.statusCounts || {},
+        topItems: statistics.topItems || [],
+        topCombos: statistics.topCombos || []
+      },
     });
   } catch (error) {
     console.error("Error in getOrderStatistics:", error);

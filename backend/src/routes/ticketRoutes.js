@@ -15,7 +15,6 @@ router.put('/cancel-multiple', authenticate, authorizeRoles("ADMIN"), ticketCont
 // Tạo vé
 router.post('/', authenticate, ticketController.createTicket);
 
-// Ticket retrieval routes (tĩnh trước, động sau)
 router.get('/user/:userId', authenticate, ticketController.getTicketsByUserId);
 router.get('/stats/user/:userId', authenticate, ticketController.getUserTicketStats);
 router.get('/payment/:paymentId', authenticate, ticketController.getTicketsByPaymentId);

@@ -13,40 +13,99 @@ const getDashboardData = async ({ startDate, endDate }) => {
   try {
     // Validate dates
     if (!(startDate instanceof Date) || isNaN(startDate)) {
-      console.warn("[getDashboardData] Invalid startDate, using default:", startDate);
+      console.warn(
+        "[getDashboardData] Invalid startDate, using default:",
+        startDate
+      );
       startDate = new Date();
       startDate.setDate(1);
       startDate.setHours(0, 0, 0, 0);
     }
     if (!(endDate instanceof Date) || isNaN(endDate)) {
-      console.warn("[getDashboardData] Invalid endDate, using default:", endDate);
+      console.warn(
+        "[getDashboardData] Invalid endDate, using default:",
+        endDate
+      );
       endDate = new Date();
     }
 
-    const query = new URLSearchParams({
+    // Tạo query parameters cho date range
+    const dateQuery = new URLSearchParams({
+      fromDate: startDate.toISOString().split("T")[0], // Chỉ lấy ngày (YYYY-MM-DD)
+      toDate: endDate.toISOString().split("T")[0],
+    }).toString();
+
+    // Query cho main dashboard (có thể khác format)
+    const dashboardQuery = new URLSearchParams({
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
     }).toString();
 
-    // Fetch main dashboard data
-    const { json } = await httpClient(`${apiUrl}/dashboard?${query}`);
+    console.log("[getDashboardData] Fetching data with dateQuery:", dateQuery);
 
-    // Fetch ticket stats
-    const ticketStats = await httpClient(`${apiUrl}/tickets/stats?${query}`);
-    const recentTickets = await httpClient(
-      `${apiUrl}/tickets?limit=5&_sort=createdAt&_order=desc&${query}`
+    // Fetch main dashboard data
+    const { json } = await httpClient(`${apiUrl}/dashboard?${dashboardQuery}`);
+
+    // Fetch ticket stats với format ngày phù hợp
+    const ticketStatsResponse = await httpClient(
+      `${apiUrl}/tickets/stats?${dateQuery}`
+    );
+    console.log(
+      "[getDashboardData] Ticket stats response:",
+      ticketStatsResponse
     );
 
-    // Fetch concession stats with fallback
+    // Fetch recent tickets - sửa lại query
+    const recentTicketsQuery = new URLSearchParams({
+      page: 1,
+      limit: 5,
+      _sort: "createdAt",
+      _order: "desc",
+      fromDate: startDate.toISOString().split("T")[0],
+      toDate: endDate.toISOString().split("T")[0],
+    }).toString();
+
+    console.log(
+      "[getDashboardData] Fetching recent tickets with query:",
+      recentTicketsQuery
+    );
+
+    const recentTicketsResponse = await httpClient(
+      `${apiUrl}/tickets?${recentTicketsQuery}`
+    );
+
+    console.log(
+      "[getDashboardData] Recent tickets response:",
+      recentTicketsResponse
+    );
+
+    // Fetch concession stats với fallback
     let concessionStats = { totalSales: 0, totalOrders: 0 };
     try {
-      concessionStats = await concessionOrderService.getStatistics(startDate, endDate);
+      concessionStats = await concessionOrderService.getStatistics(
+        startDate,
+        endDate
+      );
     } catch (error) {
-      console.error("[getDashboardData] Failed to fetch concession stats:", error);
+      console.error(
+        "[getDashboardData] Failed to fetch concession stats:",
+        error
+      );
     }
 
     // Fetch popular concession items
-    const popularConcessionItems = await concessionItemService.getPopularItems(5);
+    let popularConcessionItems = [];
+    try {
+      const popularItemsResponse = await concessionItemService.getPopularItems(
+        5
+      );
+      popularConcessionItems = popularItemsResponse.data || [];
+    } catch (error) {
+      console.error(
+        "[getDashboardData] Failed to fetch popular concession items:",
+        error
+      );
+    }
 
     // Format topMovies
     const formattedTopMovies = (json.topMovies || []).map((movie) => ({
@@ -60,16 +119,38 @@ const getDashboardData = async ({ startDate, endDate }) => {
       revenue: Number(movie.revenue) || 0,
     }));
 
-    console.log("[DashboardService] formattedTopMovies:", formattedTopMovies);
+    // Xử lý recent tickets data
+    let recentTicketsData = [];
+    if (recentTicketsResponse && recentTicketsResponse.json) {
+      // Kiểm tra cấu trúc response và lấy dữ liệu từ json.data
+      if (
+        recentTicketsResponse.json.data &&
+        Array.isArray(recentTicketsResponse.json.data)
+      ) {
+        recentTicketsData = recentTicketsResponse.json.data;
+      } else {
+        console.warn(
+          "[getDashboardData] Unexpected recent tickets structure:",
+          recentTicketsResponse.json
+        );
+      }
+    }
+
+    console.log(
+      "[getDashboardData] Processed recent tickets:",
+      recentTicketsData
+    );
 
     const result = {
       ...json,
       topMovies: formattedTopMovies,
-      ticketStats: ticketStats.json,
-      recentTickets: recentTickets.json.data || [],
+      ticketStats: ticketStatsResponse.json || {},
+      recentTickets: recentTicketsData,
       concessionStats,
-      popularConcessionItems: popularConcessionItems.data || [],
+      popularConcessionItems,
     };
+
+    console.log("[getDashboardData] Final result:", result);
 
     cache.set(cacheKey, result);
     return result;
@@ -82,6 +163,41 @@ const getDashboardData = async ({ startDate, endDate }) => {
   }
 };
 
-const dashboardService = { getDashboardData };
+// Thêm function để test API ticket riêng
+const testTicketAPI = async () => {
+  try {
+    console.log("[testTicketAPI] Testing ticket API...");
+
+    // Test basic tickets endpoint
+    const basicResponse = await httpClient(`${apiUrl}/tickets?page=1&limit=5`);
+    console.log("[testTicketAPI] Basic response:", basicResponse);
+
+    // Test with sort
+    const sortedResponse = await httpClient(
+      `${apiUrl}/tickets?page=1&limit=5&_sort=createdAt&_order=desc`
+    );
+    console.log("[testTicketAPI] Sorted response:", sortedResponse);
+
+    return {
+      basic: basicResponse,
+      sorted: sortedResponse,
+    };
+  } catch (error) {
+    console.error("[testTicketAPI] Error:", error);
+    throw error;
+  }
+};
+
+// Clear cache function
+const clearCache = () => {
+  cache.clear();
+  console.log("[DashboardService] Cache cleared");
+};
+
+const dashboardService = {
+  getDashboardData,
+  testTicketAPI,
+  clearCache,
+};
 
 export default dashboardService;

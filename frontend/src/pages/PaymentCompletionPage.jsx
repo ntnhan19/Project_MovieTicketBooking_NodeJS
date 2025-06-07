@@ -56,6 +56,7 @@ const PaymentCompletionPage = () => {
   const [refreshingTickets, setRefreshingTickets] = useState(false);
   const [ticketDetails, setTicketDetails] = useState({});
   const [hasProcessedPayment, setHasProcessedPayment] = useState(false);
+  const [confirmedTickets, setConfirmedTickets] = useState([]); // Thêm state để track vé đã confirmed
   const userId = parseInt(sessionStorage.getItem("userId")) || null;
 
   // Key để lưu trữ thông tin đã xử lý
@@ -63,6 +64,13 @@ const PaymentCompletionPage = () => {
     const transactionNo = searchParams.get("vnp_TransactionNo");
     const paymentId = searchParams.get("paymentId");
     return `payment_processed_${transactionNo || paymentId || "unknown"}`;
+  };
+
+  // Key để track vé đã confirmed
+  const getConfirmedTicketsKey = () => {
+    const transactionNo = searchParams.get("vnp_TransactionNo");
+    const paymentId = searchParams.get("paymentId");
+    return `confirmed_tickets_${transactionNo || paymentId || "unknown"}`;
   };
 
   // Lưu thông tin thanh toán vào sessionStorage
@@ -78,6 +86,26 @@ const PaymentCompletionPage = () => {
       "last_payment_completion_data",
       JSON.stringify(storageData)
     );
+  };
+
+  // Lưu danh sách vé đã confirmed
+  const saveConfirmedTickets = (ticketIds) => {
+    const key = getConfirmedTicketsKey();
+    sessionStorage.setItem(key, JSON.stringify(ticketIds));
+  };
+
+  // Lấy danh sách vé đã confirmed
+  const getConfirmedTickets = () => {
+    const key = getConfirmedTicketsKey();
+    const stored = sessionStorage.getItem(key);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (error) {
+        console.error("Lỗi parse danh sách vé đã confirmed:", error);
+      }
+    }
+    return [];
   };
 
   // Lấy thông tin thanh toán từ sessionStorage
@@ -120,6 +148,7 @@ const PaymentCompletionPage = () => {
         setPaymentData(storedData);
         setPaymentSuccess(storedData.success);
         setHasProcessedPayment(true);
+        setConfirmedTickets(getConfirmedTickets()); // Load danh sách vé đã confirmed
 
         if (storedData.success) {
           // Khôi phục thông tin vé từ storage
@@ -216,18 +245,36 @@ const PaymentCompletionPage = () => {
   const loadTicketDetails = async (paymentId, shouldUpdateStatus = false) => {
     try {
       const ticketIds = await ticketApi.getTicketsByPaymentId(paymentId);
+      const confirmedList = getConfirmedTickets();
 
       if (ticketIds.length > 0) {
-        // Chỉ cập nhật trạng thái nếu được yêu cầu và vé chưa được xác nhận
+        // Chỉ cập nhật trạng thái nếu shouldUpdateStatus = true VÀ chưa từng cập nhật
         if (shouldUpdateStatus) {
-          const needsConfirmation = ticketIds.some(
-            (ticket) => ticket.status !== "CONFIRMED"
-          );
-          if (needsConfirmation) {
-            await ticketApi.updateTicketsStatus(
-              ticketIds.map((t) => t.id),
-              "CONFIRMED"
-            );
+          const ticketsToUpdate = ticketIds.filter(t => !confirmedList.includes(t.id));
+          
+          if (ticketsToUpdate.length > 0) {
+            console.log(`Đang cập nhật trạng thái ${ticketsToUpdate.length} vé thành CONFIRMED...`);
+            try {
+              await ticketApi.updateTicketsStatus(
+                ticketsToUpdate.map((t) => t.id),
+                "CONFIRMED"
+              );
+              console.log("Đã cập nhật trạng thái vé thành công");
+              
+              // Lưu danh sách vé đã confirmed
+              const newConfirmedList = [...confirmedList, ...ticketsToUpdate.map(t => t.id)];
+              saveConfirmedTickets(newConfirmedList);
+              setConfirmedTickets(newConfirmedList);
+              
+            } catch (updateError) {
+              console.error("Lỗi cập nhật trạng thái vé:", updateError);
+              // Vẫn tiếp tục xử lý nhưng hiển thị warning
+              message.warning(
+                "Cập nhật trạng thái vé thất bại, nhưng thanh toán đã thành công"
+              );
+            }
+          } else {
+            console.log("Tất cả vé đã được xác nhận trước đó");
           }
         }
 
@@ -285,6 +332,7 @@ const PaymentCompletionPage = () => {
         setPaymentData(storedData);
         setPaymentSuccess(storedData.success);
         setHasProcessedPayment(true);
+        setConfirmedTickets(getConfirmedTickets()); // Load danh sách vé đã confirmed
         if (storedData.success) {
           const savedTicketData = JSON.parse(
             localStorage.getItem("vnpay_ticket_data") || "{}"

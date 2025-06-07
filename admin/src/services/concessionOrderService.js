@@ -161,15 +161,7 @@ const concessionOrderService = {
 
   updateStatus: async (id, status) => {
     const token = checkAuth();
-    const validStatuses = [
-      "PENDING",
-      "CONFIRMED",
-      "PAID",
-      "PREPARING",
-      "READY",
-      "COMPLETED",
-      "CANCELLED",
-    ];
+    const validStatuses = ["PENDING", "PAID", "COMPLETED", "CANCELLED"];
     if (!validStatuses.includes(status)) {
       throw new Error(
         `Trạng thái không hợp lệ. Các trạng thái hợp lệ là: ${validStatuses.join(
@@ -242,6 +234,7 @@ const concessionOrderService = {
   getStatistics: async (startDate, endDate) => {
     const token = checkAuth();
 
+    // Validate dates
     if (!(startDate instanceof Date) || isNaN(startDate)) {
       console.warn("[getStatistics] Invalid startDate:", startDate);
       startDate = new Date();
@@ -257,45 +250,66 @@ const concessionOrderService = {
       const query = new URLSearchParams({
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
-        status: "PAID", // Chỉ lấy đơn hàng đã thanh toán
       }).toString();
 
       const url = `${apiUrl}/concession/orders/statistics?${query}`;
       console.log("[getStatistics] Request URL:", url);
 
-      const { json } = await httpClient(url, {
+      const response = await fetch(url, {
+        method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
 
-      if (!json.data || typeof json.data.totalSales !== "number") {
-        console.warn("[getStatistics] Invalid response data:", json);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[getStatistics] HTTP Error:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText,
+        });
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const json = await response.json();
+      console.log("[getStatistics] Response:", json);
+
+      // Kiểm tra cấu trúc response
+      if (!json.success) {
+        console.error("[getStatistics] API returned error:", json);
+        throw new Error(json.message || "API trả về lỗi");
+      }
+
+      if (!json.data) {
+        console.warn("[getStatistics] No data in response:", json);
         return { totalSales: 0, totalOrders: 0 };
       }
 
+      // Trả về đúng format
       return {
         totalSales: json.data.totalSales || 0,
         totalOrders: json.data.totalOrders || 0,
+        statusCounts: json.data.statusCounts || {},
+        topItems: json.data.topItems || [],
+        topCombos: json.data.topCombos || [],
       };
     } catch (error) {
       console.error("[getStatistics] Error fetching statistics:", {
         error: error.message,
-        response: error.response ? error.response.data : null,
-        status: error.response ? error.response.status : null,
+        stack: error.stack,
       });
-      throw new Error(`Không thể lấy thống kê doanh thu bắp nước: ${error.message}`);
+      throw new Error(
+        `Không thể lấy thống kê doanh thu bắp nước: ${error.message}`
+      );
     }
   },
 
   getOrderStatusOptions: () => {
     return [
       { id: "PENDING", name: "Chờ xác nhận" },
-      { id: "CONFIRMED", name: "Đã xác nhận" },
       { id: "PAID", name: "Đã thanh toán" },
-      { id: "PREPARING", name: "Đang chuẩn bị" },
-      { id: "READY", name: "Sẵn sàng giao" },
       { id: "COMPLETED", name: "Đã hoàn thành" },
       { id: "CANCELLED", name: "Đã hủy" },
     ];

@@ -16,28 +16,29 @@ const UserEdit = () => {
     const fetchUser = async () => {
       setLoading(true);
       setError(null);
-        try {        if (!id) {
+      try {
+        if (!id) {
           throw new Error("ID người dùng không hợp lệ");
         }
 
         // Chuyển đổi id thành số nếu là chuỗi
-        const userId = typeof id === 'string' ? parseInt(id) : id;
+        const userId = typeof id === "string" ? parseInt(id) : id;
         if (isNaN(userId)) {
           throw new Error("ID người dùng không hợp lệ");
         }
-        
+
         const response = await userService.getOne(userId);
-        
+
         if (!response || !response.data) {
           throw new Error("Không tìm thấy dữ liệu người dùng");
         }
-        
+
         setUser(response.data);
       } catch (err) {
         console.error("Lỗi khi tải thông tin người dùng:", err);
         setError(
-          err.message || 
-          "Không thể tải thông tin người dùng. Vui lòng thử lại sau."
+          err.message ||
+            "Không thể tải thông tin người dùng. Vui lòng thử lại sau."
         );
       } finally {
         setLoading(false);
@@ -49,37 +50,36 @@ const UserEdit = () => {
   const handleSubmit = async (formData) => {
     setIsSubmitting(true);
     setError(null);
-      try {
+    try {
       if (!id) {
         throw new Error("ID người dùng không hợp lệ");
       }
 
       // Chuyển đổi id thành số nếu là chuỗi
-      const userId = typeof id === 'string' ? parseInt(id) : id;
+      const userId = typeof id === "string" ? parseInt(id) : id;
       if (isNaN(userId)) {
         throw new Error("ID người dùng không hợp lệ");
       }
-      
+
       // Xóa trường password nếu không được cập nhật
-      const updateData = {
-        ...formData
-      };
+      const updateData = { ...formData };
       if (!updateData.password) {
         delete updateData.password;
       }
-      
-      await userService.update({ id: userId, data: updateData });
-      
+
+      // Sửa lại cách gọi userService.update
+      await userService.update(userId, updateData); // Truyền id và data riêng biệt
+
       navigate("/users", {
         state: {
-          successMessage: `Người dùng "${formData.name}" đã được cập nhật thành công.`
-        }
+          successMessage: `Người dùng "${formData.name}" đã được cập nhật thành công.`,
+        },
       });
     } catch (err) {
       console.error("Lỗi khi cập nhật người dùng:", err);
       setError(
-        err.message || 
-        "Đã xảy ra lỗi khi cập nhật người dùng. Vui lòng thử lại."
+        err.message ||
+          "Đã xảy ra lỗi khi cập nhật người dùng. Vui lòng thử lại."
       );
     } finally {
       setIsSubmitting(false);
@@ -98,7 +98,9 @@ const UserEdit = () => {
     return (
       <div className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="bg-red-50 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-md">
-          <p className="font-medium">{error || "Không tìm thấy người dùng hoặc đã có lỗi xảy ra."}</p>
+          <p className="font-medium">
+            {error || "Không tìm thấy người dùng hoặc đã có lỗi xảy ra."}
+          </p>
         </div>
         <div className="mt-4">
           <button
@@ -123,14 +125,14 @@ const UserEdit = () => {
           Cập nhật thông tin người dùng: {user.name}
         </p>
       </div>
-      
+
       {error && (
         <div className="mb-6 bg-red-50 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-md">
           <p className="font-medium">{error}</p>
         </div>
       )}
-      
-      <UserForm 
+
+      <UserForm
         initialData={user}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}

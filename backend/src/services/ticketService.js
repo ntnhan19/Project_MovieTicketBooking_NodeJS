@@ -7,7 +7,7 @@ const crypto = require("crypto");
 
 // Hàm tạo mã bảo mật cho QR
 const generateSecurityToken = () => {
-  return crypto.randomBytes(32).toString("hex");
+  return crypto.randomBytes(16).toString("hex").substring(0, 16); // Giới hạn token ngắn hơn
 };
 
 // Hàm mã hóa dữ liệu QR
@@ -277,11 +277,16 @@ const updateTicketsPayment = async (ticketIds, paymentId) => {
 };
 
 // Cập nhật trạng thái nhiều vé
+// Cập nhật trạng thái nhiều vé - ĐÃ SỬA LỖI CONCESSION
 const updateTicketsStatus = async (ticketIds, status) => {
   const validStatuses = ["PENDING", "CONFIRMED", "USED", "CANCELLED"];
   if (!validStatuses.includes(status)) {
     throw new Error("Trạng thái vé không hợp lệ");
   }
+
+  console.log(
+    `🎫 Bắt đầu cập nhật trạng thái ${ticketIds.length} vé thành ${status}`
+  );
 
   // Thực hiện cập nhật trạng thái trong giao dịch
   const result = await prisma.$transaction(async (tx) => {
@@ -296,11 +301,25 @@ const updateTicketsStatus = async (ticketIds, status) => {
             hall: { include: { cinema: true } },
           },
         },
+        // ✅ FIX: Thêm đầy đủ các relation cho concessionOrders
         concessionOrders: {
-          include: { items: true },
+          include: {
+            items: {
+              include: {
+                item: true, // ✅ Thêm relation item
+                combo: true, // ✅ Thêm relation combo
+              },
+            },
+          },
         },
       },
     });
+
+    console.log(`📋 Tìm thấy ${tickets.length} vé để cập nhật`);
+    console.log(
+      `📋 Trạng thái hiện tại của các vé:`,
+      tickets.map((t) => ({ id: t.id, status: t.status, email: t.user.email }))
+    );
 
     const updateResult = await tx.ticket.updateMany({
       where: { id: { in: ticketIds } },
@@ -309,6 +328,8 @@ const updateTicketsStatus = async (ticketIds, status) => {
         updatedAt: new Date(),
       },
     });
+
+    console.log(`✅ Đã cập nhật ${updateResult.count} vé trong database`);
 
     if (status === "CANCELLED") {
       const seatIds = tickets.map((ticket) => ticket.seatId);
@@ -338,10 +359,27 @@ const updateTicketsStatus = async (ticketIds, status) => {
 
   // Thực hiện tạo QR và gửi email ngoài giao dịch nếu trạng thái là CONFIRMED
   if (status === "CONFIRMED") {
+    console.log(`📧 Bắt đầu gửi email cho ${result.tickets.length} vé`);
+
     for (const ticket of result.tickets) {
       try {
+        console.log(
+          `📧 Đang xử lý email cho vé ID: ${ticket.id}, user: ${ticket.user.email}`
+        );
+
         const qrResult = await generateTicketQR(ticket.id);
+        console.log(`🎯 Đã tạo QR code cho vé ${ticket.id}`);
+
         const concessionOrder = ticket.concessionOrders[0] || null;
+
+        // Debug: Log chi tiết concession order để kiểm tra
+        if (concessionOrder) {
+          console.log(
+            "🍿 Concession Order Full Data:",
+            JSON.stringify(concessionOrder, null, 2)
+          );
+        }
+
         await mailService.sendTicketConfirmationEmail(
           ticket.user,
           ticket,
@@ -352,11 +390,24 @@ const updateTicketsStatus = async (ticketIds, status) => {
           qrResult.qrCodeUrl,
           concessionOrder
         );
+
+        console.log(
+          `✅ Đã gửi email thành công cho vé ${ticket.id} đến ${ticket.user.email}`
+        );
       } catch (error) {
-        console.error(`Lỗi khi xử lý QR/email cho vé ${ticket.id}:`, error);
+        console.error(`❌ Lỗi khi xử lý QR/email cho vé ${ticket.id}:`, error);
+        console.error(`❌ Chi tiết lỗi:`, {
+          ticketId: ticket.id,
+          userEmail: ticket.user.email,
+          movieTitle: ticket.showtime.movie.title,
+          error: error.message,
+          stack: error.stack,
+        });
         // Có thể lưu log lỗi hoặc thông báo, nhưng không làm thất bại toàn bộ hàm
       }
     }
+
+    console.log(`📧 Hoàn thành gửi email cho tất cả vé`);
   }
 
   return result.result;

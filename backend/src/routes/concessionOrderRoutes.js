@@ -13,7 +13,6 @@ router.patch('/:id/cancel', authenticate, concessionOrderController.cancelOrder)
 router.patch("/:id", authenticate, concessionOrderController.updateOrder);
 
 // Admin routes - protected
-// QUAN TRỌNG: Đặt route /statistics TRƯỚC route /:id
 router.get('/statistics', authenticate, authorizeRoles('ADMIN'), concessionOrderController.getOrderStatistics);
 router.get('/', authenticate, authorizeRoles('ADMIN'), concessionOrderController.getAllOrders);
 router.get('/:id', authenticate, authorizeRoles('ADMIN'), concessionOrderController.getOrderById);
